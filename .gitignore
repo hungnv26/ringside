@@ -18,3 +18,8 @@ CLAUDE.md
 
 # Local tool settings
 .claude/
+
+# Ringside adapter
+adapter/node_modules/
+battle-logs/
+infra/keys/

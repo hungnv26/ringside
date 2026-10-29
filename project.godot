@@ -10,8 +10,8 @@ config_version=5
 
 [application]
 
-config/name="3DFighter"
-config/description="3D one-on-one fighting game with a dynamic action camera."
+config/name="Ringside"
+config/description="Ringside: a one-on-one 3D fighting game where AI models coach both fighters."
 config/version="0.9.1"
 config/icon="res://assets/ui/icon.png"
 config/windows_native_icon="res://assets/ui/icon.ico"

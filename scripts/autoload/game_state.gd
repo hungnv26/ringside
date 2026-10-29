@@ -34,7 +34,7 @@ const STAGES := [
 const ROUNDS_TO_WIN := 2
 const ROUND_TIME_SECONDS := 99
 
-enum Mode { VS_CPU, VERSUS, TRAINING, ARCADE, ONLINE, DEMO, REPLAY }
+enum Mode { VS_CPU, VERSUS, TRAINING, ARCADE, ONLINE, DEMO, REPLAY, COACH }
 
 var roster: Array[CharacterData] = []
 ## VS_CPU: P2 is the AI. VERSUS: P2 is a second local player. TRAINING: P2 is the
@@ -47,6 +47,8 @@ var p2_character: CharacterData
 var stage_path: String = DEFAULT_STAGE
 ## Seeds the CPU's decisions; the same seed and inputs replay the same match.
 var match_seed := 1
+## Coach mode (docs/ringside-plan.md): the adapter's WebSocket URL, from `-- --coach=ws://...`.
+var coach_url := ""
 ## The Arcade run in progress (ARCADE mode), or null.
 var arcade: ArcadeRun
 ## REPLAY: the saved match being watched.
@@ -172,6 +174,41 @@ func start_demo(tree: SceneTree) -> void:
 	stage_path = (STAGES.pick_random() as Dictionary).path
 	match_seed = randi()
 	go_to_fight(tree)
+
+
+## Coach mode from the command line: `-- --coach=ws://127.0.0.1:8797 --p1=jin --p2=kenji
+## --stage=rooftop --seed=7`. Both fighters are CoachControllers driven over the link
+## (docs/ringside-plan.md). Returns false when no --coach argument was given.
+func start_coach(tree: SceneTree) -> bool:
+	var args := {}
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--") and arg.contains("="):
+			args[arg.substr(2, arg.find("=") - 2)] = arg.substr(arg.find("=") + 1)
+	if not args.has("coach"):
+		return false
+	mode = Mode.COACH
+	coach_url = str(args.coach)
+	player_character = _character_by_id(str(args.get("p1", ""))) if args.has("p1") else roster.pick_random()
+	p2_character = _character_by_id(str(args.get("p2", ""))) if args.has("p2") else pick_random_cpu()
+	if player_character == null or p2_character == null:
+		push_error("coach: unknown fighter id (have %s)" % ", ".join(roster.map(func(c: CharacterData) -> String: return String(c.id))))
+		tree.quit(2)
+		return true
+	stage_path = DEFAULT_STAGE
+	if args.has("stage"):
+		for stage: Dictionary in STAGES:
+			if str(stage.path).get_file().get_basename() == str(args.stage) or stage.name.to_lower() == str(args.stage).to_lower():
+				stage_path = stage.path
+	match_seed = int(args.seed) if args.has("seed") else randi()
+	tree.change_scene_to_file.call_deferred("res://scenes/fight.tscn")
+	return true
+
+
+func _character_by_id(id: String) -> CharacterData:
+	for character in roster:
+		if String(character.id) == id:
+			return character
+	return null
 
 
 ## Watches a saved replay (Replay.problem() must be empty): its fighters and stage,

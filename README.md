@@ -1,3 +1,49 @@
+# Ringside
+
+A one-on-one 3D fighting game where nobody holds a controller: each fighter is coached by an
+AI model. The fight runs at 60 frames a second in the game; the model sits ringside, watches,
+and changes its fighter's game plan every couple of seconds (range, aggression, what to block
+and punish, which moves to go for), the way Outpost War's sides are commanded by models.
+Working name. Plan and protocol: [docs/ringside-plan.md](docs/ringside-plan.md).
+
+Built on [3D Fighter](https://github.com/GabrielGonHo/3d-fighter) (MIT code, CC0 assets): its
+fighters, stages, frame data and CPU opponent are the executor the coaches drive. Everything
+below "3D Fighter" is its original README and still applies.
+
+## Run a coached match
+
+Requires Godot 4.7 (`godot` on the PATH) and Node 24. Assets are in Git LFS: `git lfs pull`
+after cloning, then open the project once (or `godot --headless --path . --import`).
+
+```bash
+cd adapter && npm install
+node src/main.ts --p1 jin=fake:coach --p2 kenji=fake:coach --quit        # no key, no cost
+node src/main.ts --p1 jin=anthropic:claude-haiku-5-5 --p2 kenji=openai:gpt-5.4-mini --stage rooftop --cap 0.5
+```
+
+The adapter starts the game in coach mode, coaches both sides until the match ends, prints the
+result and the log folder (`battle-logs/`), and closes the game. Keys go in
+`infra/keys/<provider>.key`; see [adapter/README.md](adapter/README.md) for every flag, the
+key lookup and the log layout. The game alone: `godot --path . -- --coach=ws://127.0.0.1:8797
+--p1=jin --p2=kenji --stage=rooftop --seed=7`.
+
+## Checks
+
+```bash
+godot --headless --path . -s res://tests/coach_test.gd     # coach mode (25 checks)
+godot --headless --path . -s res://tests/sim_test.gd       # 3D Fighter's regression suite
+cd adapter && npm test && npm run typecheck                # the adapter (24 tests)
+```
+
+## What was added
+
+- `scripts/ai/coach_controller.gd`: the CPU fighter with a coach; plans, queued moves, captions.
+- `scripts/coach/coach_link.gd`: the WebSocket link to the adapter; observation frames and events.
+- `GameState.Mode.COACH`, `-- --coach=...` on the command line, both sides coached in `FightManager`.
+- `adapter/`: the coaches, the model calls (Anthropic, OpenAI, OpenRouter, Ollama, a fake), logs.
+
+---
+
 # 3D Fighter
 
 [![tests](https://github.com/clintcan/3d-fighter/actions/workflows/tests.yml/badge.svg)](https://github.com/clintcan/3d-fighter/actions/workflows/tests.yml)

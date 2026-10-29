@@ -51,6 +51,8 @@ var fighters: Array[Fighter] = []
 var view_dir := Vector3.BACK
 var ai: AIController
 var dummy: DummyController
+## Coach mode: the link to the adapter that coaches both fighters.
+var coach_link: CoachLink
 ## -1 = AI controls P2, otherwise a DummyController.Mode.
 var cpu_mode := -1
 var debug_draw := false
@@ -123,15 +125,29 @@ func _ready() -> void:
 		var p1_ai := AIController.new(AIController.Difficulty.HARD, GameState.match_seed + 1)
 		p1.controller = p1_ai
 		p1_ai.attach(p1)
+	if is_coach(): # both fighters are CPUs coached over the link (docs/ringside-plan.md)
+		var coaches: Array[CoachController] = []
+		for i in fighters.size():
+			var coach := CoachController.new(GameState.match_seed + i)
+			fighters[i].controller = coach
+			coach.attach(fighters[i])
+			coaches.append(coach)
+		ai = coaches[1]
+		coach_link = CoachLink.new()
+		coach_link.name = "CoachLink"
+		add_child(coach_link)
+		coach_link.setup(self, GameState.coach_url, coaches)
 	for fighter in fighters:
 		fighter.knocked_out.connect(_on_knocked_out)
 		fighter.throw_teched.connect(_on_throw_teched)
 		fighter.super_started.connect(_on_super_started)
 		fighter.wall_hit.connect(cosmetic(_on_wall_hit))
 
-	hud.setup(p1, p2, GameState.ROUNDS_TO_WIN, "P2" if is_versus() else "Dummy" if is_training() else "CPU")
+	hud.setup(p1, p2, GameState.ROUNDS_TO_WIN, "P2" if is_versus() else "Dummy" if is_training() else "AI" if is_coach() else "CPU")
 	if is_demo():
 		hud.p1_name.text = "%s (CPU)" % p1.data.display_name
+	if is_coach():
+		hud.p1_name.text = "%s (AI)" % p1.data.display_name
 	if is_arcade():
 		var stage_entry := GameState.arcade.current()
 		ai.set_difficulty(stage_entry.difficulty)
@@ -232,6 +248,11 @@ func is_demo() -> bool:
 ## No timer and no K.O.: training and the demo.
 func is_replay() -> bool:
 	return GameState.mode == GameState.Mode.REPLAY
+
+
+## Both fighters coached by AI models over the link (docs/ringside-plan.md).
+func is_coach() -> bool:
+	return GameState.mode == GameState.Mode.COACH
 
 
 ## Offline matches that are saved as replays.
@@ -860,8 +881,8 @@ func _cycle_cpu_mode() -> void:
 
 
 func _update_debug_text() -> void:
-	if is_training() or is_arcade() or is_online() or is_demo() or is_replay():
-		hud.set_debug_text("") # training shows its own status line; arcade its score; online the connection; replays their controls
+	if is_training() or is_arcade() or is_online() or is_demo() or is_replay() or is_coach():
+		hud.set_debug_text("") # training shows its own status line; arcade its score; online the connection; replays their controls; coach mode its captions
 		return
 	if not OS.is_debug_build():
 		hud.set_debug_text("") # release builds: no debug overlay or debug keys

@@ -76,6 +76,9 @@ func _ready() -> void:
 	credits_button.pressed.connect(func() -> void: get_tree().change_scene_to_file(CREDITS_SCENE))
 	start_button.grab_focus()
 	Audio.music(&"menu")
+	# `-- --coach=ws://...` starts a coached match (docs/ringside-plan.md).
+	if GameState.start_coach(get_tree()):
+		return
 	# `3DFighter.exe -- --smoke-test` jumps straight into a fight (packaging checks).
 	if "--smoke-test" in OS.get_cmdline_user_args():
 		if _online_smoke_test():

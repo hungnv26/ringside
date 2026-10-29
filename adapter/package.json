@@ -1,0 +1,23 @@
+{
+  "name": "ringside-adapter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ringside: one language model coaches each fighter; this adapter links the models to the game",
+  "type": "module",
+  "engines": {
+    "node": ">=23.6"
+  },
+  "scripts": {
+    "start": "node src/main.ts",
+    "test": "node --test --test-timeout=30000 test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.9.0"
+  }
+}
