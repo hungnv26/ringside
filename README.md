@@ -17,22 +17,34 @@ after cloning, then open the project once (or `godot --headless --path . --impor
 
 ```bash
 cd adapter && npm install
+npm run setup            # the setup page: http://127.0.0.1:8798
+```
+
+The **setup page** is where matches are set up (no setup screens in the game): a fighter and
+the model that coaches it for each corner, the provider keys, stage, seed, cost cap, turn pace
+and thinking effort. *Start match* opens the game window; the page shows the round, both
+health bars, each coach's caption, plan, turns and cost, and the event feed, then keeps every
+result with links to the transcripts, and an Elo table by model.
+
+From the command line instead:
+
+```bash
 node src/main.ts --p1 jin=fake:coach --p2 kenji=fake:coach --quit        # no key, no cost
 node src/main.ts --p1 jin=anthropic:claude-haiku-5-5 --p2 kenji=openai:gpt-5.4-mini --stage rooftop --cap 0.5
 ```
 
 The adapter starts the game in coach mode, coaches both sides until the match ends, prints the
 result and the log folder (`battle-logs/`), and closes the game. Keys go in
-`infra/keys/<provider>.key`; see [adapter/README.md](adapter/README.md) for every flag, the
-key lookup and the log layout. The game alone: `godot --path . -- --coach=ws://127.0.0.1:8797
---p1=jin --p2=kenji --stage=rooftop --seed=7`.
+`infra/keys/<provider>.key` (the setup page saves them there); see
+[adapter/README.md](adapter/README.md) for every flag, the key lookup and the log layout. The
+game alone: `godot --path . -- --coach=ws://127.0.0.1:8797 --p1=jin --p2=kenji --stage=rooftop --seed=7`.
 
 ## Checks
 
 ```bash
 godot --headless --path . -s res://tests/coach_test.gd     # coach mode (25 checks)
 godot --headless --path . -s res://tests/sim_test.gd       # 3D Fighter's regression suite
-cd adapter && npm test && npm run typecheck                # the adapter (24 tests)
+cd adapter && npm test && npm run typecheck                # the adapter and the setup page (33 tests)
 ```
 
 ## What was added
@@ -41,6 +53,7 @@ cd adapter && npm test && npm run typecheck                # the adapter (24 tes
 - `scripts/coach/coach_link.gd`: the WebSocket link to the adapter; observation frames and events.
 - `GameState.Mode.COACH`, `-- --coach=...` on the command line, both sides coached in `FightManager`.
 - `adapter/`: the coaches, the model calls (Anthropic, OpenAI, OpenRouter, Ollama, a fake), logs.
+- `adapter/src/setup.ts` + `adapter/setup/index.html`: the setup page, results and Elo.
 
 ---
 

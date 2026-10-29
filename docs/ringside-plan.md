@@ -27,8 +27,13 @@ and the *self-coding fighter* (the model rewrites its fighter's behaviour betwee
    OpenRouter, Ollama, or a fake model for tests), logs every turn and caps the cost. Done
    when a full best-of-three match runs end to end with the fake model, the headless test
    covers the controller, and one real match has been played.
-2. **Setup page.** An Arena-Setup-style page: fighter and model per side, stage, rounds,
-   budget; live status; results and Elo.
+2. **Setup page** (built 2026-10-30). `adapter/src/setup.ts` on :8798 serves
+   `adapter/setup/index.html`: a fighter and model per corner (model lists from each
+   provider), keys saved to `infra/keys`, stage, seed, cap, cadence, effort; starts one match
+   at a time by spawning `main.ts --log <folder> --quit`, polls the folder's `live.json`
+   (phase, state, coaches' stats, last events, result) and shows the adapter's console;
+   results from `battle-logs/*/battle.json` with transcript links, screenshots, and Elo per
+   model (K 32 from 1000, draws half).
 3. **Presentation.** Model captions, a thinking indicator, match recording to video.
 4. **Second modes.** Beat fighter, self-coding fighter, tournaments.
 

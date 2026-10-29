@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ringside Setup</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* The same look as Outpost Zero's Arena Setup: numbered steps, dark panels, one accent. */
+:root {
+  --bg: #15171b; --panel: #1d2026; --panel-2: #232731; --line: #2f3440; --ink: #e7e3dc; --muted: #9a958c;
+  --accent: #d07a4f; --p1: #d9b24a; --p2: #5b8fd6; --good: #6fae7b; --warn: #d2a24c; --bad: #d9675c;
+  --display: "Barlow Condensed", "Arial Narrow", sans-serif; --body: "IBM Plex Sans", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 var(--body); }
+.wrap { margin: 0 auto; padding-inline: clamp(16px, 3vw, 64px); padding-block: 28px 60px; display: grid; gap: 22px; }
+header h1 { font: 700 34px/1 var(--display); letter-spacing: .03em; text-transform: uppercase; margin: 0 0 6px; }
+header p { margin: 0; color: var(--muted); max-width: 72ch; }
+.view { display: grid; gap: 22px; }
+.col { display: grid; gap: 22px; align-content: start; min-width: 0; }
+@media (min-width: 1440px) { .view { grid-template-columns: minmax(520px, 1fr) minmax(620px, 1.3fr); } }
+.step { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 18px; display: grid; gap: 14px; }
+.step > h2 { margin: 0; font: 700 20px/1 var(--display); letter-spacing: .05em; text-transform: uppercase; display: flex; gap: 10px; align-items: baseline; }
+.step > h2 .n { color: var(--accent); font-variant-numeric: tabular-nums; }
+.step > h2 small { font: 400 13px var(--body); letter-spacing: 0; text-transform: none; color: var(--muted); }
+.sides { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+.side { background: var(--panel-2); border: 1px solid var(--line); border-top: 3px solid var(--c); border-radius: 6px; padding: 14px; display: grid; gap: 10px; min-width: 0; }
+.side[data-side="p1"] { --c: var(--p1); } .side[data-side="p2"] { --c: var(--p2); }
+.side h3 { margin: 0; font: 700 18px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--c); }
+label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); letter-spacing: .02em; }
+input, select { font: 14px var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 8px 10px; width: 100%; min-width: 0; }
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.check { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink); }
+.check input { width: auto; }
+.buttons { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button { font: 600 13px var(--body); color: var(--ink); background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 8px 14px; cursor: pointer; }
+button:hover { border-color: var(--muted); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #1a120d; }
+button:disabled { opacity: .5; cursor: default; }
+.msg { font-size: 13px; color: var(--muted); min-height: 1.4em; }
+.msg.ok { color: var(--good); } .msg.err { color: var(--bad); }
+.key { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
+.key-hint { font: 12px var(--mono); color: var(--muted); }
+pre { margin: 0; font: 12px/1.45 var(--mono); color: var(--muted); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 10px 12px; overflow: auto; white-space: pre-wrap; max-height: 260px; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 12px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+td.num, th.num { text-align: right; }
+.table { overflow-x: auto; }
+.note { font-size: 12.5px; color: var(--muted); }
+a { color: var(--ink); }
+[hidden] { display: none !important; }
+/* live board */
+.board { display: grid; gap: 12px; }
+.score { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; }
+.score .name { font: 700 22px/1 var(--display); letter-spacing: .04em; text-transform: uppercase; }
+.score .name.p1 { color: var(--p1); } .score .name.p2 { color: var(--p2); text-align: right; }
+.score .clock { font: 700 28px/1 var(--display); font-variant-numeric: tabular-nums; color: var(--ink); padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.bar { height: 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; position: relative; }
+.bar i { display: block; height: 100%; background: var(--c); transition: width .25s; }
+.bar.p1 { --c: var(--p1); } .bar.p2 { --c: var(--p2); direction: rtl; }
+.meter { height: 6px; margin-top: 4px; }
+.meter.p1 { --c: var(--good); } .meter.p2 { --c: var(--good); }
+.pips { font-size: 12px; color: var(--muted); }
+.coaches { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.coach { background: var(--panel-2); border: 1px solid var(--line); border-left: 3px solid var(--c); border-radius: 6px; padding: 12px; display: grid; gap: 6px; font-size: 13px; }
+.coach[data-side="p1"] { --c: var(--p1); } .coach[data-side="p2"] { --c: var(--p2); }
+.coach .model { font: 500 13px var(--mono); color: var(--ink); word-break: break-all; }
+.coach .caption { font-style: italic; color: var(--ink); min-height: 1.4em; }
+.coach .stats { color: var(--muted); }
+.coach .plan { font: 12px var(--mono); color: var(--muted); word-break: break-word; }
+.status { font: 700 13px var(--display); letter-spacing: .08em; text-transform: uppercase; }
+.status.live { color: var(--good); } .status.over { color: var(--warn); } .status.off { color: var(--muted); } .status.error { color: var(--bad); }
+.events { font-size: 13px; color: var(--muted); display: grid; gap: 2px; max-height: 180px; overflow: auto; }
+.events b { color: var(--ink); font-weight: 500; }
+.captures { display: flex; gap: 8px; overflow-x: auto; }
+.captures img { height: 90px; border-radius: 4px; border: 1px solid var(--line); }
+.result { font: 700 20px/1.2 var(--display); letter-spacing: .03em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Ringside Setup</h1>
+  <p>Pick a fighter and the model that coaches it for each corner, a stage and a budget, then start the match. The game opens in its own window; this page shows what the coaches are doing and keeps the results.</p>
+</header>
+
+<div class="view">
+<div class="col">
+  <section class="step">
+    <h2><span class="n">1</span> Corners <small>a fighter and the model that coaches it</small></h2>
+    <div class="sides">
+      <div class="side" data-side="p1">
+        <h3>Corner 1</h3>
+        <label>Fighter <select id="p1-fighter"></select></label>
+        <label>Provider <select id="p1-provider"></select></label>
+        <label>Model <input id="p1-model" list="p1-models" placeholder="model id" autocomplete="off"><datalist id="p1-models"></datalist></label>
+        <div class="msg" id="p1-msg"></div>
+      </div>
+      <div class="side" data-side="p2">
+        <h3>Corner 2</h3>
+        <label>Fighter <select id="p2-fighter"></select></label>
+        <label>Provider <select id="p2-provider"></select></label>
+        <label>Model <input id="p2-model" list="p2-models" placeholder="model id" autocomplete="off"><datalist id="p2-models"></datalist></label>
+        <div class="msg" id="p2-msg"></div>
+      </div>
+    </div>
+    <div class="note">Models are listed from each provider with its saved key (OpenRouter: tool-capable models only; Ollama: what is pulled locally). <code>fake</code> is a scripted coach for a free test match.</div>
+  </section>
+
+  <section class="step">
+    <h2><span class="n">2</span> Keys <small>one key per provider, kept in infra/keys (never sent anywhere but the provider)</small></h2>
+    <div id="keys" class="row"></div>
+    <div class="key">
+      <label>Save a key <input id="key-value" type="password" placeholder="paste the provider's API key" autocomplete="off"></label>
+      <label>Provider <select id="key-provider"></select></label>
+    </div>
+    <div class="buttons"><button id="key-save">Save key</button><span class="msg" id="key-msg"></span></div>
+  </section>
+
+  <section class="step">
+    <h2><span class="n">3</span> Match <small>stage, budget, pace</small></h2>
+    <div class="row">
+      <label>Stage <select id="stage"></select></label>
+      <label>Seed <input id="seed" type="number" min="0" placeholder="random"></label>
+      <label>Cost cap per side, $ <input id="cap" type="number" min="0" step="0.1" value="1"></label>
+      <label>Turn every, ms <input id="cadence" type="number" min="500" step="100" value="2000"></label>
+      <label>Thinking effort <select id="effort"></select></label>
+    </div>
+    <label class="check"><input type="checkbox" id="capture"> Save a screenshot every 10 s of the fight</label>
+    <div class="buttons">
+      <button class="primary" id="start">Start match</button>
+      <button id="stop" disabled>Stop</button>
+      <span class="msg" id="match-msg"></span>
+    </div>
+  </section>
+</div>
+
+<div class="col">
+  <section class="step">
+    <h2><span class="n">4</span> Live <small id="live-sub">no match running</small></h2>
+    <div class="board">
+      <div class="status off" id="status">Idle</div>
+      <div class="score">
+        <div><div class="name p1" id="name-p1">—</div><div class="bar p1"><i id="hp-p1" style="width:0%"></i></div><div class="bar meter p1"><i id="meter-p1" style="width:0%"></i></div><div class="pips" id="pips-p1"></div></div>
+        <div class="clock" id="clock">—</div>
+        <div><div class="name p2" id="name-p2">—</div><div class="bar p2"><i id="hp-p2" style="width:0%"></i></div><div class="bar meter p2"><i id="meter-p2" style="width:0%"></i></div><div class="pips" id="pips-p2" style="text-align:right"></div></div>
+      </div>
+      <div class="coaches">
+        <div class="coach" data-side="p1"><div class="model" id="coach-model-p1">—</div><div class="caption" id="coach-caption-p1"></div><div class="stats" id="coach-stats-p1"></div><div class="plan" id="coach-plan-p1"></div></div>
+        <div class="coach" data-side="p2"><div class="model" id="coach-model-p2">—</div><div class="caption" id="coach-caption-p2"></div><div class="stats" id="coach-stats-p2"></div><div class="plan" id="coach-plan-p2"></div></div>
+      </div>
+      <div class="result" id="result" hidden></div>
+      <div class="events" id="events"></div>
+      <div class="captures" id="captures" hidden></div>
+      <details><summary class="note">Adapter console</summary><pre id="console"></pre></details>
+    </div>
+  </section>
+
+  <section class="step">
+    <h2><span class="n">5</span> Results <small>every finished match, newest first</small></h2>
+    <div class="table"><table id="results"><thead><tr><th>When</th><th>Corner 1</th><th>Corner 2</th><th>Stage</th><th>Winner</th><th class="num">Rounds</th><th class="num">Cost</th><th>Logs</th></tr></thead><tbody></tbody></table></div>
+    <h2 style="font-size:16px"><span class="n">↕</span> Elo by model <small>K 32 from 1000, draws count half</small></h2>
+    <div class="table"><table id="elo"><thead><tr><th>Model</th><th class="num">Rating</th><th class="num">W</th><th class="num">L</th><th class="num">D</th><th class="num">Spent</th></tr></thead><tbody></tbody></table></div>
+  </section>
+</div>
+</div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const api = async (path, body) => {
+  const res = await fetch(path, body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : undefined);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+};
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const usd = (v) => v == null ? "—" : "$" + Number(v).toFixed(v < 0.1 ? 4 : 3);
+const SIDES = ["p1", "p2"];
+let setup = null;
+let names = { p1: "", p2: "" };
+
+function fill(select, options, value) {
+  select.innerHTML = options.map((o) => `<option value="${esc(o.value)}">${esc(o.label)}</option>`).join("");
+  if (value !== undefined) select.value = value;
+}
+function spec(side) {
+  return `${$(side + "-provider").value}:${$(side + "-model").value.trim()}`;
+}
+function setSpec(side, s) {
+  const i = s.indexOf(":");
+  $(side + "-provider").value = s.slice(0, i);
+  $(side + "-model").value = s.slice(i + 1);
+}
+async function loadModels(side, refresh) {
+  const provider = $(side + "-provider").value;
+  const msg = $(side + "-msg");
+  msg.className = "msg";
+  msg.textContent = provider === "fake" ? "" : "listing models…";
+  try {
+    const { models } = await api(`/api/models?provider=${encodeURIComponent(provider)}${refresh ? "&refresh=1" : ""}`);
+    $(side + "-models").innerHTML = models.map((m) => `<option value="${esc(m)}">`).join("");
+    if (provider === "fake") $(side + "-model").value = "coach";
+    else if (!models.includes($(side + "-model").value)) {
+      const priced = (setup.priced || []).filter((p) => p.startsWith(provider + ":")).map((p) => p.slice(provider.length + 1)).find((m) => models.includes(m));
+      if (priced) $(side + "-model").value = priced;
+    }
+    msg.textContent = provider === "fake" ? "" : `${models.length} models`;
+  } catch (e) {
+    msg.className = "msg err";
+    msg.textContent = e.message;
+  }
+}
+function renderKeys(keys) {
+  $("keys").innerHTML = Object.entries(keys).map(([p, k]) => `<div><div class="status ${k.saved ? "live" : "off"}">${esc(p)}</div><div class="key-hint">${k.saved ? `saved ${esc(k.hint)} · ${esc(k.source)}` : p === "ollama" ? "no key needed" : "no key"}</div></div>`).join("");
+}
+function stored(key, fallback) {
+  try { const v = localStorage.getItem("ringside." + key); return v == null ? fallback : JSON.parse(v); } catch { return fallback; }
+}
+function remember(key, value) {
+  try { localStorage.setItem("ringside." + key, JSON.stringify(value)); } catch {}
+}
+
+async function init() {
+  setup = await api("/api/setup");
+  const fighters = setup.roster.map((f) => ({ value: f.id, label: `${f.name} (${f.archetype})` }));
+  const providers = setup.providers.map((p) => ({ value: p, label: p }));
+  const last = stored("match", setup.defaults);
+  for (const side of SIDES) {
+    fill($(side + "-fighter"), fighters, last[side].fighter);
+    fill($(side + "-provider"), providers);
+    setSpec(side, last[side].spec);
+    $(side + "-provider").addEventListener("change", () => loadModels(side));
+    loadModels(side);
+  }
+  fill($("stage"), setup.stages.map((s) => ({ value: s.id, label: s.name })), last.stage);
+  fill($("effort"), setup.efforts.map((e) => ({ value: e, label: e })), last.effort);
+  fill($("key-provider"), setup.providers.filter((p) => p !== "fake" && p !== "ollama").map((p) => ({ value: p, label: p })));
+  $("cap").value = last.cap ?? 1;
+  $("cadence").value = last.cadence ?? 2000;
+  renderKeys(setup.keys);
+  await refreshResults();
+  poll();
+}
+
+$("key-save").addEventListener("click", async () => {
+  const msg = $("key-msg");
+  msg.className = "msg";
+  try {
+    const r = await api("/api/key", { provider: $("key-provider").value, key: $("key-value").value });
+    $("key-value").value = "";
+    renderKeys(r.keys);
+    msg.className = "msg ok";
+    msg.textContent = `saved to ${r.file}`;
+    for (const side of SIDES) if ($(side + "-provider").value === $("key-provider").value) loadModels(side, true);
+  } catch (e) {
+    msg.className = "msg err";
+    msg.textContent = e.message;
+  }
+});
+
+$("start").addEventListener("click", async () => {
+  const msg = $("match-msg");
+  msg.className = "msg";
+  const request = {
+    p1: { fighter: $("p1-fighter").value, spec: spec("p1") },
+    p2: { fighter: $("p2-fighter").value, spec: spec("p2") },
+    stage: $("stage").value, seed: $("seed").value, cap: $("cap").value, cadence: $("cadence").value, effort: $("effort").value, capture: $("capture").checked,
+  };
+  try {
+    const r = await api("/api/match", request);
+    remember("match", request);
+    msg.className = "msg ok";
+    msg.textContent = `started ${r.id}`;
+    $("result").hidden = true;
+    $("captures").hidden = true;
+    poll(true);
+  } catch (e) {
+    msg.className = "msg err";
+    msg.textContent = e.message;
+  }
+});
+$("stop").addEventListener("click", async () => {
+  await api("/api/stop", {});
+  $("match-msg").textContent = "stopping…";
+});
+
+let pollTimer = null;
+let lastResultId = null;
+async function poll(now) {
+  clearTimeout(pollTimer);
+  try {
+    const s = await api("/api/status");
+    render(s);
+    if (s.match && s.match.exit != null && s.match.id !== lastResultId) {
+      lastResultId = s.match.id;
+      await refreshResults();
+      if (s.match.request.capture) showCaptures(s.match.id);
+    }
+    pollTimer = setTimeout(poll, s.running ? 1000 : 4000);
+  } catch (e) {
+    $("status").className = "status error";
+    $("status").textContent = "setup server unreachable";
+    pollTimer = setTimeout(poll, 4000);
+  }
+}
+function render(s) {
+  $("start").disabled = s.running;
+  $("stop").disabled = !s.running;
+  const live = s.live;
+  const status = $("status");
+  if (!s.match) { status.className = "status off"; status.textContent = "Idle"; $("live-sub").textContent = "no match running"; return; }
+  const phase = live ? live.phase : "starting";
+  if (s.match.exit != null && (!live || live.phase !== "over")) { status.className = "status error"; status.textContent = `adapter exited (${s.match.exit})`; }
+  else { status.className = "status " + (phase === "live" ? "live" : phase === "over" ? "over" : "off"); status.textContent = { waiting: "Waiting for the game", starting: "Starting", between: "Between rounds", live: "Round live", over: "Match over" }[phase] || phase; }
+  $("live-sub").textContent = `${s.match.id}`;
+  $("console").textContent = (s.console || []).join("\n");
+  if (!live || !live.hello) return;
+  names = { p1: live.hello.p1.name, p2: live.hello.p2.name };
+  const st = live.state;
+  for (const side of SIDES) {
+    $("name-" + side).textContent = `${live.hello[side].name}`;
+    const c = live.coaches?.[side];
+    $("coach-model-" + side).textContent = live.sides?.[side]?.model ?? "";
+    if (c) {
+      $("coach-caption-" + side).textContent = c.lastCaption ? `“${c.lastCaption}”` : "";
+      $("coach-stats-" + side).textContent = `${c.status} · ${c.turns} turns · ${c.avgSeconds != null ? c.avgSeconds.toFixed(1) : "—"} s/turn · ${c.tokens} tokens · ${usd(c.usd)}${c.refused ? ` · ${c.refused} refused` : ""}${c.errors ? ` · ${c.errors} errors` : ""}`;
+      $("coach-plan-" + side).textContent = c.plan ? planText(c.plan) : "";
+    }
+    if (st && st[side]) {
+      const f = st[side];
+      $("hp-" + side).style.width = `${Math.round((100 * f.health) / f.max_health)}%`;
+      $("meter-" + side).style.width = `${Math.round((100 * f.meter) / f.max_meter)}%`;
+      $("pips-" + side).textContent = `${"●".repeat(st.wins[side === "p1" ? 0 : 1])}${"○".repeat(Math.max(0, live.hello.rounds_to_win - st.wins[side === "p1" ? 0 : 1]))} · ${f.state}${f.cornered ? " · cornered" : ""}`;
+    }
+  }
+  $("clock").textContent = st ? `R${st.round} · ${st.timer}` : "—";
+  $("events").innerHTML = (live.events || []).slice().reverse().map((e) => `<div>${eventText(e)}</div>`).join("");
+  if (live.result) {
+    $("result").hidden = false;
+    const w = live.result.winner;
+    $("result").textContent = w ? `${names[w]} wins, coached by ${live.sides[w].model} (${(live.result.wins || []).join("–")})` : "Draw";
+  }
+}
+function planText(p) {
+  const parts = [];
+  for (const [k, v] of Object.entries(p)) {
+    if (k === "options" && v && typeof v === "object") { const o = Object.entries(v).filter(([, w]) => w !== 1).map(([n, w]) => `${n} ${w}`); if (o.length) parts.push(`options ${o.join(", ")}`); }
+    else if (v !== undefined && v !== null) parts.push(`${k} ${v}`);
+  }
+  return parts.join(" · ");
+}
+function eventText(e) {
+  const who = (s) => `<b>${esc(names[s] || s)}</b>`;
+  switch (e.event) {
+    case "round_start": return `Round ${e.round} starts`;
+    case "hit": return `${who(e.attacker)} lands ${esc(e.input)} ${esc(e.name || "")} on ${who(e.defender)} (${esc(e.result)}${e.combo > 1 ? `, combo ${e.combo}` : ""})`;
+    case "throw": return `${who(e.attacker)} throws ${who(e.defender)}`;
+    case "knockdown": return `${who(e.side)} is knocked down`;
+    case "super": return `${who(e.side)} uses ${esc(e.name || "the super")}`;
+    case "round_end": return `Round over: ${e.winner ? who(e.winner) + " wins it" : "draw"} (${esc(e.reason)})`;
+    case "match_end": return `Match over: ${e.winner ? who(e.winner) + " wins" : "draw"}`;
+    default: return esc(e.event);
+  }
+}
+async function showCaptures(id) {
+  const { captures } = await api(`/api/captures?id=${encodeURIComponent(id)}`);
+  $("captures").hidden = captures.length === 0;
+  $("captures").innerHTML = captures.map((c) => `<a href="/api/capture/${esc(id)}/${esc(c)}" target="_blank"><img src="/api/capture/${esc(id)}/${esc(c)}" alt=""></a>`).join("");
+}
+async function refreshResults() {
+  const { battles, elo } = await api("/api/results");
+  $("results").querySelector("tbody").innerHTML = battles.map((b) => {
+    const side = (s) => `${esc(b.sides[s]?.fighter)} · <span class="key-hint">${esc(b.sides[s]?.model)}</span>`;
+    const cost = (b.coaches.p1?.usd ?? 0) + (b.coaches.p2?.usd ?? 0);
+    const logs = ["p1.md", "p2.md", "battle.json"].map((f) => `<a href="/api/log?id=${esc(b.id)}&file=${f}" target="_blank">${f}</a>`).join(" ");
+    return `<tr><td>${esc(b.at.replace("T", " ").slice(0, 16))}</td><td>${side("p1")}</td><td>${side("p2")}</td><td>${esc(b.stage)}</td><td>${b.winner ? esc(b.sides[b.winner]?.fighter) + " (" + (b.winner === "p1" ? "corner 1" : "corner 2") + ")" : "draw"}</td><td class="num">${(b.wins || []).join("–")}</td><td class="num">${usd(cost)}</td><td>${logs}</td></tr>`;
+  }).join("") || `<tr><td colspan="8" class="note">No matches yet.</td></tr>`;
+  $("elo").querySelector("tbody").innerHTML = elo.map((r) => `<tr><td><span class="key-hint">${esc(r.model)}</span></td><td class="num">${r.rating}</td><td class="num">${r.wins}</td><td class="num">${r.losses}</td><td class="num">${r.draws}</td><td class="num">${usd(r.usd)}</td></tr>`).join("") || `<tr><td colspan="6" class="note">No ratings yet.</td></tr>`;
+}
+init().catch((e) => { $("match-msg").className = "msg err"; $("match-msg").textContent = e.message; });
+</script>
+</body>
+</html>

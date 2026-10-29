@@ -4,6 +4,18 @@ Links the language models to the game. One Coach per side watches the fight over
 and adjusts its fighter's game plan every couple of seconds (docs/ringside-plan.md). Node 24
 runs the TypeScript directly; `npm install` once.
 
+## The setup page
+
+```bash
+npm run setup        # http://127.0.0.1:8798 (--port N, or $PORT)
+```
+
+`src/setup.ts` serves `setup/index.html` and a JSON API (`/api/setup`, `/api/models?provider=`,
+`POST /api/key`, `POST /api/match`, `POST /api/stop`, `/api/status`, `/api/results`,
+`/api/log?id=&file=`, `/api/captures?id=`). It starts a match by spawning `main.ts` with
+`--log battle-logs/<id> --quit`, and reads that folder's `live.json`, which `main.ts` rewrites
+every second and on every event. Bound to 127.0.0.1 only.
+
 ## Run a match
 
 ```bash
@@ -29,6 +41,7 @@ the log folder, sends `end` to the game and exits 0. Ctrl-C ends the game too.
 | `--no-launch` | | Do not start the game; wait for one to connect (`godot --path . -- --coach=ws://127.0.0.1:8797 ...`) |
 | `--godot path` | `godot` (or `$GODOT`) | The Godot 4.7 binary |
 | `--quit` | | Pass `--quit-after-match` to the game |
+| `--log DIR` | `battle-logs/<time>-<p1>-vs-<p2>` | The exact log folder (the setup page chooses it); `live.json` in it is the status the page polls |
 | `--capture DIR` | | The game saves a screenshot every 10 s of the fight and one of the result to DIR |
 
 Models: `anthropic:<model>` (Messages API, prompt caching, `output_config.effort`),

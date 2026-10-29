@@ -9,6 +9,7 @@
   },
   "scripts": {
     "start": "node src/main.ts",
+    "setup": "node src/setup.ts",
     "test": "node --test --test-timeout=30000 test/*.test.ts",
     "typecheck": "tsc --noEmit"
   },

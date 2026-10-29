@@ -1,7 +1,7 @@
 // Battle logs: battle-logs/<id>/battle.json (setup, result, totals), <side>.md (readable: the
 // system prompt once, then every turn), <side>.jsonl (one line per turn, for tools).
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { REPO_ROOT } from "./models.ts";
 import type { Hello, Side, ToolCall } from "./types.ts";
 
@@ -33,6 +33,16 @@ export class BattleLog {
     this.id = id;
     this.dir = join(root, id);
     mkdirSync(this.dir, { recursive: true });
+  }
+
+  /** A log in exactly this folder (the setup page picks it); the id is the folder's name. */
+  static at(dir: string): BattleLog {
+    return new BattleLog(basename(dir), dirname(dir));
+  }
+
+  /** The live status the setup page polls (live.json), rewritten whole each time. */
+  live(data: Record<string, unknown>): void {
+    writeFileSync(join(this.dir, "live.json"), JSON.stringify(data) + "\n");
   }
 
   system(side: Side, model: string, text: string): void {

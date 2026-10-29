@@ -5,7 +5,7 @@
 // (tools while reasoning), everything else (OpenAI chat models, OpenRouter, Ollama) to chat
 // completions. Effort is the thinking effort for both big providers ("low" by default: a
 // coach's turn is worth less than two seconds).
-import { readFileSync, statSync } from "node:fs";
+import { chmodSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ChatBody, ChatResult, ModelClient, ToolCall, Usage } from "./types.ts";
@@ -267,4 +267,56 @@ export class ProviderClient implements ModelClient {
     const tokens = (out.usage.prompt_tokens ?? 0) + (out.usage.completion_tokens ?? 0);
     return { ...out, tokens, usd: callCost(modelPrices(), spec, out.usage), seconds: (Date.now() - started) / 1000 };
   }
+}
+
+// ---- for the setup page ----
+
+/** Where each provider's key comes from (never the key itself). */
+export function keyStatus(): Record<string, { saved: boolean; source: string; hint: string }> {
+  return Object.fromEntries(
+    PROVIDERS.map((p) => {
+      const { key, source } = providerKey(p);
+      return [p, { saved: !!key, source: source.startsWith(REPO_ROOT) ? source.slice(REPO_ROOT.length + 1) : source, hint: key ? `…${key.slice(-4)}` : "" }];
+    }),
+  );
+}
+
+/** Saves a provider key to infra/keys/<provider>.key (mode 600). */
+export function saveKey(provider: string, key: string): string {
+  if (!PROVIDERS.includes(provider) || provider === "ollama") throw new Error(`no key is kept for ${provider}`);
+  const trimmed = key.trim();
+  if (!/^[\x21-\x7e]{8,400}$/.test(trimmed)) throw new Error("that does not look like an API key");
+  const dir = join(REPO_ROOT, "infra", "keys");
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const file = join(dir, `${provider}.key`);
+  writeFileSync(file, trimmed + "\n", { mode: 0o600 });
+  chmodSync(file, 0o600);
+  return file.slice(REPO_ROOT.length + 1);
+}
+
+/** The models a provider offers with the saved key (ids, sorted); tool-capable only on OpenRouter. */
+export async function listModels(provider: string, fetchFn: typeof fetch = fetch): Promise<string[]> {
+  const get = async (url: string, headers: Record<string, string> = {}) => {
+    const res = await fetchFn(url, { headers, signal: AbortSignal.timeout(20_000) });
+    if (!res.ok) throw new Error(`${provider}: ${res.status} ${(await res.text()).slice(0, 200)}`);
+    return (await res.json()) as any;
+  };
+  const { key } = providerKey(provider);
+  let ids: string[] = [];
+  if (provider === "anthropic") {
+    if (!key) throw new Error("no Anthropic key");
+    const r = await get("https://api.anthropic.com/v1/models?limit=100", { "x-api-key": key, "anthropic-version": "2023-06-01" });
+    ids = (r.data ?? []).map((m: any) => String(m.id));
+  } else if (provider === "openai") {
+    if (!key) throw new Error("no OpenAI key");
+    const r = await get("https://api.openai.com/v1/models", { authorization: `Bearer ${key}` });
+    ids = (r.data ?? []).map((m: any) => String(m.id)).filter((id: string) => /^(gpt-|o\d)/.test(id) && !/(audio|realtime|transcribe|tts|image|search|embedding|moderation|instruct|codex)/.test(id));
+  } else if (provider === "openrouter") {
+    const r = await get("https://openrouter.ai/api/v1/models", key ? { authorization: `Bearer ${key}` } : {});
+    ids = (r.data ?? []).filter((m: any) => (m.supported_parameters ?? []).includes("tools")).map((m: any) => String(m.id));
+  } else if (provider === "ollama") {
+    const r = await get((process.env.OLLAMA_URL ?? "http://127.0.0.1:11434") + "/api/tags");
+    ids = (r.models ?? []).map((m: any) => String(m.name));
+  } else throw new Error(`unknown provider ${provider}`);
+  return [...new Set(ids)].sort();
 }

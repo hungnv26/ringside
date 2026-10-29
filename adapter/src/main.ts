@@ -21,6 +21,7 @@ interface Args {
   godot: string;
   quit: boolean;
   capture: string;
+  log: string;
 }
 
 export function parseCli(argv: string[]): Args {
@@ -50,6 +51,7 @@ export function parseCli(argv: string[]): Args {
     godot: get("godot", process.env.GODOT ?? "godot")!,
     quit: argv.includes("--quit"),
     capture: get("capture", "") ?? "",
+    log: get("log", "") ?? "",
   };
 }
 
@@ -86,6 +88,7 @@ async function main(): Promise<void> {
   process.on("SIGINT", () => void end("interrupted", 130));
   process.on("SIGTERM", () => void end("terminated", 143));
 
+  if (args.log) BattleLog.at(args.log).live({ at: new Date().toISOString(), phase: "waiting", sides: args.sides, stage: args.stage, seed: args.seed });
   if (args.launch) {
     const godotArgs = ["--path", REPO_ROOT, "--", `--coach=ws://127.0.0.1:${args.port}`, `--p1=${args.sides.p1.fighter}`, `--p2=${args.sides.p2.fighter}`, `--stage=${args.stage}`, `--seed=${args.seed}`];
     if (args.quit) godotArgs.push("--quit-after-match");
@@ -112,8 +115,21 @@ async function main(): Promise<void> {
   // round_start in one read, and a coach made later would miss the round.
   link.once("hello", (hello: Hello) => {
     say(`game connected: ${hello.p1.name} vs ${hello.p2.name} on ${hello.stage}, first to ${hello.rounds_to_win}`);
-    const log = new BattleLog(battleId(hello));
+    const log = args.log ? BattleLog.at(args.log) : new BattleLog(battleId(hello));
     const clients = new Map<string, ModelClient>();
+    const recent: unknown[] = []; // the last events, for live.json
+    let result: Record<string, unknown> | null = null;
+    const live = () =>
+      log.live({
+        at: new Date().toISOString(),
+        phase: result ? "over" : link.roundLive ? "live" : "between",
+        hello: { p1: { id: hello.p1.id, name: hello.p1.name }, p2: { id: hello.p2.id, name: hello.p2.name }, stage: hello.stage, rounds_to_win: hello.rounds_to_win },
+        sides: Object.fromEntries(SIDES.map((s) => [s, { fighter: hello[s].id, model: args.sides[s].spec }])),
+        state: link.latest,
+        coaches: Object.fromEntries(coaches.map((c) => [c.side, c.stats()])),
+        events: recent.slice(-12),
+        result,
+      });
     const coaches = SIDES.map(
       (side) =>
         new Coach(side, args.sides[side].spec, clientFor(args.sides[side].spec, args.effort, clients), link, hello, log, {
@@ -128,6 +144,7 @@ async function main(): Promise<void> {
           },
         }),
     );
+    const liveTimer = setInterval(live, 1000);
     const status = setInterval(() => {
       for (const c of coaches) {
         const s = c.stats();
@@ -135,9 +152,14 @@ async function main(): Promise<void> {
       }
     }, 5000);
     link.on("event", (e) => {
+      recent.push({ ...e, at: new Date().toISOString() });
+      if (recent.length > 40) recent.shift();
+      if (e.event === "match_end") result = { winner: (e.winner as Side | null) ?? null, wins: e.wins ?? null, reason: e.reason ?? null };
+      live();
       if (e.event === "round_end") say(`round ${link.latest?.round ?? "?"} over: ${e.winner == null ? "draw" : `${e.winner} ${hello[e.winner as Side].name} wins`} (${e.reason})`);
       if (e.event === "match_end") {
         clearInterval(status);
+        clearInterval(liveTimer);
         const winner = e.winner as Side | null;
         say(`MATCH OVER: ${winner ? `${winner} ${hello[winner].name} (${args.sides[winner].spec}) wins` : "draw"} ${JSON.stringify(e.wins ?? "")} (${e.reason ?? ""})`);
         for (const c of coaches) c.stop();
@@ -151,6 +173,7 @@ async function main(): Promise<void> {
           coaches: Object.fromEntries(coaches.map((c) => [c.side, c.stats()])),
           settings: { cap: args.cap, cadence: args.cadence, effort: args.effort },
         });
+        live();
         say(`log: ${log.dir}`);
         void end("match over", 0);
       }
