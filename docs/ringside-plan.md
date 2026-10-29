@@ -34,7 +34,13 @@ and the *self-coding fighter* (the model rewrites its fighter's behaviour betwee
    (phase, state, coaches' stats, last events, result) and shows the adapter's console;
    results from `battle-logs/*/battle.json` with transcript links, screenshots, and Elo per
    model (K 32 from 1000, draws half).
-3. **Presentation.** Model captions, a thinking indicator, match recording to video.
+3. **Presentation** (built 2026-10-30). Name plates read "Jin · claude-haiku-5-5" (the
+   adapter's `models` frame), a "COACH THINKING" mark shows above a side's caption while its
+   model answers (`thinking` frames around every call), and *Record the match to video* on
+   the setup page runs the game with Godot's movie writer (`--write-movie`, fixed 60 fps,
+   MJPEG + wav) and encodes `battle-logs/<id>/match.mp4` with ffmpeg once the game closes;
+   the page plays it and the results link to it. A slow machine renders slower than real
+   time while recording, which slows the game, not the coaches.
 4. **Second modes.** Beat fighter, self-coding fighter, tournaments.
 
 ## Parts
@@ -93,6 +99,8 @@ Adapter → game:
 - `say` `{type, side, text}`: a caption of at most 60 characters at the side's corner.
 - `end` `{type, reason}`: the game quits (the adapter sends it after `match_end`, or on a
   cost cap).
+- `models` `{type, p1, p2}`: each side's "provider:model", for the HUD's name plates.
+- `thinking` `{type, side, on}`: the side's coach is waiting for its model (HUD mark).
 
 The adapter never blocks the game: a late plan applies when it arrives; a disconnected link
 leaves both fighters on their last plan.

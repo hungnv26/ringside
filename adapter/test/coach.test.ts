@@ -20,9 +20,10 @@ test("round_start triggers a turn at once and its tool calls reach the game", as
   assert.equal(c.turns, 1);
   assert.deepEqual(
     link.sent.map((f) => f.type),
-    ["plan", "say"],
+    ["thinking", "thinking", "plan", "say"],
   );
-  const plan = link.sent[0] as unknown as { plan: Record<string, unknown>; plan_id: string };
+  assert.deepEqual(link.sent.slice(0, 2).map((f) => (f as { on: boolean }).on), [true, false]);
+  const plan = link.sent[2] as unknown as { plan: Record<string, unknown>; plan_id: string };
   assert.deepEqual(plan.plan, { aggression: 0.3, range: "close" });
   assert.equal(plan.plan_id, "p1-1-0");
   assert.deepEqual(c.plan, { aggression: 0.3, range: "close" });
@@ -150,7 +151,7 @@ test("a model error is counted and the coach carries on", async () => {
   fail = false;
   await clock.advance(2000);
   assert.equal(c.turns, 2);
-  assert.equal(link.sent.length, 2);
+  assert.equal(link.sent.filter((f) => f.type !== "thinking").length, 2);
   c.stop();
   assert.equal(c.status, "stopped");
 });

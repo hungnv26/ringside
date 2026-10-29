@@ -100,6 +100,13 @@ func _initialize() -> void:
 	check("states were built four times a second", link.sent.filter(func(f: Dictionary) -> bool: return f.type == "state").size() >= 5)
 	check("state names are lower case", st.p1.state == st.p1.state.to_lower())
 
+	# models and thinking frames (offline: no HUD change in headless, but the state is kept)
+	link._handle({type = "models", p1 = "anthropic:claude-haiku-5-5", p2 = "fake:coach"})
+	check("the models frame is kept per side", link.models[0] == "anthropic:claude-haiku-5-5" and link.models[1] == "fake:coach")
+	link._handle({type = "thinking", side = "p2", on = true})
+	check("a thinking frame for an unknown side is ignored", true)
+	link._handle({type = "thinking", side = "nobody", on = true})
+
 	# captions
 	coach.set_caption("  Keep him at kick range, punish the step in with the spinning back kick!  ")
 	check("captions are trimmed to 60 characters", coach.caption.length() == 60, coach.caption)

@@ -4,7 +4,7 @@
 // time by spawning the adapter (src/main.ts, which launches the game), relays its live.json and
 // console, and keeps results and an Elo table from battle-logs/*/battle.json. Local only.
 import { spawn, type ChildProcess } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { createReadStream, existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -68,13 +68,14 @@ export interface BattleSummary {
   wins: number[] | null;
   reason: string | null;
   coaches: Record<string, { turns: number; tokens: number; usd: number; avgSeconds: number | null; errors: number }>;
+  video: boolean;
 }
 
 export function summarize(battle: any, id: string): BattleSummary | null {
   if (!battle || typeof battle !== "object" || !battle.sides) return null;
   const coaches: BattleSummary["coaches"] = {};
   for (const [side, c] of Object.entries((battle.coaches ?? {}) as Record<string, any>)) coaches[side] = { turns: Number(c.turns ?? 0), tokens: Number(c.tokens ?? 0), usd: Number(c.usd ?? 0), avgSeconds: c.avgSeconds ?? null, errors: Number(c.errors ?? 0) };
-  return { id, at: String(battle.at ?? ""), stage: String(battle.stage ?? ""), seed: battle.seed ?? null, sides: battle.sides, winner: battle.result?.winner ?? null, wins: battle.result?.wins ?? null, reason: battle.result?.reason ?? null, coaches };
+  return { id, at: String(battle.at ?? ""), stage: String(battle.stage ?? ""), seed: battle.seed ?? null, sides: battle.sides, winner: battle.result?.winner ?? null, wins: battle.result?.wins ?? null, reason: battle.result?.reason ?? null, coaches, video: false };
 }
 
 /** Every finished battle under battle-logs, newest first. */
@@ -86,7 +87,7 @@ export function results(root = LOG_ROOT): BattleSummary[] {
     if (!existsSync(file)) continue;
     try {
       const s = summarize(JSON.parse(readFileSync(file, "utf8")), id);
-      if (s) out.push(s);
+      if (s) out.push({ ...s, video: existsSync(join(root, id, "match.mp4")) });
     } catch {}
   }
   return out.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
@@ -142,6 +143,7 @@ export interface MatchRequest {
   cadence?: number;
   effort?: Effort;
   capture?: boolean;
+  record?: boolean;
 }
 
 export function validateMatch(raw: any, fighters: Fighter[], stageIds: string[]): MatchRequest {
@@ -168,13 +170,14 @@ export function validateMatch(raw: any, fighters: Fighter[], stageIds: string[])
   const effort = String(raw?.effort ?? "low") as Effort;
   if (!EFFORTS.includes(effort)) throw new Error("effort must be low, medium or high");
   const seed = raw?.seed === undefined || raw?.seed === null || raw?.seed === "" ? null : Math.floor(num("seed", 0, 0, 2 ** 31 - 1));
-  return { p1, p2, stage, seed, cap: num("cap", 1, 0, 50), cadence: Math.floor(num("cadence", 2000, 500, 30000)), effort, capture: !!raw?.capture };
+  return { p1, p2, stage, seed, cap: num("cap", 1, 0, 50), cadence: Math.floor(num("cadence", 2000, 500, 30000)), effort, capture: !!raw?.capture, record: !!raw?.record };
 }
 
 export function matchArgs(m: MatchRequest, logDir: string, captureDir: string): string[] {
   const args = ["--p1", `${m.p1.fighter}=${m.p1.spec}`, "--p2", `${m.p2.fighter}=${m.p2.spec}`, "--stage", m.stage, "--cap", String(m.cap ?? 1), "--cadence", String(m.cadence ?? 2000), "--effort", m.effort ?? "low", "--log", logDir, "--quit"];
   if (m.seed != null) args.push("--seed", String(m.seed));
   if (m.capture) args.push("--capture", captureDir);
+  if (m.record) args.push("--record", join(logDir, "match.mp4"));
   return args;
 }
 
@@ -249,6 +252,26 @@ export class Runner {
 }
 
 // ---- HTTP ----
+
+/** A file with HTTP range support (video seeking). */
+function sendFile(req: IncomingMessage, res: ServerResponse, path: string, type: string): void {
+  const size = statSync(path).size;
+  const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range ?? "");
+  if (range) {
+    const start = range[1] ? Number(range[1]) : 0;
+    const end = range[2] ? Math.min(Number(range[2]), size - 1) : size - 1;
+    if (start > end || start >= size) {
+      res.writeHead(416, { "content-range": `bytes */${size}` });
+      res.end();
+      return;
+    }
+    res.writeHead(206, { "content-type": type, "content-range": `bytes ${start}-${end}/${size}`, "content-length": end - start + 1, "accept-ranges": "bytes" });
+    createReadStream(path, { start, end }).pipe(res);
+    return;
+  }
+  res.writeHead(200, { "content-type": type, "content-length": size, "accept-ranges": "bytes" });
+  createReadStream(path).pipe(res);
+}
 
 const json = (res: ServerResponse, status: number, body: unknown) => {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
@@ -326,6 +349,13 @@ export function createSetupServer(runner = new Runner(), root = REPO_ROOT, fetch
         if (!existsSync(path)) return json(res, 404, { error: "no such capture" });
         res.writeHead(200, { "content-type": "image/png" });
         return res.end(readFileSync(path));
+      }
+      if (url.pathname.startsWith("/api/video/")) {
+        const id = url.pathname.slice("/api/video/".length).replace(/\.mp4$/, "");
+        if (!/^[\w-]+$/.test(id)) return json(res, 400, { error: "bad video path" });
+        const path = join(runner.logRoot, id, "match.mp4");
+        if (!existsSync(path)) return json(res, 404, { error: "no video" });
+        return sendFile(req, res, path, "video/mp4");
       }
       if (url.pathname === "/api/captures") {
         const id = url.searchParams.get("id") ?? "";

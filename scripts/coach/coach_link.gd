@@ -32,6 +32,9 @@ var _last_phase := -1
 var _last_state := [-1, -1]
 var _match_over_ticks := -1
 var _captions: Array[Label] = []
+var _thinking: Array[Label] = []
+## Model per side ("provider:model"), from the adapter's `models` frame; shown on the HUD.
+var models := ["", ""]
 var _capture_dir := ""
 var _captures := 0
 
@@ -198,6 +201,14 @@ func _handle(msg: Dictionary) -> void:
 				return
 			controllers[side].set_caption(str(msg.get("text", "")))
 			_show_caption(side, controllers[side].caption)
+		"models":
+			for i in 2:
+				models[i] = str(msg.get(SIDES[i], ""))
+			_show_models()
+		"thinking":
+			if side < 0:
+				return
+			_show_thinking(side, bool(msg.get("on", false)))
 		"end":
 			print("CoachLink: end (%s)" % str(msg.get("reason", "")))
 			get_tree().quit()
@@ -260,9 +271,10 @@ func _on_hit(attacker: Fighter, defender: Fighter, move: MoveData, result: Fight
 	var recent: Array = _recent[index]
 	if not recent.is_empty() and (recent[-1].outcome == "pending" or recent[-1].input == move.input):
 		recent[-1].outcome = outcome
+	# A follow-up (input "~...") happens by itself: name it, but give no input to copy.
 	_event("hit", {attacker = SIDES[index], defender = SIDES[manager.fighters.find(defender)],
-		input = move.input, name = move.name, result = outcome, damage = move.damage,
-		combo = defender.combo_hits})
+		input = "" if move.input.begins_with("~") else move.input, name = move.name, result = outcome,
+		damage = move.damage, combo = defender.combo_hits})
 
 
 func _on_throw(attacker: Fighter, defender: Fighter) -> void:
@@ -310,6 +322,45 @@ func _build_captions() -> void:
 		label.modulate.a = 0.0
 		layer.add_child(label)
 		_captions.append(label)
+		var mark := Label.new()
+		mark.text = "COACH THINKING"
+		mark.add_theme_font_size_override("font_size", 12)
+		mark.add_theme_color_override("font_color", Color(0.85, 0.8, 0.7))
+		mark.add_theme_constant_override("outline_size", 5)
+		mark.add_theme_color_override("font_outline_color", Color.BLACK)
+		if i == 0:
+			mark.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+			mark.grow_vertical = Control.GROW_DIRECTION_BEGIN
+			mark.offset_left = 28
+			mark.offset_bottom = -82
+		else:
+			mark.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+			mark.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+			mark.grow_vertical = Control.GROW_DIRECTION_BEGIN
+			mark.offset_right = -28
+			mark.offset_bottom = -82
+			mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		mark.visible = false
+		layer.add_child(mark)
+		_thinking.append(mark)
+
+
+## "Jin · claude-haiku-5-5" on the name plates (the model without its provider).
+func _show_models() -> void:
+	if DisplayServer.get_name() == "headless" or manager.hud == null:
+		return
+	for i in 2:
+		var label: Label = manager.hud.p1_name if i == 0 else manager.hud.p2_name
+		var model: String = models[i].get_slice(":", 1) if models[i].contains(":") else models[i]
+		var fighter: Fighter = manager.fighters[i]
+		label.text = "%s · %s" % [fighter.data.display_name, model] if model != "" else "%s (AI)" % fighter.data.display_name
+
+
+## A small "coach thinking" mark above the caption while the side's model is answering.
+func _show_thinking(side: int, on: bool) -> void:
+	if side >= _thinking.size():
+		return
+	_thinking[side].visible = on
 
 
 func _show_caption(side: int, text: String) -> void:

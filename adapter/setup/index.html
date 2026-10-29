@@ -79,6 +79,7 @@ a { color: var(--ink); }
 .captures { display: flex; gap: 8px; overflow-x: auto; }
 .captures img { height: 90px; border-radius: 4px; border: 1px solid var(--line); }
 .result { font: 700 20px/1.2 var(--display); letter-spacing: .03em; }
+video { width: 100%; max-width: 720px; border-radius: 6px; border: 1px solid var(--line); background: #000; display: block; }
 </style>
 </head>
 <body>
@@ -131,6 +132,7 @@ a { color: var(--ink); }
       <label>Thinking effort <select id="effort"></select></label>
     </div>
     <label class="check"><input type="checkbox" id="capture"> Save a screenshot every 10 s of the fight</label>
+    <label class="check"><input type="checkbox" id="record"> Record the match to video (every frame rendered at 60 fps, then encoded with ffmpeg; the game runs slower on a slow machine)</label>
     <div class="buttons">
       <button class="primary" id="start">Start match</button>
       <button id="stop" disabled>Stop</button>
@@ -156,6 +158,7 @@ a { color: var(--ink); }
       <div class="result" id="result" hidden></div>
       <div class="events" id="events"></div>
       <div class="captures" id="captures" hidden></div>
+      <div id="video-box" hidden><video id="video" controls preload="metadata"></video><div class="note" id="video-note"></div></div>
       <details><summary class="note">Adapter console</summary><pre id="console"></pre></details>
     </div>
   </section>
@@ -269,7 +272,7 @@ $("start").addEventListener("click", async () => {
   const request = {
     p1: { fighter: $("p1-fighter").value, spec: spec("p1") },
     p2: { fighter: $("p2-fighter").value, spec: spec("p2") },
-    stage: $("stage").value, seed: $("seed").value, cap: $("cap").value, cadence: $("cadence").value, effort: $("effort").value, capture: $("capture").checked,
+    stage: $("stage").value, seed: $("seed").value, cap: $("cap").value, cadence: $("cadence").value, effort: $("effort").value, capture: $("capture").checked, record: $("record").checked,
   };
   try {
     const r = await api("/api/match", request);
@@ -278,6 +281,8 @@ $("start").addEventListener("click", async () => {
     msg.textContent = `started ${r.id}`;
     $("result").hidden = true;
     $("captures").hidden = true;
+    $("video-box").hidden = true;
+    $("video").removeAttribute("src");
     poll(true);
   } catch (e) {
     msg.className = "msg err";
@@ -301,7 +306,7 @@ async function poll(now) {
       await refreshResults();
       if (s.match.request.capture) showCaptures(s.match.id);
     }
-    pollTimer = setTimeout(poll, s.running ? 1000 : 4000);
+    pollTimer = setTimeout(poll, s.running || (s.live && s.live.video && !s.live.video.ready) ? 1000 : 4000);
   } catch (e) {
     $("status").className = "status error";
     $("status").textContent = "setup server unreachable";
@@ -340,6 +345,11 @@ function render(s) {
   }
   $("clock").textContent = st ? `R${st.round} · ${st.timer}` : "—";
   $("events").innerHTML = (live.events || []).slice().reverse().map((e) => `<div>${eventText(e)}</div>`).join("");
+  if (live.video) {
+    $("video-box").hidden = false;
+    $("video-note").textContent = live.video.ready ? "" : "Recording: the video is encoded once the game closes.";
+    if (live.video.ready && !$("video").getAttribute("src")) $("video").src = `/api/video/${s.match.id}.mp4`;
+  }
   if (live.result) {
     $("result").hidden = false;
     const w = live.result.winner;
@@ -377,7 +387,7 @@ async function refreshResults() {
   $("results").querySelector("tbody").innerHTML = battles.map((b) => {
     const side = (s) => `${esc(b.sides[s]?.fighter)} · <span class="key-hint">${esc(b.sides[s]?.model)}</span>`;
     const cost = (b.coaches.p1?.usd ?? 0) + (b.coaches.p2?.usd ?? 0);
-    const logs = ["p1.md", "p2.md", "battle.json"].map((f) => `<a href="/api/log?id=${esc(b.id)}&file=${f}" target="_blank">${f}</a>`).join(" ");
+    const logs = ["p1.md", "p2.md", "battle.json"].map((f) => `<a href="/api/log?id=${esc(b.id)}&file=${f}" target="_blank">${f}</a>`).join(" ") + (b.video ? ` <a href="/api/video/${esc(b.id)}.mp4" target="_blank">video</a>` : "");
     return `<tr><td>${esc(b.at.replace("T", " ").slice(0, 16))}</td><td>${side("p1")}</td><td>${side("p2")}</td><td>${esc(b.stage)}</td><td>${b.winner ? esc(b.sides[b.winner]?.fighter) + " (" + (b.winner === "p1" ? "corner 1" : "corner 2") + ")" : "draw"}</td><td class="num">${(b.wins || []).join("–")}</td><td class="num">${usd(cost)}</td><td>${logs}</td></tr>`;
   }).join("") || `<tr><td colspan="8" class="note">No matches yet.</td></tr>`;
   $("elo").querySelector("tbody").innerHTML = elo.map((r) => `<tr><td><span class="key-hint">${esc(r.model)}</span></td><td class="num">${r.rating}</td><td class="num">${r.wins}</td><td class="num">${r.losses}</td><td class="num">${r.draws}</td><td class="num">${usd(r.usd)}</td></tr>`).join("") || `<tr><td colspan="6" class="note">No ratings yet.</td></tr>`;

@@ -116,7 +116,19 @@ export interface EndFrame {
   type: "end";
   reason: string;
 }
-export type AdapterFrame = PlanFrame | QueueFrame | SayFrame | EndFrame;
+/** The model per side, for the HUD's name plates. */
+export interface ModelsFrame {
+  type: "models";
+  p1: string;
+  p2: string;
+}
+/** A side's coach is waiting for its model (the HUD shows a mark). */
+export interface ThinkingFrame {
+  type: "thinking";
+  side: Side;
+  on: boolean;
+}
+export type AdapterFrame = PlanFrame | QueueFrame | SayFrame | EndFrame | ModelsFrame | ThinkingFrame;
 
 // Model calls, in the OpenAI chat format (the provider translation is models.ts's business).
 export interface ToolCall {

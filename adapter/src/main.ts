@@ -2,6 +2,8 @@
 // side until the match ends. See adapter/README.md for the flags.
 //   node src/main.ts --p1 jin=anthropic:claude-haiku-5-5 --p2 kenji=fake:coach --stage rooftop
 import { spawn, type ChildProcess } from "node:child_process";
+import { existsSync, unlinkSync } from "node:fs";
+import { basename } from "node:path";
 import { Coach } from "./coach.ts";
 import { FakeModelClient } from "./fake.ts";
 import { Link } from "./link.ts";
@@ -22,6 +24,7 @@ interface Args {
   quit: boolean;
   capture: string;
   log: string;
+  record: string;
 }
 
 export function parseCli(argv: string[]): Args {
@@ -52,7 +55,27 @@ export function parseCli(argv: string[]): Args {
     quit: argv.includes("--quit"),
     capture: get("capture", "") ?? "",
     log: get("log", "") ?? "",
+    record: get("record", "") ?? "",
   };
+}
+
+/** .avi (+ .wav) from Godot's movie writer -> .mp4 (H.264 + AAC) with ffmpeg; the sources are removed on success. */
+export async function makeVideo(avi: string, mp4: string, log: (line: string) => void): Promise<void> {
+  if (!existsSync(avi)) throw new Error(`no movie was written at ${avi}`);
+  const wav = avi.replace(/\.avi$/, ".wav");
+  const inputs = existsSync(wav) ? ["-i", avi, "-i", wav] : ["-i", avi];
+  const ffArgs = ["-loglevel", "error", "-y", ...inputs, "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", ...(existsSync(wav) ? ["-c:a", "aac", "-b:a", "160k", "-shortest"] : ["-an"]), "-movflags", "+faststart", mp4];
+  log(`video: encoding ${basename(mp4)} with ffmpeg`);
+  const started = Date.now();
+  await new Promise<void>((resolve, reject) => {
+    const ff = spawn("ffmpeg", ffArgs, { stdio: ["ignore", "ignore", "pipe"] });
+    let err = "";
+    ff.stderr?.on("data", (d) => (err += String(d)));
+    ff.on("error", (e) => reject(new Error(`ffmpeg not available (${e.message})`)));
+    ff.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}: ${err.slice(0, 300)}`))));
+  });
+  for (const f of [avi, wav]) if (existsSync(f)) unlinkSync(f);
+  log(`video: ${mp4} (${((Date.now() - started) / 1000).toFixed(0)} s)`);
 }
 
 export function clientFor(spec: string, effort: Effort, cache: Map<string, ModelClient>): ModelClient {
@@ -77,12 +100,21 @@ async function main(): Promise<void> {
 
   let game: ChildProcess | null = null;
   let ending = false;
+  let afterGame: (() => Promise<void>) | null = null;
+  let liveWriter: (() => void) | null = null;
+  let onVideo: (() => void) | null = null; // the video conversion, once the game has closed
   const end = async (reason: string, code: number): Promise<never> => {
     ending = true;
     link.send({ type: "end", reason });
     await new Promise((r) => setTimeout(r, 300));
     await link.close();
-    if (game && game.exitCode === null) setTimeout(() => game?.kill(), 3000).unref();
+    if (game && game.exitCode === null) {
+      // The game quits on `end`; give it a moment (the movie writer flushes its file), then insist.
+      const kill = setTimeout(() => game?.kill(), 8000);
+      await new Promise<void>((r) => (game!.exitCode !== null ? r() : game!.once("exit", () => r())));
+      clearTimeout(kill);
+    }
+    if (afterGame) await afterGame().catch((e) => say(`video: ${e instanceof Error ? e.message : e}`));
     process.exit(code);
   };
   process.on("SIGINT", () => void end("interrupted", 130));
@@ -93,6 +125,17 @@ async function main(): Promise<void> {
     const godotArgs = ["--path", REPO_ROOT, "--", `--coach=ws://127.0.0.1:${args.port}`, `--p1=${args.sides.p1.fighter}`, `--p2=${args.sides.p2.fighter}`, `--stage=${args.stage}`, `--seed=${args.seed}`];
     if (args.quit) godotArgs.push("--quit-after-match");
     if (args.capture) godotArgs.push(`--capture-dir=${args.capture}`);
+    if (args.record) {
+      // Godot's movie writer: every frame rendered at a fixed 60 fps (MJPEG .avi + .wav), then
+      // ffmpeg makes the .mp4 once the game has closed. Rendering slower than real time slows
+      // the game, not the coaches, so a recorded match sees a few more turns per round.
+      const avi = args.record.replace(/\.mp4$/, "") + ".avi";
+      godotArgs.unshift("--write-movie", avi, "--fixed-fps", "60");
+      afterGame = async () => {
+        await makeVideo(avi, args.record, say);
+        onVideo?.();
+      };
+    }
     say(`launching ${args.godot} ${godotArgs.join(" ")}`);
     game = spawn(args.godot, godotArgs, { stdio: ["ignore", "pipe", "pipe"] });
     const relay = (data: Buffer) => {
@@ -115,9 +158,16 @@ async function main(): Promise<void> {
   // round_start in one read, and a coach made later would miss the round.
   link.once("hello", (hello: Hello) => {
     say(`game connected: ${hello.p1.name} vs ${hello.p2.name} on ${hello.stage}, first to ${hello.rounds_to_win}`);
+    link.send({ type: "models", p1: args.sides.p1.spec, p2: args.sides.p2.spec }); // the HUD's name plates
     const log = args.log ? BattleLog.at(args.log) : new BattleLog(battleId(hello));
     const clients = new Map<string, ModelClient>();
     const recent: unknown[] = []; // the last events, for live.json
+    let videoReady = false;
+    liveWriter = () => live();
+    onVideo = () => {
+      videoReady = true;
+      live();
+    };
     let result: Record<string, unknown> | null = null;
     const live = () =>
       log.live({
@@ -129,6 +179,7 @@ async function main(): Promise<void> {
         coaches: Object.fromEntries(coaches.map((c) => [c.side, c.stats()])),
         events: recent.slice(-12),
         result,
+        video: args.record ? { file: basename(args.record), ready: videoReady } : null,
       });
     const coaches = SIDES.map(
       (side) =>

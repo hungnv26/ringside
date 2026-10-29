@@ -31,7 +31,7 @@ test("roster and stages come from the game's files", () => {
 });
 
 const battle = (at: string, p1: string, p2: string, winner: string | null, usd1 = 0.01, usd2 = 0.02): BattleSummary => ({
-  id: at, at, stage: "ring", seed: 1, sides: { p1: { fighter: "jin", model: p1 }, p2: { fighter: "kenji", model: p2 } }, winner, wins: winner === "p1" ? [2, 0] : winner === "p2" ? [0, 2] : [1, 1], reason: winner ? "rounds" : "draw",
+  id: at, at, stage: "ring", seed: 1, sides: { p1: { fighter: "jin", model: p1 }, p2: { fighter: "kenji", model: p2 } }, winner, wins: winner === "p1" ? [2, 0] : winner === "p2" ? [0, 2] : [1, 1], reason: winner ? "rounds" : "draw", video: false,
   coaches: { p1: { turns: 10, tokens: 100, usd: usd1, avgSeconds: 2, errors: 0 }, p2: { turns: 10, tokens: 100, usd: usd2, avgSeconds: 2, errors: 0 } },
 });
 
@@ -81,6 +81,8 @@ test("validateMatch accepts a good request and fills defaults", () => {
   assert.ok(args.includes("--quit") && args.includes("--log") && !args.includes("--seed") && !args.includes("--capture"));
   const withSeed = matchArgs({ ...m, seed: 7, capture: true }, "/logs/x", "/logs/x/captures");
   assert.ok(withSeed.includes("--seed") && withSeed[withSeed.indexOf("--seed") + 1] === "7" && withSeed.includes("--capture"));
+  const recorded = matchArgs({ ...m, record: true }, "/logs/x", "/logs/x/captures");
+  assert.equal(recorded[recorded.indexOf("--record") + 1], "/logs/x/match.mp4");
 });
 
 test("validateMatch refuses bad fighters, specs, stages and numbers", () => {

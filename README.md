@@ -24,7 +24,8 @@ The **setup page** is where matches are set up (no setup screens in the game): a
 the model that coaches it for each corner, the provider keys, stage, seed, cost cap, turn pace
 and thinking effort. *Start match* opens the game window; the page shows the round, both
 health bars, each coach's caption, plan, turns and cost, and the event feed, then keeps every
-result with links to the transcripts, and an Elo table by model.
+result with links to the transcripts, and an Elo table by model. *Record the match to video*
+saves `match.mp4` next to the logs (Godot's movie writer plus ffmpeg).
 
 From the command line instead:
 

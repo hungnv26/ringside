@@ -42,6 +42,7 @@ the log folder, sends `end` to the game and exits 0. Ctrl-C ends the game too.
 | `--godot path` | `godot` (or `$GODOT`) | The Godot 4.7 binary |
 | `--quit` | | Pass `--quit-after-match` to the game |
 | `--log DIR` | `battle-logs/<time>-<p1>-vs-<p2>` | The exact log folder (the setup page chooses it); `live.json` in it is the status the page polls |
+| `--record FILE.mp4` | | Record the match: Godot's movie writer at a fixed 60 fps, then ffmpeg encodes the .mp4 after the game closes (needs `ffmpeg` on the PATH) |
 | `--capture DIR` | | The game saves a screenshot every 10 s of the fight and one of the result to DIR |
 
 Models: `anthropic:<model>` (Messages API, prompt caching, `output_config.effort`),

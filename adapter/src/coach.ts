@@ -198,6 +198,7 @@ export class Coach {
     if (state) this.lastHealth = [state.p1.health / Math.max(1, state.p1.max_health), state.p2.health / Math.max(1, state.p2.max_health)];
     let error: string | undefined;
     let reply: Awaited<ReturnType<ModelClient["chat"]>> | null = null;
+    this.link.send({ type: "thinking", side: this.side, on: true });
     try {
       reply = await this.client.chat(this.spec, { messages: [{ role: "system", content: this.system }, { role: "user", content: prompt }], tools: TOOLS });
     } catch (e) {
@@ -205,6 +206,7 @@ export class Coach {
       this.errors++;
       this.lastError = error;
     }
+    this.link.send({ type: "thinking", side: this.side, on: false });
     const seconds = reply?.seconds ?? (this.now() - started) / 1000;
     this.turns++;
     this.seconds += seconds;
