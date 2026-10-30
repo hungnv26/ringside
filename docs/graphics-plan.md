@@ -276,11 +276,19 @@ around the ring is dressed with modelled props.
   dried stains, grime along the ropes).
 - `tools/render_stage_views.gd` renders free-camera stills (judges, red corner, stands,
   wide) at a given crowd excitement.
-- **Cost**: the Ring runs at about 62 fps at High (75 before; runs vary by about 3 fps). The
-  people cost about 2.5 ms a frame. Neither the lighter back rows nor reading one animation
-  frame instead of two moved it beyond noise, so the cost is drawing a thousand detailed
-  figures with multisampled edges rather than vertex work. Impostor cards for the far
-  stands are the next lever if a stage needs it.
+- **Cost**: the Ring runs at about 73 fps at High (75 with the old pill crowd). A Metal
+  System Trace (`xcrun xctrace record --template "Metal System Trace"`) showed where the
+  first version's 3 ms went: about 1.4 ms of fragment work in the main colour pass and 1.5 ms
+  of vertex work. Engine lighting on the people was the expensive part; fewer triangles,
+  smaller people, no shadows or no specular each moved it by less than run-to-run noise.
+  So `crowd_vat.gdshader` is unshaded and lights the crowd itself: a sky/floor ambient,
+  the stage's fill light, and an optional spill from the ring (`Crowd.people_*_light`),
+  calibrated to within about 5% of the lit version's brightness on the stands
+  (`docs/look/phase3/ring_crowd_lighting.jpg`). Only the front row uses the 2,400-triangle
+  mesh; the rest use the 900-triangle level of detail (+2 fps, not visible at the fight
+  camera). Runs vary by about 3 fps while other apps use the GPU; compare interleaved runs.
+- Trade-off: the crowd gets no ambient occlusion, indirect light or shadows from the
+  engine, so it reads slightly flatter in close-ups.
 - **Not done in the pilot**: the barricades, apron and truss are still primitives; the far
   side of the arena beyond the stands is a dark void.
 - Reference: `docs/look/phase3/ring_before_after.jpg`, `ring_fight_before_after.jpg`, and

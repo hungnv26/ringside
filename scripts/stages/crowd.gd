@@ -49,8 +49,14 @@ const CLAPPERS := 0.45
 ## How fast (per second) the drawn excitement follows the stage's, so a sudden bump turns
 ## into people getting up over half a second rather than in one frame.
 const EXCITEMENT_RATE := 2.0
+## The people's own lighting (crowd_vat.gdshader): sky and floor ambient, and the ring's
+## spill. The fill comes from the stage's DirectionalLight3D, if it has one.
+@export var people_sky_light := Color(1.15, 1.08, 1.06)
+@export var people_ground_light := Color(0.36, 0.34, 0.34)
+@export var people_ring_light := Color(0.0, 0.0, 0.0)
+
 ## Rows drawn with the full mesh; the rows behind them use the lighter level of detail.
-const NEAR_ROWS := 3
+const NEAR_ROWS := 1
 ## How much darker each row is than the one in front of it.
 const BACK_ROW_DIMMING := 0.035
 
@@ -220,6 +226,23 @@ func _build_people(rng: RandomNumberGenerator) -> void:
 		mi.extra_cull_margin = 0.6 # cheering arms reach past the rest pose's bounds
 		add_child(mi)
 	_people_materials.assign(materials.values())
+	_light_people()
+
+
+## Passes the stage's lighting to the people's shader.
+func _light_people() -> void:
+	var fill: DirectionalLight3D = null
+	for n in get_parent().find_children("*", "DirectionalLight3D", true, false):
+		fill = n
+		break
+	for m in _people_materials:
+		m.set_shader_parameter("sky_light", Vector3(people_sky_light.r, people_sky_light.g, people_sky_light.b))
+		m.set_shader_parameter("ground_light", Vector3(people_ground_light.r, people_ground_light.g, people_ground_light.b))
+		m.set_shader_parameter("ring_light", Vector3(people_ring_light.r, people_ring_light.g, people_ring_light.b))
+		if fill:
+			var c := fill.light_color.srgb_to_linear() * fill.light_energy
+			m.set_shader_parameter("fill_light", Vector3(c.r, c.g, c.b))
+			m.set_shader_parameter("fill_dir", fill.global_transform.basis.z.normalized())
 
 
 ## `stem`: the spectator `id` or its level of detail (id_lod), which has its own mesh and
