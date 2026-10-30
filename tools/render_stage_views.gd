@@ -12,6 +12,12 @@ const VIEWS := {
 		"stands": [Vector3(3.0, 1.8, -4.0), Vector3(-1.0, 0.6, -12.0)],
 		"wide": [Vector3(0, 6.5, 13.0), Vector3(0, 0, -2.0)],
 	},
+	"dojo": {
+		"kamiza": [Vector3(0, 1.8, -4.0), Vector3(0, 1.8, -10.0)],
+		"taiko": [Vector3(3.0, 1.5, -6.0), Vector3(5.2, 0.9, -8.6)],
+		"students": [Vector3(-2.5, 1.4, 0.5), Vector3(-7.2, 0.4, -1.0)],
+		"wide": [Vector3(0, 5.5, 9.0), Vector3(0, 0.5, -3.0)],
+	},
 	"temple": {
 		"tree": [Vector3(-5.5, 1.8, -1.5), Vector3(-10.5, 2.6, -7.0)],
 		"gate": [Vector3(0, 2.2, 6.0), Vector3(0, 2.4, -10.5)],

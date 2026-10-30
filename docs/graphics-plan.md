@@ -332,3 +332,26 @@ trees, buildings and ground.
 - Reference: `docs/look/phase3/temple_before_after.jpg`, `temple_fight_before_after.jpg`,
   and the close views `temple_tree.jpg`, `temple_gate.jpg`, `temple_hall.jpg`,
   `temple_pagoda.jpg`, `temple_wide.jpg`.
+
+### Phase 3: the Dojo (built 2026-10-30)
+
+- **Students**: the pill figures are gone. Eight MakeHuman students (`s1`–`s8` in
+  `tools/mpfb/crowd.json`, men and women of several ages and backgrounds) wear outfits from
+  the fighters' garment generator (`outfits.py`: `student_gi`, a training gi with a modest
+  V and a belt, and `student_hakama`, the gi jacket over a pleated hakama). The atlas bake
+  colours the generated slots (white gi; white, yellow, green, blue, brown or black belts;
+  navy or black hakama) with the hem shading and a cotton weave; the second colourway
+  swaps the belt or the hakama. A seiza pose is built in `build_crowd.py` (thighs sloping
+  to the knees on the floor, shins flat behind, back straight, hands on the thighs) with
+  four clips on top: breathing, whispering to a neighbour, a kiai fist, applause.
+  `Crowd.people_kind = "student"` kneels them on the floor without seats; the Dojo now has
+  a quiet crowd reaction so they respond to big moments.
+- **Art**: the hanging scroll was blank (the label font has no kanji). `tools/make_dojo_art.py`
+  draws 道 in brush ink with a red seal on aged paper in a brocade mount, and the taiko's
+  heads in tanned hide with the mitsudomoe. The taiko is a turned, bulging barrel of
+  lacquered staves with rings of studs and a pair of bachi on its stand.
+- Exporting crowd meshes without vertex colours: the outfit's hem shading (already in the
+  atlas) came through as black on the skin.
+- **Cost**: 70 fps at High (68 before; the students are cheaper than the old figures).
+- Reference: `docs/look/phase3/dojo_before_after.jpg`, `dojo_fight_before_after.jpg`, and
+  `dojo_kamiza.jpg`, `dojo_taiko.jpg`, `dojo_students.jpg`, `dojo_wide.jpg`.

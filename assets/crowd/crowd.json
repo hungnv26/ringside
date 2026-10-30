@@ -310,5 +310,221 @@
   "lod": {
    "vertices": 579
   }
+ },
+ "s1": {
+  "vertices": 1359,
+  "rows": 114,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    48
+   ],
+   "talk": [
+    48,
+    36
+   ],
+   "cheer": [
+    84,
+    18
+   ],
+   "clap": [
+    102,
+    12
+   ]
+  },
+  "kind": "student",
+  "lod": {
+   "vertices": 566
+  }
+ },
+ "s2": {
+  "vertices": 1722,
+  "rows": 114,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    48
+   ],
+   "talk": [
+    48,
+    36
+   ],
+   "cheer": [
+    84,
+    18
+   ],
+   "clap": [
+    102,
+    12
+   ]
+  },
+  "kind": "student",
+  "lod": {
+   "vertices": 894
+  }
+ },
+ "s3": {
+  "vertices": 1502,
+  "rows": 114,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    48
+   ],
+   "talk": [
+    48,
+    36
+   ],
+   "cheer": [
+    84,
+    18
+   ],
+   "clap": [
+    102,
+    12
+   ]
+  },
+  "kind": "student",
+  "lod": {
+   "vertices": 696
+  }
+ },
+ "s4": {
+  "vertices": 1337,
+  "rows": 114,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    48
+   ],
+   "talk": [
+    48,
+    36
+   ],
+   "cheer": [
+    84,
+    18
+   ],
+   "clap": [
+    102,
+    12
+   ]
+  },
+  "kind": "student",
+  "lod": {
+   "vertices": 551
+  }
+ },
+ "s5": {
+  "vertices": 1516,
+  "rows": 114,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    48
+   ],
+   "talk": [
+    48,
+    36
+   ],
+   "cheer": [
+    84,
+    18
+   ],
+   "clap": [
+    102,
+    12
+   ]
+  },
+  "kind": "student",
+  "lod": {
+   "vertices": 683
+  }
+ },
+ "s6": {
+  "vertices": 2339,
+  "rows": 114,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    48
+   ],
+   "talk": [
+    48,
+    36
+   ],
+   "cheer": [
+    84,
+    18
+   ],
+   "clap": [
+    102,
+    12
+   ]
+  },
+  "kind": "student",
+  "lod": {
+   "vertices": 1448
+  }
+ },
+ "s7": {
+  "vertices": 1878,
+  "rows": 114,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    48
+   ],
+   "talk": [
+    48,
+    36
+   ],
+   "cheer": [
+    84,
+    18
+   ],
+   "clap": [
+    102,
+    12
+   ]
+  },
+  "kind": "student",
+  "lod": {
+   "vertices": 1041
+  }
+ },
+ "s8": {
+  "vertices": 1340,
+  "rows": 114,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    48
+   ],
+   "talk": [
+    48,
+    36
+   ],
+   "cheer": [
+    84,
+    18
+   ],
+   "clap": [
+    102,
+    12
+   ]
+  },
+  "kind": "student",
+  "lod": {
+   "vertices": 551
+  }
  }
 }

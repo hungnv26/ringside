@@ -20,6 +20,7 @@ const STAGE_SCRIPT := "res://scripts/stages/stage.gd"
 const CROWD_SCRIPT := "res://scripts/stages/crowd.gd"
 const FLICKER_SCRIPT := "res://scripts/stages/fire_flicker.gd"
 const AO_PATH := "res://assets/stages/dojo/floor_ao.res"
+const ART := "res://assets/stages/dojo/art/"
 
 const HALL := 10.0 # half size
 const CEILING := 6.0
@@ -52,6 +53,7 @@ var mat_black: StandardMaterial3D
 var mat_scroll: StandardMaterial3D
 var mat_skin: StandardMaterial3D
 var mat_drum: StandardMaterial3D
+var mat_gold_studs: StandardMaterial3D
 var mat_tag: StandardMaterial3D
 
 
@@ -72,7 +74,9 @@ func _initialize() -> void:
 	_build_ceiling()
 	_build_students()
 	_build_atmosphere()
-	_add(stage, StageFX.ambience([["res://assets/audio/ambience/wind.ogg", -26.0], ["res://assets/audio/ambience/birds.ogg", -30.0]]), "Sound") # ambient loops (StageAmbience)
+	# Ambient loops, and the students' reaction to the fight (it also drives their kiai and
+	# applause, Crowd.people): quieter than an arena.
+	_add(stage, StageFX.ambience([["res://assets/audio/ambience/wind.ogg", -26.0], ["res://assets/audio/ambience/birds.ogg", -30.0]], "res://assets/audio/ambience/crowd_cheer.ogg", -14.0), "Sound")
 	_flush_batches()
 	_bake_contact_shadows()
 	_add(stage, _marker(Vector3(-2, 0, 0)), "P1Spawn")
@@ -102,8 +106,12 @@ func _make_materials() -> void:
 	mat_lantern = _emissive(LANTERN_RED, 2.2)
 	mat_black = _material(Color(0.03, 0.03, 0.03), 0.0, 0.6)
 	mat_scroll = _material(Color(0.93, 0.89, 0.78), 0.0, 0.9)
-	mat_skin = _material(Color(0.86, 0.8, 0.66), 0.0, 0.7)
-	mat_drum = _material(Color(0.42, 0.12, 0.06), 0.0, 0.35)
+	mat_skin = _material(Color(1, 1, 1), 0.0, 0.7)
+	mat_skin.albedo_texture = load(ART + "taiko_head.png") # tools/make_dojo_art.py
+	mat_skin.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	mat_drum = _textured("dark_wood", Color(0.62, 0.2, 0.1), 2.5) # lacquered staves
+	mat_drum.roughness = 0.35
+	mat_gold_studs = _material(Color(0.7, 0.55, 0.3), 0.85, 0.35)
 	mat_tag = _material(Color(0.88, 0.82, 0.7), 0.0, 0.8)
 
 
@@ -269,16 +277,20 @@ func _build_kamiza() -> void:
 	_batch(mat_lacquer, Vector3(width, SHOJI_TOP - SHOJI_BOTTOM, 0.04), _wall(side, HALL - 0.1, 0, mid))
 	_batch(mat_cedar, Vector3(width, 0.3, 0.9), _wall(side, HALL - 0.55, 0, FLOOR_TOP + 0.15))
 	_batch(mat_dark_wood, Vector3(width + 0.1, 0.06, 0.95), _wall(side, HALL - 0.55, 0, FLOOR_TOP + 0.31))
-	# Hanging scroll with 道 ("the way") and a red seal.
+	# Hanging scroll: 道 ("the way") in brush ink with a red seal, on a brocade mount
+	# (tools/make_dojo_art.py; the label font had no kanji). Rods top and bottom.
 	_batch(mat_scroll, Vector3(0.95, 2.1, 0.012), _wall(side, HALL - 0.14, 0, 2.3))
+	var art := QuadMesh.new()
+	art.size = Vector2(0.95, 2.1)
+	var art_mat := _material(Color(1, 1, 1), 0.0, 0.9)
+	art_mat.albedo_texture = load(ART + "scroll.png")
+	art.material = art_mat
+	var scroll := MeshInstance3D.new()
+	scroll.mesh = art
+	scroll.transform = _wall(side, HALL - 0.16, 0, 2.3) * Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO)
+	_add(stage, scroll, "Scroll")
 	for y in [3.37, 1.23]:
 		_batch(mat_dark_wood, Vector3(1.1, 0.05, 0.05), _wall(side, HALL - 0.15, 0, y))
-	var kanji := _label("道", 600, Color(0.05, 0.04, 0.03))
-	kanji.transform = _wall(side, HALL - 0.16, 0, 2.45) * Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO)
-	_add(stage, kanji, "ScrollKanji")
-	var seal := _label("武", 110, Color(0.75, 0.1, 0.08))
-	seal.transform = _wall(side, HALL - 0.16, -0.25, 1.55) * Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO)
-	_add(stage, seal, "ScrollSeal")
 	# Kamidana shelf with a tiny shrine.
 	_batch(mat_dark_wood, Vector3(1.8, 0.07, 0.45), _wall(side, HALL - 0.3, 0, 4.1))
 	_batch(mat_hinoki, Vector3(0.6, 0.4, 0.3), _wall(side, HALL - 0.28, 0, 4.34))
@@ -301,18 +313,30 @@ func _build_kamiza() -> void:
 # --- Props -----------------------------------------------------------------------
 
 func _build_props() -> void:
-	# Taiko drum on its stand beside the kamiza.
+	# Taiko drum on its stand beside the kamiza: a turned barrel of lacquered staves bulging
+	# at the middle, two rings of studs holding the hide heads (mitsudomoe painted on).
 	var drum_at := _wall(2, HALL - 1.4, 5.2, 1.0)
-	var drum := _cylinder(0.45, 0.62, mat_drum)
+	var drum := MeshInstance3D.new()
+	drum.mesh = _taiko_barrel(0.4, 0.47, 0.64)
 	drum.transform = drum_at * Transform3D(Basis(Vector3.RIGHT, PI / 2.0), Vector3.ZERO)
 	_add(stage, drum, "TaikoDrum")
 	for z in [-0.32, 0.32]:
-		var skin := _cylinder(0.46, 0.03, mat_skin)
-		skin.transform = drum_at * Transform3D(Basis(Vector3.RIGHT, PI / 2.0), Vector3(0, 0, z))
+		var head := QuadMesh.new()
+		head.size = Vector2(0.82, 0.82)
+		head.material = mat_skin
+		var skin := MeshInstance3D.new()
+		skin.mesh = head
+		skin.transform = drum_at * Transform3D(Basis(Vector3.UP, 0.0 if z > 0 else PI), Vector3(0, 0, z + signf(z) * 0.002))
 		_add(stage, skin, "TaikoSkin%d" % (1 if z < 0 else 2))
+		for k in 28: # studs round the head
+			var a := TAU * k / 28.0
+			_batch(mat_gold_studs, Vector3(0.025, 0.025, 0.02), drum_at * Transform3D(Basis(), Vector3(cos(a) * 0.405, sin(a) * 0.405, z - signf(z) * 0.03)))
 	for x in [-0.4, 0.4]:
 		_batch(mat_dark_wood, Vector3(0.08, 1.0, 0.08), drum_at * Transform3D(Basis(Vector3(0, 0, 1), x * 0.5), Vector3(x, -0.5, 0)))
 	_batch(mat_dark_wood, Vector3(0.9, 0.06, 0.5), drum_at * Transform3D(Basis(), Vector3(0, -1.0, 0)))
+	# Two bachi (drumsticks) resting on the stand.
+	for k in [-0.06, 0.06]:
+		_batch(mat_hinoki, Vector3(0.42, 0.03, 0.03), drum_at * Transform3D(Basis(Vector3.UP, 0.25), Vector3(0.1, -0.95, k + 0.1)))
 
 	# Weapon racks with bokken and staffs on the side walls.
 	for side in [1, 3]:
@@ -320,6 +344,28 @@ func _build_props() -> void:
 			_weapon_rack(side, along)
 		_name_board(side, 0.0)
 	_name_board(0, 0.0)
+
+
+## The taiko's barrel along its Y: `radius` at the heads, `belly` at the middle, `length`
+## long, open at the ends (the heads cover them).
+func _taiko_barrel(radius: float, belly: float, length: float) -> Mesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	const AROUND := 40
+	const ALONG := 10
+	for j in ALONG:
+		for i in AROUND:
+			var quad := []
+			for c in [[i, j], [i + 1, j], [i + 1, j + 1], [i, j + 1]]:
+				var a: float = TAU * c[0] / AROUND
+				var t: float = float(c[1]) / ALONG
+				var r := radius + (belly - radius) * sin(PI * t)
+				quad.append(Vector3(cos(a) * r, (t - 0.5) * length, sin(a) * r))
+			for k in [0, 2, 1, 0, 3, 2]:
+				st.add_vertex(quad[k])
+	st.generate_normals()
+	st.set_material(mat_drum)
+	return st.commit()
 
 
 func _weapon_rack(side: int, along: float) -> void:
@@ -376,7 +422,7 @@ func _build_ceiling() -> void:
 
 # --- Students -----------------------------------------------------------------------
 
-## Students in white gi (a few in dark hakama) kneeling along the side walls and the
+## Students in white gi (some in dark hakama) kneeling in seiza along the side walls and the
 ## front. One Crowd node per side so a side can hide when the camera is behind it
 ## (Stage occlusion groups: 0 = -Z, 1 = +Z, 2 = -X, 3 = +X).
 func _build_students() -> void:
@@ -386,17 +432,21 @@ func _build_students() -> void:
 		students.set_script(load(CROWD_SCRIPT))
 		students.set("rows", 2)
 		students.set("tier_start", 6.6)
-		students.set("tier_depth", 0.85)
+		students.set("tier_depth", 1.15)
 		students.set("tier_rise", 0.0)
 		students.set("row_width", 12.0)
-		students.set("seat_spacing", 0.8)
+		students.set("seat_spacing", 1.0)
 		students.set("floor_y", FLOOR_TOP)
 		students.set("empty_seat_chance", 0.3)
 		students.set("crowd_seed", 77 + side)
 		students.set("sides", PackedInt32Array([side]))
-		students.set("kneeling", true)
-		students.set("sway", 0.004) # breathing
-		students.set("palette", PackedColorArray([Color(1, 1, 1), Color(0.95, 0.95, 1.0), Color(1.0, 0.97, 0.93)]))
+		# MakeHuman students in gi and hakama kneeling in seiza (tools/mpfb/build_crowd.py):
+		# they breathe and whisper, and give a kiai or clap when the fight heats up.
+		students.set("people", true)
+		students.set("people_kind", "student")
+		students.set("aisle_every", 0)
+		students.set("people_sky_light", Color(0.66, 0.56, 0.46)) # the warm hall
+		students.set("people_ground_light", Color(0.3, 0.22, 0.16)) # light off the hinoki floor
 		_add(stage, students, "Students%d" % side)
 		students.add_to_group(&"ring_side_%d" % groups[side], true)
 

@@ -1223,6 +1223,7 @@ func stage_tests() -> void:
 	var ring_crowd := (load(gs.DEFAULT_STAGE) as PackedScene).instantiate()
 	_people_crowd_tests(ring_crowd)
 	_temple_tests()
+	_dojo_people_tests()
 	# Download size: 3D textures must not be imported lossless (a 1K photo texture is 2-3 MB
 	# lossless, about 0.4 MB as lossy WebP). Godot only switches them automatically in the
 	# editor, so textures imported headless stay lossless unless their .import says otherwise.
@@ -1373,6 +1374,39 @@ func polish_tests() -> void:
 	wait_until(func() -> bool: return p1.projectile == null, 120)
 	check("FX: projectile impact burst + ring", fx.spawned >= before + 2, "%d effects" % (fx.spawned - before))
 	gs.stage_path = gs.DEFAULT_STAGE
+
+
+## The Dojo's students are real people (Crowd.people, kind "student": MakeHuman students in
+## gi and hakama kneeling in seiza), with no stadium seats; the scroll and the taiko heads
+## are painted (tools/make_dojo_art.py), and the students react to the fight.
+func _dojo_people_tests() -> void:
+	var dojo := (load("res://scenes/stages/dojo.tscn") as PackedScene).instantiate()
+	root.add_child(dojo)
+	var people := 0
+	var seats := 0
+	var kinds_ok := true
+	var meta: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://assets/crowd/crowd.json"))
+	for n in dojo.get_children():
+		if String(n.name).begins_with("Students"):
+			var crowd := n as Crowd
+			kinds_ok = kinds_ok and crowd.people and crowd.people_kind == "student"
+			for mi in crowd.get_children():
+				if mi.name.begins_with("People_"):
+					people += (mi as MultiMeshInstance3D).multimesh.instance_count
+					kinds_ok = kinds_ok and meta[String(mi.name).get_slice("_", 1)].get("kind") == "student"
+				elif mi.name == "Seats":
+					seats += 1
+	check("Dojo: real students kneeling in seiza, no seats", kinds_ok and people > 20 and seats == 0, "%d students" % people)
+	var scroll := dojo.get_node_or_null("Scroll") as MeshInstance3D
+	var art_ok := scroll != null and ((scroll.mesh as PrimitiveMesh).material as BaseMaterial3D).albedo_texture != null \
+		and dojo.get_node_or_null("ScrollKanji") == null
+	var sound: StageAmbience = null
+	for n in dojo.get_children():
+		if n is StageAmbience:
+			sound = n
+	check("Dojo: painted scroll and taiko, students react to the fight", art_ok and sound != null and sound.reaction != null)
+	root.remove_child(dojo)
+	dojo.free()
 
 
 ## The Temple's Phase 3 dressing: cherry trees built from Poly Haven's jacaranda (blossom

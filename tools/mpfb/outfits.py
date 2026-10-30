@@ -162,6 +162,23 @@ def specs(fighter, L):
             dict(slot=EXTRA, offset=0.01, flat_soles=True, trim_slot=TRIM,
                  region=lambda p, n: legs(p, -1.0, L["ankle"] + 0.03), trim=lambda p, n: 0.022 - p.y),
         ]}
+    if fighter in ("student_gi", "student_hakama"):
+        # Dojo students (tools/mpfb/build_crowd.py): a karate gi jacket past the hips with a
+        # modest V (a training gi, closed higher than Kenji's) and sleeves to mid-forearm, and either gi trousers with a belt or a wide,
+        # pleated hakama from the waist to the ankles over the jacket's skirt.
+        jacket = dict(slot=MAIN, offset=0.024, folds=0.0045, sleeve=0.016,
+                      region=lambda p, n: min(top(p, L, L["hip"] - 0.06, L["elbow"] + (L["wrist"] - L["elbow"]) * 0.45), -v_cut(p, n, L, L["chest"] + 0.03, 0.06)))
+        if fighter == "student_gi":
+            return {"pieces": [
+                jacket,
+                dict(slot=MAIN, offset=0.018, folds=0.006, flare=0.03, region=lambda p, n: legs(p, L["ankle"] + 0.07, L["waist"] - 0.02)),
+                dict(slot=TRIM, offset=0.038, hide=False, region=lambda p, n: legs(p, L["hip"] + 0.04, L["hip"] + 0.085)),
+            ], "belt_knot": dict(slot=TRIM, y=0.0625, offset=0.038)}
+        return {"pieces": [
+            jacket,
+            dict(slot=ACCENT, offset=0.03, folds=0.008, flare=0.05, over_below_waist=0.016,
+                 region=lambda p, n: legs(p, L["ankle"] + 0.01, L["waist"] + 0.03)),
+        ]}
     raise KeyError(fighter)
 
 

@@ -36,6 +36,9 @@ extends MultiMeshInstance3D
 @export var seat_color := Color(0.36, 0.05, 0.06)
 ## Seats between two aisles (0 = no aisles).
 @export var aisle_every := 12
+## Which of the people (crowd.json "kind"): "spectator" (seated, on stadium seats) or
+## "student" (kneeling in seiza on the floor, no seats).
+@export var people_kind := "spectator"
 ## Extra seated people with `people` (ringside officials): where each one's feet are,
 ## facing +Z. They sit still or chat and never cheer; their chairs are the stage's.
 @export var officials: Array[Transform3D] = []
@@ -142,8 +145,9 @@ func _find_ambience() -> Node:
 func _build_people(rng: RandomNumberGenerator) -> void:
 	set_process(true)
 	var meta: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(PEOPLE_DIR + "crowd.json"))
-	var ids: Array = meta.keys()
+	var ids: Array = meta.keys().filter(func(k: String) -> bool: return meta[k].get("kind", "spectator") == people_kind)
 	ids.sort()
+	var seated := people_kind == "spectator"
 	var seats: Array[Transform3D] = []
 	var seat_colors: Array[Color] = []
 	var placed := {} # "id/colourway/side/detail" -> [[Transform3D, Color custom, Color tint], ...]
@@ -159,11 +163,14 @@ func _build_people(rng: RandomNumberGenerator) -> void:
 					continue
 				var along := (seat - seats_per_row / 2.0) * seat_spacing
 				var pos := out * (tier_start + row * tier_depth) + tangent * along + Vector3.UP * (floor_y + tier_rise * (row + 1))
-				seats.append(Transform3D(facing, pos))
-				seat_colors.append(seat_color.darkened(rng.randf_range(0.0, 0.12)))
+				if seated:
+					seats.append(Transform3D(facing, pos))
+					seat_colors.append(seat_color.darkened(rng.randf_range(0.0, 0.12)))
 				if rng.randf() < empty_seat_chance:
 					continue
 				var id: String = ids[rng.randi() % ids.size()]
+				if not seated:
+					pos += tangent * rng.randf_range(-0.08, 0.08) + out * rng.randf_range(-0.06, 0.06) # kneeling where they like
 				var turn := Basis(Vector3.UP, angle + PI + rng.randf_range(-0.12, 0.12))
 				var xform := Transform3D(turn.scaled(Vector3.ONE * rng.randf_range(0.96, 1.04)), pos)
 				var custom := Color(rng.randf(), rng.randf_range(0.12, 0.85), 1.0 if rng.randf() < TALKERS else 0.0, 1.0 if rng.randf() < CLAPPERS else 0.0)
@@ -181,6 +188,14 @@ func _build_people(rng: RandomNumberGenerator) -> void:
 			placed[key] = []
 		placed[key].append([xform, _official_custom(rng), Color.WHITE])
 
+	if seated:
+		_add_seats(seats, seat_colors)
+	_add_people(placed, meta)
+	_people_materials.assign(_materials.values())
+	_light_people()
+
+
+func _add_seats(seats: Array[Transform3D], seat_colors: Array[Color]) -> void:
 	var seat_mm := MultiMesh.new()
 	seat_mm.transform_format = MultiMesh.TRANSFORM_3D
 	seat_mm.use_colors = true
@@ -200,7 +215,12 @@ func _build_people(rng: RandomNumberGenerator) -> void:
 	seat_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(seat_mi)
 
-	var materials := {}
+
+var _materials := {}
+
+
+func _add_people(placed: Dictionary, meta: Dictionary) -> void:
+	var materials := _materials
 	for key: String in placed:
 		var id := key.get_slice("/", 0)
 		var stem := id if key.get_slice("/", 3) == "full" or not meta[id].has("lod") else id + "_lod"
@@ -225,8 +245,6 @@ func _build_people(rng: RandomNumberGenerator) -> void:
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.extra_cull_margin = 0.6 # cheering arms reach past the rest pose's bounds
 		add_child(mi)
-	_people_materials.assign(materials.values())
-	_light_people()
 
 
 ## Passes the stage's lighting to the people's shader.

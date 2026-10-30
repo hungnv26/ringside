@@ -1,6 +1,7 @@
 extends SceneTree
 ## Checks the crowd's vertex-animation textures (tools/mpfb/build_crowd.py): spectator
-## variants in a row, each in one clip (idle, talk, cheer, clap), seated on a bench.
+## variants in a row, each in one clip (idle, talk, cheer, clap), seated on a bench (or,
+## for students, kneeling on the floor).
 ##
 ## Run WINDOWED: godot --path . -s res://tools/render_crowd_check.gd -- <out.png> [id ...]
 
@@ -66,9 +67,10 @@ func _initialize() -> void:
 		vp.add_child(mmi)
 		var bench := MeshInstance3D.new()
 		var box := BoxMesh.new()
-		box.size = Vector3(clips.size() * 0.9, 0.45, 0.5)
+		var kneels: bool = info.get("kind", "spectator") == "student"
+		box.size = Vector3(clips.size() * 0.9, 0.02 if kneels else 0.45, 0.5 if not kneels else 1.2) # students kneel on the floor
 		bench.mesh = box
-		bench.position = Vector3(x + (clips.size() - 1) * 0.45, 0.225, 0.1)
+		bench.position = Vector3(x + (clips.size() - 1) * 0.45, box.size.y / 2.0, 0.1)
 		vp.add_child(bench)
 		x += clips.size() * 0.9 + 0.6
 	var camera := Camera3D.new()
