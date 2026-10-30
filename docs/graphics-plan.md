@@ -472,3 +472,26 @@ jet off while it waits.
   `docs/look/phase4/`.
 - **Cost**: nothing measurable when idle (Ring 70 fps before and after in an A/B run).
 - **Not done**: no per-surface footprints on gravel (the Temple fights on stone).
+
+### Phase 5: HUD and presentation (built 2026-10-31)
+
+- **Typeface**: Barlow Condensed (SIL Open Font Licence, `assets/ui/fonts/` with its
+  licence) is the project UI theme (`assets/ui/theme.tres`, built by
+  `tools/build_ui_theme.gd`, `gui/theme/custom`): SemiBold for labels, Bold for buttons,
+  the system fonts as a fallback for ★ ◆ and arrows.
+- **One look** (`scripts/ui/hud_style.gd`): dark translucent panels with a thin warm edge,
+  gold as the one accent, shared by the fight HUD and the coach overlay.
+- **Health bars**: a lit gradient over a dark slab; fresh damage shows white for a moment
+  (the chip) before the red trail drains; below a quarter health the bar turns
+  red-orange.
+- **Portraits** (the MakeHuman renders, `CharacterData.portrait`) in framed squares at the
+  outer ends of the top row, P2's mirrored.
+- **Timer, pips, meters**: a framed timer in the accent; square pips, gold when won;
+  gradient super meters, gold when full, no longer pulsing (no moving lights on the HUD).
+- **Combo counter**: hits and the damage the combo has done, real numbers.
+- **Coach overlay**: corner talk on panels, chips as tags, a gold read badge, the round
+  card restyled to match.
+- **Round intro**: an opening crane shot of the stage with its name and line in the lower
+  third, then each fighter as before (`FightIntro.STAGE_SECONDS`).
+- Captures: `tools/render_hud_check.gd`, `tools/render_coach_overlay_check.gd`;
+  `docs/look/phase5/`.

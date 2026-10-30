@@ -2671,6 +2671,13 @@ func intro_tests() -> void:
 	m.intro = intro
 	m.add_child(intro)
 	intro.setup(m)
+	check("Intro: opens on the stage: a crane shot, letterbox, no fighter on camera",
+		intro.current_shot() == -1 and m.camera.stage_shot_time >= 0.0 and m.hud._letterbox[0].visible and not p1.intro_on_camera)
+	intro.advance(0.5)
+	var stage_name: String = m.hud.center_label.text
+	intro.advance(FightIntro.STAGE_SECONDS)
+	check("Intro: the stage's name shows in the lower third, then the fighters",
+		stage_name != "" and intro.current_shot() == 0 and m.camera.stage_shot_time < 0.0, "'%s'" % stage_name)
 	check("Intro: P1's shot first: intro clip, eyes on the camera, letterbox, no HUD text yet",
 		p1.intro_clip == p1.data.intro_animation and p1.intro_on_camera and not p2.intro_on_camera
 		and m.camera.intro_target == p1 and m.hud._letterbox[0].visible and m.hud.center_label.text == "")
@@ -2695,6 +2702,7 @@ func intro_tests() -> void:
 	var skipped := FightIntro.new()
 	m.add_child(skipped)
 	skipped.setup(m)
+	skipped.advance(FightIntro.STAGE_SECONDS)
 	var skip_done := [false]
 	skipped.finished.connect(func() -> void: skip_done[0] = true)
 	skipped.skip()

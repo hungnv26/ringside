@@ -529,12 +529,14 @@ func _build_captions() -> void:
 		stack.offset_bottom = -82
 		layer.add_child(stack)
 
-		var badge := _text_label(18, Color(0.98, 0.82, 0.45), right)
+		var badge := _text_label(20, HudStyle.ACCENT, right)
 		badge.visible = false
 		stack.add_child(badge)
 		_badges.append(badge)
 
-		var talk := _text_label(16, Color(0.88, 0.86, 0.82), right)
+		var talk := _text_label(18, Color(0.88, 0.86, 0.82), right)
+		talk.add_theme_stylebox_override("normal", HudStyle.panel(Vector2(12, 6)))
+		talk.add_theme_constant_override("outline_size", 0)
 		talk.visible = false
 		stack.add_child(talk)
 		_talks.append(talk)
@@ -632,16 +634,8 @@ func _show_chips(side: int, chips: Array[String]) -> void:
 		label.text = chip
 		label.add_theme_font_size_override("font_size", 13)
 		label.add_theme_color_override("font_color", Color(0.92, 0.9, 0.86))
-		var box := StyleBoxFlat.new()
-		box.bg_color = Color(0.06, 0.07, 0.09, 0.78)
-		box.border_color = Color(0.42, 0.4, 0.36)
-		box.set_border_width_all(1)
-		box.set_corner_radius_all(3)
-		box.content_margin_left = 7
-		box.content_margin_right = 7
-		box.content_margin_top = 2
-		box.content_margin_bottom = 2
-		label.add_theme_stylebox_override("normal", box)
+		label.add_theme_font_size_override("font_size", 15)
+		label.add_theme_stylebox_override("normal", HudStyle.chip())
 		row.add_child(label)
 	_fade(row, CHIP_SECONDS)
 
@@ -663,24 +657,15 @@ func _build_card(layer: CanvasLayer) -> void:
 	band.offset_bottom = 0
 	layer.add_child(band)
 	_card = PanelContainer.new()
-	var box := StyleBoxFlat.new()
-	box.bg_color = Color(0.07, 0.08, 0.1, 0.9)
-	box.border_color = Color(0.32, 0.33, 0.37)
-	box.set_border_width_all(1)
-	box.set_corner_radius_all(6)
-	box.content_margin_left = 22
-	box.content_margin_right = 22
-	box.content_margin_top = 12
-	box.content_margin_bottom = 14
-	_card.add_theme_stylebox_override("panel", box)
+	_card.add_theme_stylebox_override("panel", HudStyle.panel(Vector2(24, 14), 1, 4, Color(0.05, 0.055, 0.07, 0.92)))
 	_card.visible = false
 	band.add_child(_card)
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 8)
 	_card.add_child(column)
 	_card_title = Label.new()
-	_card_title.add_theme_font_size_override("font_size", 20)
-	_card_title.add_theme_color_override("font_color", Color(1.0, 0.95, 0.8))
+	_card_title.add_theme_font_size_override("font_size", 24)
+	_card_title.add_theme_color_override("font_color", HudStyle.ACCENT)
 	_card_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(_card_title)
 	_card_grid = GridContainer.new()
@@ -718,7 +703,7 @@ func _show_card(winner: Fighter, reason: String, summary: Dictionary) -> void:
 		for c in 3:
 			var cell := Label.new()
 			cell.text = str(rows[r][c])
-			cell.add_theme_font_size_override("font_size", 17 if r == 0 else 16)
+			cell.add_theme_font_size_override("font_size", 20 if r == 0 else 19)
 			cell.add_theme_color_override("font_color", Color(0.98, 0.82, 0.45) if r == 0 else (Color(0.72, 0.7, 0.66) if c == 1 else Color(0.95, 0.94, 0.9)))
 			cell.horizontal_alignment = [HORIZONTAL_ALIGNMENT_RIGHT, HORIZONTAL_ALIGNMENT_CENTER, HORIZONTAL_ALIGNMENT_LEFT][c]
 			cell.custom_minimum_size = Vector2(180 if c == 1 else 150, 0)
