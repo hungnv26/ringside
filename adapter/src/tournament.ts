@@ -28,6 +28,7 @@ export interface TournamentRequest {
   cadence: number;
   effort: Effort;
   mode: Mode;
+  window: string;
   capture: boolean;
   record: boolean;
 }
@@ -193,7 +194,7 @@ export class TournamentRunner {
     const f = t.fixtures.find((x) => x.status === "pending");
     if (!f) return this.finish(t);
     const r = t.request;
-    const request: MatchRequest = { p1: r.entrants[f.p1], p2: r.entrants[f.p2], stage: f.stage, seed: f.seed, cap: r.cap, cadence: r.cadence, effort: r.effort, capture: r.capture, record: r.record, mode: r.mode };
+    const request: MatchRequest = { p1: r.entrants[f.p1], p2: r.entrants[f.p2], stage: f.stage, seed: f.seed, cap: r.cap, cadence: r.cadence, effort: r.effort, capture: r.capture, record: r.record, mode: r.mode, window: r.window };
     try {
       f.matchId = this.runner.start(request).id;
       f.status = "running";

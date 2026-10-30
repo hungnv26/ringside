@@ -19,6 +19,7 @@ const PAGE = join(HERE, "..", "setup", "index.html");
 export const LOG_ROOT = join(REPO_ROOT, "battle-logs");
 const STAGE_NAMES: Record<string, string> = { ring: "Boxing Ring", dojo: "Dojo", rooftop: "Rooftop", temple: "Temple", beach: "Beach", market: "Night Market", train: "Express", courtyard: "Kowloon Courtyard" };
 const EFFORTS: Effort[] = ["low", "medium", "high"];
+const WINDOWS = ["720p", "900p", "1080p", "1440p", "fullscreen"];
 const ELO_K = 32;
 const ELO_START = 1000;
 
@@ -149,6 +150,7 @@ export interface MatchRequest {
   capture?: boolean;
   record?: boolean;
   mode?: Mode;
+  window?: string;
 }
 
 /** One corner of a request: a known fighter and a provider:model spec. */
@@ -174,8 +176,10 @@ function validateSettings(raw: any) {
   if (!EFFORTS.includes(effort)) throw new Error("effort must be low, medium or high");
   const mode = String(raw?.mode ?? "coach") as Mode;
   if (!["coach", "script"].includes(mode)) throw new Error("mode must be coach or script");
+  const window = String(raw?.window ?? "1080p");
+  if (!WINDOWS.includes(window)) throw new Error(`window must be one of ${WINDOWS.join(", ")}`);
   const seed = raw?.seed === undefined || raw?.seed === null || raw?.seed === "" ? null : Math.floor(num("seed", 0, 0, 2 ** 31 - 1));
-  return { seed, cap: num("cap", 1, 0, 50), cadence: Math.floor(num("cadence", 2000, 500, 30000)), effort, capture: !!raw?.capture, record: !!raw?.record, mode };
+  return { seed, cap: num("cap", 1, 0, 50), cadence: Math.floor(num("cadence", 2000, 500, 30000)), effort, capture: !!raw?.capture, record: !!raw?.record, mode, window };
 }
 
 export function validateMatch(raw: any, fighters: Fighter[], stageIds: string[]): MatchRequest {
@@ -211,6 +215,7 @@ export function matchArgs(m: MatchRequest, logDir: string, captureDir: string): 
   if (m.capture) args.push("--capture", captureDir);
   if (m.record) args.push("--record", join(logDir, "match.mp4"));
   if (m.mode && m.mode !== "coach") args.push("--mode", m.mode);
+  if (m.window) args.push("--window", m.window);
   return args;
 }
 
@@ -342,11 +347,12 @@ export function createSetupServer(runner = new Runner(), root = REPO_ROOT, fetch
           keys: keyStatus(),
           priced: Object.keys(prices),
           efforts: EFFORTS,
+          windows: WINDOWS,
           modes: [
             { id: "coach", name: "Coach", blurb: "the model adjusts its fighter's plan every couple of seconds" },
             { id: "script", name: "Self-coding", blurb: "the model writes rules before the match and rewrites them after every round; no calls during a round" },
           ],
-          defaults: { p1: { fighter: "jin", spec: "anthropic:claude-haiku-5-5" }, p2: { fighter: "kenji", spec: "openai:gpt-5.4-mini" }, stage: "rooftop", cap: 1, cadence: 2000, effort: "low" },
+          defaults: { p1: { fighter: "jin", spec: "anthropic:claude-haiku-5-5" }, p2: { fighter: "kenji", spec: "openai:gpt-5.4-mini" }, stage: "rooftop", cap: 1, cadence: 2000, effort: "low", window: "1080p" },
           tournament: { maxEntrants: MAX_ENTRANTS, rotate: ROTATE },
           running: runner.running,
         });

@@ -135,6 +135,7 @@ video { width: 100%; max-width: 720px; border-radius: 6px; border: 1px solid var
       <label>Cost cap per side, $ <input id="cap" type="number" min="0" step="0.1" value="1"></label>
       <label>Turn every, ms <input id="cadence" type="number" min="500" step="100" value="2000"></label>
       <label>Thinking effort <select id="effort"></select></label>
+      <label>Game window <select id="window"></select></label>
     </div>
     <label class="check"><input type="checkbox" id="capture"> Save a screenshot every 10 s of the fight</label>
     <label class="check"><input type="checkbox" id="record"> Record the match to video (every frame rendered at 60 fps, then encoded with ffmpeg; the game runs slower on a slow machine)</label>
@@ -273,6 +274,7 @@ async function init() {
   }
   fill($("stage"), setup.stages.map((s) => ({ value: s.id, label: s.name })), last.stage);
   fill($("effort"), setup.efforts.map((e) => ({ value: e, label: e })), last.effort);
+  fill($("window"), setup.windows.map((w) => ({ value: w, label: w === "fullscreen" ? "fullscreen (borderless)" : w })), last.window || setup.defaults.window || "1080p");
   fill($("mode"), setup.modes.map((m) => ({ value: m.id, label: m.name })), last.mode || "coach");
   const modeNote = () => { const m = setup.modes.find((x) => x.id === $("mode").value); $("mode-note").textContent = m ? m.blurb : ""; };
   $("mode").addEventListener("change", modeNote);
@@ -334,7 +336,7 @@ $("t-start").addEventListener("click", async () => {
   msg.className = "msg";
   const request = {
     name: $("t-name").value, entrants, legs: $("t-legs").value, stage: $("t-stage").value,
-    seed: $("seed").value, cap: $("cap").value, cadence: $("cadence").value, effort: $("effort").value, capture: $("capture").checked, record: $("record").checked, mode: $("mode").value,
+    seed: $("seed").value, cap: $("cap").value, cadence: $("cadence").value, effort: $("effort").value, capture: $("capture").checked, record: $("record").checked, mode: $("mode").value, window: $("window").value,
   };
   try {
     const r = await api("/api/tournament", request);
@@ -402,7 +404,7 @@ $("start").addEventListener("click", async () => {
   const request = {
     p1: { fighter: $("p1-fighter").value, spec: spec("p1") },
     p2: { fighter: $("p2-fighter").value, spec: spec("p2") },
-    stage: $("stage").value, seed: $("seed").value, cap: $("cap").value, cadence: $("cadence").value, effort: $("effort").value, capture: $("capture").checked, record: $("record").checked, mode: $("mode").value,
+    stage: $("stage").value, seed: $("seed").value, cap: $("cap").value, cadence: $("cadence").value, effort: $("effort").value, capture: $("capture").checked, record: $("record").checked, mode: $("mode").value, window: $("window").value,
   };
   try {
     const r = await api("/api/match", request);

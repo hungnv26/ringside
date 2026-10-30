@@ -164,6 +164,15 @@ side keeps its last plan and the adapter notes it in the log and on the console.
 Logs: `battle-logs/<id>/battle.json` (setup, result, per-side totals), `<side>.md` (every turn:
 prompt, reply, tool calls, answer time, tokens, cost), `<side>.jsonl`.
 
+## Window
+
+A coached match opens a 1080p window by default (`--window=720p|900p|1080p|1440p|fullscreen`,
+picked on the setup page), sized in screen points: on a 2× Retina screen 1080p is 3840×2160
+pixels, and a size that does not fit falls back to the largest that does (a 16" MacBook Pro
+gets 3200×1800). The 3D is drawn at the window's own resolution and the player's saved display
+settings are not touched. Screenshots and recordings follow the window's pixel size, so a
+recording at 1080p on a Retina screen is a 4K movie.
+
 ## Conventions (carried from the user's other games)
 
 - HUD shows only real, working data; no neon, strong glow or moving lights.

@@ -200,8 +200,46 @@ func start_coach(tree: SceneTree) -> bool:
 			if str(stage.path).get_file().get_basename() == str(args.stage) or stage.name.to_lower() == str(args.stage).to_lower():
 				stage_path = stage.path
 	match_seed = int(args.seed) if args.has("seed") else randi()
+	_apply_coach_window(str(args.get("window", "1080p")), tree)
 	tree.change_scene_to_file.call_deferred("res://scenes/fight.tscn")
 	return true
+
+
+## `--window=720p|900p|1080p|1440p|fullscreen` for a coached match (default 1080p): the
+## window for this run only, sized in screen points (times the display scale, so 1080p is
+## 3840×2160 pixels on a 2× Retina screen) and the 3D drawn at the window's own resolution;
+## nothing is saved to the player's settings. A size that does not fit the screen falls
+## back to the largest that does.
+func _apply_coach_window(choice: String, tree: SceneTree) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var names := ["720p", "900p", "1080p", "1440p"]
+	Settings.resolution = Settings.RESOLUTIONS.size() - 1 # native: no 3D cap below the window
+	if choice == "fullscreen":
+		Settings.display_mode = Settings.DisplayMode.BORDERLESS
+		Settings.apply_display()
+	else:
+		var index := names.find(choice)
+		if index < 0:
+			push_warning("coach: unknown --window=%s; using 1080p" % choice)
+			index = 2
+		Settings.display_mode = Settings.DisplayMode.WINDOWED
+		Settings.window_size = index
+		Settings.apply_display()
+		var screen := DisplayServer.window_get_current_screen()
+		var scale := maxf(1.0, DisplayServer.screen_get_scale(screen))
+		var area := DisplayServer.screen_get_usable_rect(screen)
+		var size := Vector2i(Settings.WINDOW_SIZES[0] * scale)
+		for i in range(index, -1, -1):
+			var candidate := Vector2i(Settings.WINDOW_SIZES[i] * scale)
+			if candidate.x <= area.size.x and candidate.y <= area.size.y:
+				size = candidate
+				break
+		DisplayServer.window_set_size(size)
+		DisplayServer.window_set_position(area.position + (area.size - size) / 2)
+	Settings.apply_graphics(tree.root)
+	var size_now := DisplayServer.window_get_size()
+	print("coach: window %s, %dx%d pixels (screen %s at %.1fx)" % [["windowed", "minimized", "maximized", "fullscreen", "exclusive fullscreen"][DisplayServer.window_get_mode()], size_now.x, size_now.y, DisplayServer.screen_get_size(), DisplayServer.screen_get_scale()])
 
 
 func _character_by_id(id: String) -> CharacterData:
