@@ -276,7 +276,8 @@ async function init() {
   fill($("stage"), setup.stages.map((s) => ({ value: s.id, label: s.name })), last.stage);
   fill($("effort"), setup.efforts.map((e) => ({ value: e, label: e })), last.effort);
   fill($("window"), setup.windows.map((w) => ({ value: w, label: w === "fullscreen" ? "fullscreen (borderless)" : w })), last.window || setup.defaults.window || "1080p");
-  fill($("graphics"), setup.graphics.map((g) => ({ value: g.id, label: g.name })), last.graphics || setup.defaults.graphics || "high");
+  // An older setup server (started before the page last changed) sends no presets; offer High.
+  fill($("graphics"), (setup.graphics || [{ id: "high", name: "High" }]).map((g) => ({ value: g.id, label: g.name })), last.graphics || setup.defaults.graphics || "high");
   // A recording renders every frame whatever it costs, so it can afford Showcase.
   $("record").addEventListener("change", () => { if ($("record").checked) $("graphics").value = "showcase"; });
   fill($("mode"), setup.modes.map((m) => ({ value: m.id, label: m.name })), last.mode || "coach");
