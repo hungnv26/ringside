@@ -26,6 +26,15 @@ tournament is saved as `battle-logs/tournaments/<id>.json`; one the server was r
 under is left as it was (its unplayed fixtures are not resumed). A match that exits without a
 `battle.json` is marked failed and the tournament goes on.
 
+## What a coach can do
+
+Coach mode's tools are `set_plan`, `queue`, `say` and `predict` (a read: one of the opponent's
+move inputs or jump, throw, super, fireball, low, overhead, sweep, reversal, uppercut; the game
+answers with a `read` event when it comes true within 6 s, expires or is replaced, and the
+HUD shows CALLED IT). The first line of every reply is the coach's *corner talk*, sent to the
+game as a `talk` frame and shown under its caption. `stats()` and `live.json` carry
+`lastTalk` and `reads {made, right}` per side.
+
 ## Run a match
 
 ```bash
@@ -88,7 +97,7 @@ same table as Outpost War's).
 ## Checks
 
 ```bash
-npm test            # 45 tests: prompt text, plan validation, the fake, the link over a socket, coach cadence/cap/errors, logs, CLI, the setup API, modes, tournaments
+npm test            # 50 tests: prompt text, plan validation, the fake, the link over a socket, coach cadence/cap/errors, logs, CLI, the setup API, modes, tournaments, corner talk and reads
 npm run typecheck
 ```
 

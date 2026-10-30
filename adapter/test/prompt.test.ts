@@ -49,7 +49,7 @@ test("turn message tells events, the plan in force and the last results", () => 
 test("tools are set_plan, queue and say", () => {
   assert.deepEqual(
     TOOLS.map((t) => t.function.name),
-    ["set_plan", "queue", "say"],
+    ["set_plan", "queue", "say", "predict"],
   );
   const props = (TOOLS[0].function.parameters as { properties: Record<string, unknown> }).properties;
   assert.deepEqual(Object.keys(props), ["aggression", "range", "block", "punish", "anti_air", "reaction", "pressure", "options"]);

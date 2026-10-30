@@ -173,5 +173,33 @@ func _initialize() -> void:
 	coach.set_caption("  Keep him at kick range, punish the step in with the spinning back kick!  ")
 	check("captions are trimmed to 60 characters", coach.caption.length() == 60, coach.caption)
 
+	# watchability: plan chips, queue chips, corner talk, reads
+	var chips := CoachLink.plan_chips({aggression = 0.5, range = "mid", options = {throw = 1.0}}, {aggression = 0.9, range = "close", block = 0.95, options = {throw = 2.0, poke = 1.0}})
+	check("plan chips name what changed with arrows", ", ".join(chips) == "aggression ↑ 0.9, range → close, block → 0.95, throw ↑ 2", ", ".join(chips))
+	check("plan chips are capped", CoachLink.plan_chips({}, {aggression = 0.1, block = 0.2, punish = 0.3, anti_air = 0.4, pressure = 0.5}).size() == CoachLink.MAX_CHIPS)
+	check("a queued super is called out", CoachLink.queue_chip(["block 12", "236236K"]) == "SUPER QUEUED · block 12 › 236236K" and CoachLink.queue_chip(["2HK"]) == "QUEUE · 2HK")
+	var sent_before := link.sent.size()
+	link._handle({type = "talk", side = "p1", text = "They keep whiffing; blocking more."})
+	check("a talk frame is accepted offline and answers nothing", link.sent.size() == sent_before)
+	var bad_read := link.set_prediction(0, "moonwalk", "r-0")
+	check("an unknown read is refused", bad_read.size() == 1 and bad_read[0].begins_with("unknown read moonwalk"), ", ".join(bad_read))
+	var ok_read := link.set_prediction(0, "2hk", "r-1")
+	check("a read may name an opponent move in any case", ok_read.is_empty() and link._predictions[0].what == "2HK", str(link._predictions[0]))
+	link.set_prediction(0, "reversal", "r-2")
+	var replaced: Dictionary = link.sent[-1]
+	check("a replaced read counts as a miss", replaced.type == "event" and replaced.event == "read" and replaced.right == false and replaced.actual == "replaced" and link.round_summary().p1.reads.made == 2, str(replaced))
+	var dragon: MoveData = p2.data.moves.filter(func(mv: MoveData) -> bool: return mv.input == "623P")[0]
+	check("read matching: words and inputs", CoachLink.read_matches("reversal", "", dragon) and CoachLink.read_matches("623p", "", dragon) and not CoachLink.read_matches("low", "", dragon) and CoachLink.read_matches("jump", "jump", null) and not CoachLink.read_matches("throw", "jump", null))
+	link._on_attack_started(dragon, 1)
+	var called: Dictionary = link.sent[-1]
+	check("the opponent's dragon fulfils the reversal read", called.event == "read" and called.right == true and called.actual == dragon.name and link._predictions[0].is_empty(), str(called))
+	link.set_prediction(1, "jump", "r-3")
+	link._ticks += CoachLink.PREDICT_TICKS
+	link._on_ticked()
+	var expired: Dictionary = link.sent.filter(func(f: Dictionary) -> bool: return f.type == "event" and f.event == "read" and f.side == "p2")[-1]
+	check("a read that does not come true expires as a miss", expired.right == false and link._predictions[1].is_empty(), str(expired))
+	var totals: Dictionary = link.round_summary().p1
+	check("round summary carries reads, supers and totals", totals.reads.right == 1 and totals.reads.made == 2 and totals.has("supers") and totals.totals.has("whiffed"), str(totals.reads))
+
 	print("\n%d failure(s)" % fails)
 	quit(1 if fails > 0 else 0)

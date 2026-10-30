@@ -3,6 +3,19 @@ import { OPTION_NAMES, other, type ChatBody, type FighterInfo, type GameEvent, t
 import type { Effort } from "./models.ts";
 
 export const MAX_CAPTION = 60;
+export const MAX_TALK = 140;
+export const MAX_READ = 24;
+/** What a read may name besides one of the opponent's move inputs (the game checks the same list). */
+export const READ_WORDS = ["jump", "throw", "super", "fireball", "low", "overhead", "sweep", "reversal", "uppercut"] as const;
+
+export const PREDICT_TOOL: NonNullable<ChatBody["tools"]>[number] = {
+  type: "function",
+  function: {
+    name: "predict",
+    description: `A read: what the opponent does within the next 6 seconds. One of their move inputs (623P, 2HK...) or ${READ_WORDS.join(", ")}. One read at a time; a new one replaces the old, which then counts as a miss. A correct read shows CALLED IT on screen and counts for you; call it only when you see a pattern.`,
+    parameters: { type: "object", properties: { what: { type: "string", maxLength: MAX_READ } }, required: ["what"] },
+  },
+};
 
 export const TOOLS: NonNullable<ChatBody["tools"]> = [
   {
@@ -46,6 +59,7 @@ export const TOOLS: NonNullable<ChatBody["tools"]> = [
       parameters: { type: "object", properties: { text: { type: "string", maxLength: MAX_CAPTION } }, required: ["text"] },
     },
   },
+  PREDICT_TOOL,
 ];
 
 const pct = (v: number, max: number): string => `${Math.round((100 * v) / Math.max(1, max))}%`;
@@ -58,7 +72,7 @@ export function movesText(f: FighterInfo): string {
 export function buildSystemPrompt(side: Side, hello: Hello, _effort: Effort = "low"): string {
   const me = hello[side];
   const them = hello[other(side)];
-  return `You are the ringside coach of ${me.name} in a one-on-one 3D fighting game (best of ${hello.rounds_to_win * 2 - 1} rounds of ${hello.round_seconds} seconds, ${me.max_health} health). Your fighter fights by itself at 60 frames a second; you cannot press buttons. Every couple of seconds you see the fight and adjust the game plan with the tools: set_plan (tendencies: aggression, range, block, punish, anti_air, reaction, pressure, option weights), queue (specific moves to do next) and say (a short caption). Give your tools in one reply and nothing else; do not explain.
+  return `You are the ringside coach of ${me.name} in a one-on-one 3D fighting game (best of ${hello.rounds_to_win * 2 - 1} rounds of ${hello.round_seconds} seconds, ${me.max_health} health). Your fighter fights by itself at 60 frames a second; you cannot press buttons. Every couple of seconds you see the fight and adjust the game plan with the tools: set_plan (tendencies: aggression, range, block, punish, anti_air, reaction, pressure, option weights), queue (specific moves to do next), say (a short caption) and predict (a read on what the opponent does next). Start every reply with one line of corner talk, under ${MAX_TALK} characters: what you see and what you are changing. It is shown on screen under your fighter's name, so write it for the crowd. Then the tools, and nothing else.
 
 Your fighter, ${me.name}${me.archetype ? ` (${me.archetype})` : ""}:
 ${movesText(me)}
@@ -88,13 +102,16 @@ export function eventText(e: GameEvent, side: Side): string {
     case "round_start":
       return `Round ${e.round} starts.`;
     case "hit":
-      return `${who(e.attacker)} landed ${e.input} ${e.name ?? ""} (${e.result}${Number(e.combo) > 1 ? `, combo ${e.combo}` : ""}, ${e.damage} damage) on ${whom(e.defender)}.`;
+      // A blocked attack did no real damage: say so instead of quoting the move's damage.
+      return `${who(e.attacker)} landed ${[e.input, e.name].filter(Boolean).join(" ")} (${e.result}${Number(e.combo) > 1 ? `, combo ${e.combo}` : ""}${e.result === "blocked" ? ", no damage" : `, ${e.damage} damage`}) on ${whom(e.defender)}.`;
     case "throw":
       return `${who(e.attacker)} threw ${whom(e.defender)}.`;
     case "knockdown":
       return `${who(e.side)} got knocked down.`;
     case "super":
       return `${who(e.side)} used the super ${e.name ?? ""}.`;
+    case "read":
+      return e.side === side ? (e.right ? `Your read "${e.what}" came true (${e.actual}): CALLED IT.` : `Your read "${e.what}" missed${e.actual ? ` (${e.actual})` : ""}.`) : "";
     case "round_end":
       return `Round over: ${e.winner == null ? "draw" : who(e.winner) === "you" ? "you won it" : "they won it"} (${e.reason}).`;
     case "match_end":
@@ -125,7 +142,8 @@ export function buildTurnMessage(side: Side, state: State | null, events: GameEv
     lines.push(sideText("You", me));
     lines.push(sideText("Opponent", them));
   } else lines.push("The round has not started yet.");
-  lines.push(events.length ? `Since your last turn: ${events.map((e) => eventText(e, side)).join(" ")}` : "Since your last turn: nothing notable.");
+  const told = events.map((e) => eventText(e, side)).filter(Boolean);
+  lines.push(told.length ? `Since your last turn: ${told.join(" ")}` : "Since your last turn: nothing notable.");
   lines.push(`Your current plan: ${planText(currentPlan)}.`);
   if (lastResults.length) lines.push(`Your last tools: ${lastResults.join("; ")}.`);
   lines.push("Adjust the plan with the tools.");
@@ -185,6 +203,18 @@ export function validateQueue(raw: unknown): { moves: string[]; problems: string
 export function validateSay(raw: unknown): string {
   const t = raw && typeof raw === "object" ? String((raw as Record<string, unknown>).text ?? "") : String(raw ?? "");
   return t.replace(/\s+/g, " ").trim().slice(0, MAX_CAPTION);
+}
+
+/** The read's word: a move input or one of READ_WORDS; "" when there is nothing usable. */
+export function validatePredict(raw: unknown): string {
+  const t = raw && typeof raw === "object" ? String((raw as Record<string, unknown>).what ?? "") : String(raw ?? "");
+  return t.replace(/[^\w.]/g, "").slice(0, MAX_READ);
+}
+
+/** The first line of the reply text, for the HUD: the coach's corner talk. */
+export function talkOf(content: unknown): string {
+  const first = String(content ?? "").split("\n").map((l) => l.replace(/^[\s#*>\-•"“”]+|["“”]+$/g, "").trim()).find((l) => l.length > 0) ?? "";
+  return first.replace(/\s+/g, " ").slice(0, MAX_TALK);
 }
 
 // Merges a plan into the plan in force (what the game does too).

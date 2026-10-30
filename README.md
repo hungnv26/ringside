@@ -31,6 +31,11 @@ health bars, each coach's caption, plan, turns and cost, and the event feed, the
 result with links to the transcripts, and an Elo table by model. *Record the match to video*
 saves `match.mp4` next to the logs (Godot's movie writer plus ffmpeg).
 
+While a match runs the HUD shows, at each corner, the coach's *corner talk* (the first line of
+its reply), *plan chips* for what each plan change did ("block ↑ 0.95", "SUPER QUEUED"), and a
+*read badge* when a coach's `predict` call comes true ("CALLED IT · Rising Dragon"). Between
+rounds a card lists both sides' hits, blocks, whiffs, throws, knockdowns, supers and reads.
+
 A **tournament** is a round robin between up to eight entrants (a fighter and the model that
 coaches it; the same fighter may enter with several models), played one match after another
 with the settings of step 3. Each pair meets once, or twice with the corners swapped; the stage
@@ -54,9 +59,9 @@ game alone: `godot --path . -- --coach=ws://127.0.0.1:8797 --p1=jin --p2=kenji -
 ## Checks
 
 ```bash
-godot --headless --path . -s res://tests/coach_test.gd     # coach mode (25 checks)
+godot --headless --path . -s res://tests/coach_test.gd     # coach mode (50 checks)
 godot --headless --path . -s res://tests/sim_test.gd       # 3D Fighter's regression suite
-cd adapter && npm test && npm run typecheck                # the adapter and the setup page (45 tests)
+cd adapter && npm test && npm run typecheck                # the adapter and the setup page (50 tests)
 ```
 
 ## What was added

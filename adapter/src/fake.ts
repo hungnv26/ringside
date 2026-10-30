@@ -4,6 +4,7 @@ import type { ChatBody, ChatResult, ModelClient } from "./types.ts";
 
 const RANGES = ["close", "mid", "far"] as const;
 const CAPTIONS = ["Pressure on.", "Keep your distance.", "Watch the low kick.", "Finish it."];
+const TALK = ["They keep whiffing the heavy; I am tightening the block and waiting for it.", "Range is wrong for us: closing in and queuing the sweep.", "Meter is nearly full, so I am saving the super for a punish.", "Their jabs win up close; backing off to mid and poking."];
 
 export class FakeModelClient implements ModelClient {
   calls = 0;
@@ -50,9 +51,11 @@ export class FakeModelClient implements ModelClient {
     const calls = [{ id: `fake-${n}-plan`, type: "function", function: { name: "set_plan", arguments: JSON.stringify(plan) } }];
     if (n % 3 === 2) calls.push({ id: `fake-${n}-queue`, type: "function", function: { name: "queue", arguments: JSON.stringify({ moves: has236K ? ["2HK", "236K"] : ["2HK"] }) } });
     calls.push({ id: `fake-${n}-say`, type: "function", function: { name: "say", arguments: JSON.stringify({ text: CAPTIONS[n % CAPTIONS.length] }) } });
+    // Every fourth turn a read: the opponent's sweep (every fighter has one), or a jump.
+    if (n % 4 === 1 && toolNames.includes("predict")) calls.push({ id: `fake-${n}-predict`, type: "function", function: { name: "predict", arguments: JSON.stringify({ what: n % 8 === 1 ? "2HK" : "jump" }) } });
     const promptTokens = Math.ceil(body.messages.reduce((s, m) => s + String(m.content ?? "").length, 0) / 4);
     return {
-      message: { content: null, tool_calls: calls },
+      message: { content: TALK[n % TALK.length], tool_calls: calls },
       usage: { prompt_tokens: promptTokens, completion_tokens: 40, total_tokens: promptTokens + 40, x_input: promptTokens, x_cache_read: 0, x_cache_write: 0 },
       tokens: promptTokens + 40,
       usd: 0,

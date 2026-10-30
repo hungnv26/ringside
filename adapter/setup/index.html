@@ -70,6 +70,7 @@ a { color: var(--ink); }
 .coach[data-side="p1"] { --c: var(--p1); } .coach[data-side="p2"] { --c: var(--p2); }
 .coach .model { font: 500 13px var(--mono); color: var(--ink); word-break: break-all; }
 .coach .caption { font-style: italic; color: var(--ink); min-height: 1.4em; }
+.coach .talk { color: var(--muted); font-size: 12.5px; }
 .coach .stats { color: var(--muted); }
 .coach .plan { font: 12px var(--mono); color: var(--muted); word-break: break-word; }
 .status { font: 700 13px var(--display); letter-spacing: .08em; text-transform: uppercase; }
@@ -183,8 +184,8 @@ video { width: 100%; max-width: 720px; border-radius: 6px; border: 1px solid var
         <div><div class="name p2" id="name-p2">—</div><div class="bar p2"><i id="hp-p2" style="width:0%"></i></div><div class="bar meter p2"><i id="meter-p2" style="width:0%"></i></div><div class="pips" id="pips-p2" style="text-align:right"></div></div>
       </div>
       <div class="coaches">
-        <div class="coach" data-side="p1"><div class="model" id="coach-model-p1">—</div><div class="caption" id="coach-caption-p1"></div><div class="stats" id="coach-stats-p1"></div><div class="plan" id="coach-plan-p1"></div></div>
-        <div class="coach" data-side="p2"><div class="model" id="coach-model-p2">—</div><div class="caption" id="coach-caption-p2"></div><div class="stats" id="coach-stats-p2"></div><div class="plan" id="coach-plan-p2"></div></div>
+        <div class="coach" data-side="p1"><div class="model" id="coach-model-p1">—</div><div class="caption" id="coach-caption-p1"></div><div class="talk" id="coach-talk-p1"></div><div class="stats" id="coach-stats-p1"></div><div class="plan" id="coach-plan-p1"></div></div>
+        <div class="coach" data-side="p2"><div class="model" id="coach-model-p2">—</div><div class="caption" id="coach-caption-p2"></div><div class="talk" id="coach-talk-p2"></div><div class="stats" id="coach-stats-p2"></div><div class="plan" id="coach-plan-p2"></div></div>
       </div>
       <div class="result" id="result" hidden></div>
       <div class="events" id="events"></div>
@@ -477,7 +478,8 @@ function render(s) {
     $("coach-model-" + side).textContent = live.sides?.[side]?.model ?? "";
     if (c) {
       $("coach-caption-" + side).textContent = c.lastCaption ? `“${c.lastCaption}”` : "";
-      $("coach-stats-" + side).textContent = `${c.status} · ${c.turns} turns · ${c.avgSeconds != null ? c.avgSeconds.toFixed(1) : "—"} s/turn · ${c.tokens} tokens · ${usd(c.usd)}${c.refused ? ` · ${c.refused} refused` : ""}${c.errors ? ` · ${c.errors} errors` : ""}`;
+      $("coach-talk-" + side).textContent = c.lastTalk ? `Corner talk: ${c.lastTalk}` : "";
+      $("coach-stats-" + side).textContent = `${c.status} · ${c.turns} turns · ${c.avgSeconds != null ? c.avgSeconds.toFixed(1) : "—"} s/turn · ${c.tokens} tokens · ${usd(c.usd)}${c.reads && c.reads.made ? ` · reads ${c.reads.right}/${c.reads.made}` : ""}${c.refused ? ` · ${c.refused} refused` : ""}${c.errors ? ` · ${c.errors} errors` : ""}`;
       $("coach-plan-" + side).textContent = (c.plan ? planText(c.plan) : "") + (c.rules && c.rules.length ? `${c.plan ? " · " : ""}${c.rules.length} rules: ${c.rules.map((r) => r.name).join(", ")}` : "");
     }
     if (st && st[side]) {

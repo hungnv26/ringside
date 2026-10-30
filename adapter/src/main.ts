@@ -215,6 +215,7 @@ async function main(): Promise<void> {
             const who = `${s} ${hello[s].name}`;
             if (t.error) say(`${who}: error ${t.error}`);
             else say(`${who} (${t.reason}, ${t.seconds.toFixed(1)} s${t.usd != null ? `, $${t.usd.toFixed(4)}` : ""}): ${t.calls.join("; ") || "no tools"}`);
+            if (t.talk) say(`${who} talk: ${t.talk}`);
             if (t.caption) say(`${who} says: "${t.caption}"`);
           },
         }),

@@ -129,10 +129,26 @@ Adapter → game:
   controllers manual.
 - `policy` `{type, side, plan_id, plan?, rules?}`: self-coding mode; answered with `applied`.
 - `resume` `{type, n}`: beat mode; the game goes on after beat `n`.
+- `talk` `{type, side, text}`: the coach's corner talk (the first line of its reply, up to 140
+  characters), shown under the caption at its corner for seven seconds.
+- `predict` `{type, side, plan_id, what}`: a read on the opponent: one of their move inputs or
+  jump, throw, super, fireball, low, overhead, sweep, reversal, uppercut. One read per side at a
+  time; a new one replaces the old, which counts as a miss. Answered with `applied`.
 
-Game → adapter, in addition: `beat` `{type, n, ...state}` when the game pauses at a beat, and
+Game → adapter, in addition: `beat` `{type, n, ...state}` when the game pauses at a beat;
 `round_end` carries `round` and `summary {p1, p2}` (attacks by input with hit/counter/blocked/
-whiffed counts, throws, knockdowns, health_left, max_health, rule_fired_last).
+whiffed counts, `totals`, throws, knockdowns, `supers {used, landed}`, `reads {made, right}`,
+health_left, max_health, rule_fired_last); and `read` `{side, what, right, actual}` when a
+side's read comes true (within 6 s), expires, is replaced or the round ends.
+
+## Watching (built 2026-10-30)
+
+What the HUD shows at each corner, bottom up: the COACH THINKING mark, the caption (`say`),
+*plan chips* for what the last plan or queue frame changed ("block ↑ 0.95", "range → close",
+"SUPER QUEUED · block 12 › 236236K", 3.5 s), the *corner talk* line (7 s) and the *read badge*
+("CALLED IT · Rising Dragon", 2.5 s). Between rounds a *round card* lists both sides' health
+left, hits landed, blocked, whiffed, throws, knockdowns dealt, supers landed and reads called;
+coached matches hold the round-over pause 2.5 s longer for it. Plain text only, no glow.
 
 The adapter never blocks the game: a late plan applies when it arrives; a disconnected link
 leaves both fighters on their last plan.

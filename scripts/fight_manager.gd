@@ -30,6 +30,8 @@ const TICKS_PER_SECOND := 60
 ## "ROUND N" shows from the start of the intro; "FIGHT!" at the end, when input unlocks.
 const INTRO_TICKS := 110
 const ROUND_OVER_TICKS := 210
+## Coached matches hold the round card on screen a little longer between rounds.
+const COACH_CARD_TICKS := 150
 ## Winner switches to the victory pose this long after the round ends.
 const VICTORY_POSE_DELAY := 70
 ## After this many rounds a tie on round wins is a draw game.
@@ -368,7 +370,7 @@ func _tick_round() -> void:
 		Phase.ROUND_OVER:
 			if phase_ticks == VICTORY_POSE_DELAY and round_winner:
 				round_winner.victory = true
-			if phase_ticks >= ROUND_OVER_TICKS:
+			if phase_ticks >= ROUND_OVER_TICKS + (COACH_CARD_TICKS if is_coach() else 0):
 				_after_round()
 		Phase.MATCH_OVER:
 			if match_winner and not resimulating:

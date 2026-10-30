@@ -161,7 +161,20 @@ export interface ResumeFrame {
   type: "resume";
   n: number;
 }
-export type AdapterFrame = PlanFrame | QueueFrame | SayFrame | EndFrame | ModelsFrame | ThinkingFrame | ModeFrame | PolicyFrame | ResumeFrame;
+/** The coach's own line about what it sees and is changing (corner talk on the HUD). */
+export interface TalkFrame {
+  type: "talk";
+  side: Side;
+  text: string;
+}
+/** A read: what the coach says the opponent will do next; the game answers with a `read` event. */
+export interface PredictFrame {
+  type: "predict";
+  side: Side;
+  plan_id: string;
+  what: string;
+}
+export type AdapterFrame = PlanFrame | QueueFrame | SayFrame | EndFrame | ModelsFrame | ThinkingFrame | ModeFrame | PolicyFrame | ResumeFrame | TalkFrame | PredictFrame;
 
 // Model calls, in the OpenAI chat format (the provider translation is models.ts's business).
 export interface ToolCall {

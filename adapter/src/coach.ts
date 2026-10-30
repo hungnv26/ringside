@@ -7,7 +7,7 @@ import type { GameLink } from "./link.ts";
 import type { BattleLog } from "./log.ts";
 import { toolCallsForLog } from "./log.ts";
 import type { Effort } from "./models.ts";
-import { BEAT_TOOLS, SCRIPT_TOOLS, TOOLS, buildBeatMessage, buildBeatSystemPrompt, buildScriptSystemPrompt, buildScriptTurnMessage, buildSystemPrompt, buildTurnMessage, mergePlan, validatePlan, validateQueue, validateRules, validateSay } from "./prompt.ts";
+import { BEAT_TOOLS, SCRIPT_TOOLS, TOOLS, buildBeatMessage, buildBeatSystemPrompt, buildScriptSystemPrompt, buildScriptTurnMessage, buildSystemPrompt, buildTurnMessage, mergePlan, talkOf, validatePlan, validatePredict, validateQueue, validateRules, validateSay } from "./prompt.ts";
 import type { Applied, Beat, GameEvent, Hello, Mode, ModelClient, Plan, Rule, Side, State } from "./types.ts";
 import { other } from "./types.ts";
 
@@ -26,6 +26,10 @@ export interface CoachStats {
   errors: number;
   lastError: string | null;
   lastCaption: string | null;
+  /** The coach's last line of corner talk (the reply text's first line). */
+  lastTalk: string | null;
+  /** Reads made with `predict` and how many came true. */
+  reads: { made: number; right: number };
   plan: Plan | null;
   rules?: Rule[] | null;
 }
@@ -42,7 +46,7 @@ export interface CoachOptions {
   now?: () => number;
   setTimer?: (fn: () => void, ms: number) => unknown;
   clearTimer?: (t: unknown) => void;
-  onTurn?: (side: Side, info: { reason: string; calls: string[]; caption: string | null; seconds: number; usd: number | null; error?: string }) => void;
+  onTurn?: (side: Side, info: { reason: string; calls: string[]; caption: string | null; talk: string | null; seconds: number; usd: number | null; error?: string }) => void;
 }
 
 const HEALTH_SWING = 0.25;
@@ -57,6 +61,8 @@ export class Coach {
   errors = 0;
   lastError: string | null = null;
   lastCaption: string | null = null;
+  lastTalk: string | null = null;
+  reads = { made: 0, right: 0 };
   plan: Plan | null = null;
   private seconds = 0;
   private events: GameEvent[] = [];
@@ -130,6 +136,8 @@ export class Coach {
       errors: this.errors,
       lastError: this.lastError,
       lastCaption: this.lastCaption,
+      lastTalk: this.lastTalk,
+      reads: { ...this.reads },
       plan: this.plan,
       rules: this.rules,
     };
@@ -160,6 +168,8 @@ export class Coach {
       if (this.mode === "coach") this.turn("round_start");
     } else if (e.event === "knockdown" && e.side === this.side) {
       if (this.mode === "coach") this.turn("knockdown");
+    } else if (e.event === "read" && e.side === this.side) {
+      if (e.right) this.reads.right++;
     } else if (e.event === "round_end" || e.event === "match_end") {
       this.roundLive = false;
       this.clearCadence();
@@ -241,10 +251,17 @@ export class Coach {
     this.seconds += seconds;
     const sent: string[] = [];
     let caption: string | null = null;
+    let talk: string | null = null;
     if (reply) {
       this.tokens += reply.tokens;
       if (reply.usd != null) this.usd += reply.usd;
       const calls = reply.message.tool_calls ?? [];
+      const line = talkOf(reply.message.content);
+      if (line) {
+        talk = line;
+        this.lastTalk = line;
+        this.link.send({ type: "talk", side: this.side, text: line });
+      }
       if (calls.length === 0) this.results.push(reply.finish === "length" ? "no tools: your reply ran out of room; think less and answer with the tools" : `no tools given${reply.message.content ? ` (you wrote: ${String(reply.message.content).slice(0, 100)})` : ""}; use the tools`);
       for (const [i, c] of calls.entries()) {
         const id = `${this.side}-${this.turns}-${i}`;
@@ -295,6 +312,17 @@ export class Coach {
             }
             break;
           }
+          case "predict": {
+            const what = validatePredict(args);
+            if (!what) this.results.push("predict: give what the opponent will do (a move input, jump, throw, super, fireball, low, overhead, sweep, reversal, uppercut)");
+            else {
+              this.reads.made++;
+              this.pending.set(id, `predict ${what}`);
+              if (!this.link.send({ type: "predict", side: this.side, plan_id: id, what })) this.results.push("predict: the game is not connected");
+              sent.push(`predict ${what}`);
+            }
+            break;
+          }
           default:
             this.results.push(`unknown tool ${c.function?.name ?? "?"}`);
         }
@@ -320,7 +348,7 @@ export class Coach {
       finish: reply?.finish,
       error,
     });
-    this.onTurn?.(this.side, { reason, calls: sent, caption, seconds, usd: reply?.usd ?? null, error });
+    this.onTurn?.(this.side, { reason, calls: sent, caption, talk, seconds, usd: reply?.usd ?? null, error });
     this.inFlight = false;
     if (reason === "beat" && this.beat !== null) {
       const n = this.beat;

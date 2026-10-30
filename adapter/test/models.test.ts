@@ -12,7 +12,7 @@ test("Claude requests cache the system text and carry the tools and effort", () 
   assert.deepEqual(req.system, [{ type: "text", text: "rules", cache_control: { type: "ephemeral" } }]);
   assert.deepEqual(req.messages, [{ role: "user", content: [{ type: "text", text: "state" }] }]);
   assert.deepEqual(req.output_config, { effort: "low" });
-  assert.equal(req.tools.length, 3);
+  assert.equal(req.tools.length, 4);
   assert.equal(req.tools[0].name, "set_plan");
   const back = fromAnthropic({ content: [{ type: "tool_use", id: "t1", name: "say", input: { text: "hi" } }], stop_reason: "tool_use", usage: { input_tokens: 10, cache_read_input_tokens: 900, cache_creation_input_tokens: 0, output_tokens: 20 } });
   assert.deepEqual(back.message.tool_calls, [{ id: "t1", type: "function", function: { name: "say", arguments: '{"text":"hi"}' } }]);
