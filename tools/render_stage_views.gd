@@ -36,6 +36,11 @@ const VIEWS := {
 		"pigeons": [Vector3(-1.5, 2.6, -5.0), Vector3(-3.0, 2.3, -7.2)],
 		"wide": [Vector3(0, 4.5, 7.0), Vector3(0, 1.5, -5.0)],
 	},
+	"rooftop": {
+		"ac": [Vector3(-6.5, 2.2, 1.5), Vector3(-9.5, 0.8, -1.0)],
+		"crowd": [Vector3(7.0, 1.8, 3.5), Vector3(12.0, 0.9, -1.0)],
+		"wide": [Vector3(0, 6.0, 11.0), Vector3(0, 1.0, -6.0)],
+	},
 	"temple": {
 		"tree": [Vector3(-5.5, 1.8, -1.5), Vector3(-10.5, 2.6, -7.0)],
 		"gate": [Vector3(0, 2.2, 6.0), Vector3(0, 2.4, -10.5)],

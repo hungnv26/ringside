@@ -399,3 +399,14 @@ trees, buildings and ground.
 - Reference: `docs/look/phase3/courtyard_before_after.jpg`, `courtyard_fight_before_after.jpg`,
   `courtyard_gate.jpg`, `courtyard_planters.jpg`, `courtyard_table.jpg`,
   `courtyard_pigeons.jpg`, `courtyard_wide.jpg`.
+
+### Phase 3: the Rooftop (built 2026-10-31)
+
+- **Onlookers**: standing MakeHuman locals along the side railings (seen in intros, wins and
+  wide shots), with a crowd reaction so they cheer the fight in the drizzle.
+- **AC condensers**: louvred side panels, a corner frame, a fan guard of rings and spokes
+  over three blades, a service panel with a lit label, refrigerant pipes into the deck.
+  The louvres catch the neon.
+- **Cost**: 68–69 fps at High (69 before).
+- Reference: `docs/look/phase3/rooftop_before_after.jpg`, `rooftop_fight_before_after.jpg`,
+  `rooftop_ac.jpg`, `rooftop_crowd.jpg`, `rooftop_wide.jpg`.

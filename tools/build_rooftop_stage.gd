@@ -70,7 +70,9 @@ func _initialize() -> void:
 	_build_string_lights()
 	_build_rain()
 	_build_ambience()
-	_add(stage, StageFX.ambience([["res://assets/audio/ambience/rain.ogg", -9.0], ["res://assets/audio/ambience/city_traffic.ogg", -20.0]]), "Sound") # ambient loops (StageAmbience)
+	_build_crowd()
+	# Ambient loops, and the onlookers' reaction to the fight (it also drives their cheers).
+	_add(stage, StageFX.ambience([["res://assets/audio/ambience/rain.ogg", -9.0], ["res://assets/audio/ambience/city_traffic.ogg", -20.0]], "res://assets/audio/ambience/crowd_cheer.ogg", -12.0), "Sound")
 	_bake_ao()
 	_flush_batches()
 	_add(stage, _marker(Vector3(-2, 0, 0)), "P1Spawn")
@@ -251,17 +253,10 @@ func _build_structures() -> void:
 	door_lamp.omni_range = 4.0
 	_add(stage, door_lamp, "DoorLamp")
 
-	# AC units (left side and back), each with a fan grille on top.
+	# AC condensers (left side and back): louvred side panels, a corner frame, a fan guard
+	# of rings and spokes over a three-bladed fan, a service panel, pipes into the deck.
 	for spot in [Vector3(-9.5, 0, -2.0), Vector3(-9.5, 0, 1.2), Vector3(-3.5, 0, -10.5), Vector3(0.5, 0, -10.5)]:
-		_batch(mat_metal, Vector3(1.8, 1.1, 1.4), Transform3D(Basis(), spot + Vector3(0, 0.55, 0)))
-		_batch(mat_dark_metal, Vector3(1.85, 0.08, 1.45), Transform3D(Basis(), spot + Vector3(0, 0.06, 0)))
-		var fan := _cylinder(0.5, 0.06, mat_dark_metal)
-		fan.position = spot + Vector3(0, 1.12, 0)
-		_add(stage, fan, "Fan%d" % _batches.size())
-		for r in 4:
-			_batch(mat_metal, Vector3(1.0, 0.02, 0.03), Transform3D(Basis(Vector3.UP, r * PI / 4.0), spot + Vector3(0, 1.16, 0)))
-		# Ducts running into the deck.
-		_batch(mat_metal, Vector3(0.35, 0.35, 1.2), Transform3D(Basis(), spot + Vector3(0.5, 0.25, -1.2)))
+		_ac_unit(spot)
 
 	# Water tower on steel legs (back left corner).
 	var tower := Vector3(-9.0, 0, -9.0)
@@ -302,6 +297,69 @@ func _build_structures() -> void:
 	beacon.light_energy = 1.0
 	beacon.omni_range = 4.0
 	_add(stage, beacon, "Beacon")
+
+
+## One rooftop AC condenser at `spot` (1.8 x 1.1 x 1.4 m).
+func _ac_unit(spot: Vector3) -> void:
+	var size := Vector3(1.8, 1.1, 1.4)
+	_batch(mat_dark_metal, Vector3(size.x - 0.1, size.y - 0.1, size.z - 0.1), Transform3D(Basis(), spot + Vector3(0, size.y / 2.0, 0))) # the body
+	_batch(mat_dark_metal, Vector3(size.x + 0.05, 0.08, size.z + 0.05), Transform3D(Basis(), spot + Vector3(0, 0.06, 0)))
+	for x in [-1.0, 1.0]: # corner posts and the top frame
+		for z in [-1.0, 1.0]:
+			_batch(mat_metal, Vector3(0.06, size.y, 0.06), Transform3D(Basis(), spot + Vector3(x * size.x / 2.0, size.y / 2.0, z * size.z / 2.0)))
+	for z in [-1.0, 1.0]:
+		_batch(mat_metal, Vector3(size.x, 0.05, 0.06), Transform3D(Basis(), spot + Vector3(0, size.y, z * size.z / 2.0)))
+	for x in [-1.0, 1.0]:
+		_batch(mat_metal, Vector3(0.06, 0.05, size.z), Transform3D(Basis(), spot + Vector3(x * size.x / 2.0, size.y, 0)))
+	# Louvres on the long sides and the ends.
+	for i in 12:
+		var y := 0.18 + i * 0.07
+		for z in [-1.0, 1.0]:
+			_batch(mat_metal, Vector3(size.x - 0.08, 0.012, 0.05), Transform3D(Basis(Vector3.RIGHT, z * 0.6), spot + Vector3(0, y, z * (size.z / 2.0 - 0.01))))
+		for x in [-1.0, 1.0]:
+			_batch(mat_metal, Vector3(0.05, 0.012, size.z - 0.08), Transform3D(Basis(Vector3(0, 0, 1), -x * 0.6), spot + Vector3(x * (size.x / 2.0 - 0.01), y, 0)))
+	# Fan: three blades under a guard of rings and spokes.
+	var top := spot + Vector3(0, size.y + 0.02, 0)
+	for b in 3:
+		_batch(mat_metal, Vector3(0.42, 0.01, 0.13), Transform3D(Basis(Vector3.UP, b * TAU / 3.0 + 0.3) * Basis(Vector3.RIGHT, 0.3), top + Basis(Vector3.UP, b * TAU / 3.0 + 0.3) * Vector3(0.22, -0.03, 0)))
+	_batch(mat_dark_metal, Vector3(0.12, 0.06, 0.12), Transform3D(Basis(), top))
+	for r in [0.18, 0.32, 0.46]:
+		for k in 16:
+			var a := TAU * k / 16.0
+			_batch(mat_metal, Vector3(2.0 * PI * r / 16.0 + 0.01, 0.012, 0.012), Transform3D(Basis(Vector3.UP, -a + PI / 2.0), top + Vector3(cos(a) * r, 0.05, sin(a) * r)))
+	for k in 8:
+		_batch(mat_metal, Vector3(0.94, 0.012, 0.012), Transform3D(Basis(Vector3.UP, k * PI / 8.0), top + Vector3(0, 0.055, 0)))
+	# A service panel with a label, and refrigerant pipes running down into the deck.
+	_batch(mat_metal, Vector3(0.4, 0.3, 0.02), Transform3D(Basis(), spot + Vector3(size.x / 2.0 - 0.3, 0.75, size.z / 2.0 + 0.01)))
+	_batch(mat_bulb, Vector3(0.12, 0.05, 0.01), Transform3D(Basis(), spot + Vector3(size.x / 2.0 - 0.3, 0.82, size.z / 2.0 + 0.025)))
+	for k in 2:
+		var pipe := _cylinder(0.025 + k * 0.01, 0.9, mat_dark_metal)
+		pipe.rotation_degrees.x = 90.0
+		pipe.position = spot + Vector3(0.4 + k * 0.12, 0.12, -size.z / 2.0 - 0.45)
+		_add(stage, pipe, "ACPipe%d_%d" % [int(spot.x * 10 + spot.z), k])
+
+
+## Standing locals watching from along the back railing (Crowd.people), under the drizzle.
+func _build_crowd() -> void:
+	var crowd := MultiMeshInstance3D.new()
+	crowd.set_script(load("res://scripts/stages/crowd.gd"))
+	crowd.set("rows", 1)
+	crowd.set("tier_start", ROOF - 0.7)
+	crowd.set("tier_depth", 0.8)
+	crowd.set("tier_rise", 0.0)
+	crowd.set("row_width", 8.0)
+	crowd.set("seat_spacing", 0.9)
+	crowd.set("floor_y", 0.0)
+	crowd.set("empty_seat_chance", 0.35)
+	crowd.set("crowd_seed", 2049)
+	crowd.set("sides", PackedInt32Array([1, 3])) # the side railings, clear of the sign and hut
+	crowd.set("people", true)
+	crowd.set("people_kind", "pedestrian")
+	crowd.set("aisle_every", 0)
+	crowd.set("people_sky_light", Color(0.32, 0.32, 0.45)) # night, the city's glow
+	crowd.set("people_ground_light", Color(0.14, 0.12, 0.16))
+	crowd.set("people_ring_light", Color(0.7, 0.55, 0.65)) # the floodlights over the deck
+	_add(stage, crowd, "Crowd")
 
 
 ## Neon "FIGHT NIGHT" sign on a steel frame at the back left, glowing pink and cyan.

@@ -1226,6 +1226,7 @@ func stage_tests() -> void:
 	_dojo_people_tests()
 	_market_tests()
 	_beach_tests()
+	_rooftop_tests()
 	# Download size: 3D textures must not be imported lossless (a 1K photo texture is 2-3 MB
 	# lossless, about 0.4 MB as lossy WebP). Godot only switches them automatically in the
 	# editor, so textures imported headless stay lossless unless their .import says otherwise.
@@ -1376,6 +1377,23 @@ func polish_tests() -> void:
 	wait_until(func() -> bool: return p1.projectile == null, 120)
 	check("FX: projectile impact burst + ring", fx.spawned >= before + 2, "%d effects" % (fx.spawned - before))
 	gs.stage_path = gs.DEFAULT_STAGE
+
+
+## The Rooftop: onlookers standing at the side railings who react to the fight, and AC
+## condensers with louvres and fan guards instead of plain boxes.
+func _rooftop_tests() -> void:
+	var roof := (load("res://scenes/stages/rooftop.tscn") as PackedScene).instantiate()
+	var crowd := roof.get_node_or_null("Crowd") as Crowd
+	var sound: StageAmbience = null
+	for n in roof.get_children():
+		if n is StageAmbience:
+			sound = n
+	var pipes := 0
+	for n in roof.get_children():
+		pipes += 1 if String(n.name).begins_with("ACPipe") else 0
+	check("Rooftop: onlookers at the railings who react, detailed AC condensers",
+		crowd != null and crowd.people and crowd.people_kind == "pedestrian" and sound != null and sound.reaction != null and pipes == 8, "pipes %d" % pipes)
+	roof.free()
 
 
 ## The Beach: standing beachgoers, textured palm fronds swaying in the wind, Poly Haven
