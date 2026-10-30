@@ -41,7 +41,25 @@ and the *self-coding fighter* (the model rewrites its fighter's behaviour betwee
    MJPEG + wav) and encodes `battle-logs/<id>/match.mp4` with ffmpeg once the game closes;
    the page plays it and the results link to it. A slow machine renders slower than real
    time while recording, which slows the game, not the coaches.
-4. **Second modes.** Beat fighter, self-coding fighter, tournaments.
+4. **Second modes** (built 2026-10-30; tournaments not yet). Picked per match on the setup page
+   (`--mode coach|script|beat`, sent to the game as a `mode` frame):
+   - **Self-coding fighter** (`script`): the model takes one turn before the match and one
+     after every round, with `set_policy`: a plan plus up to 12 rules `{name, when, do, weight}`.
+     `when` tests range (close/mid/far), what the opponent is doing (idle, attacking,
+     recovering, blocking, knocked_down, jumping, stunned), corners, a full meter and health
+     shares; `do` is up to four named moves. In the game `CoachController` checks the rules
+     every 10 frames when the fighter is free, picks one matching rule by weight (45-frame
+     rest per rule) and queues its moves; with no match the fighter plays its own style under
+     the plan. The round-end event carries a summary per side (every attack with hit, counter,
+     blocked and whiffed counts, throws, knockdowns, health left, the last rule that fired),
+     which is the whole of the next prompt. No model calls during a round.
+   - **Beat fighter** (`beat`): the game pauses every `beat_ticks` frames (default 60) of a live
+     round, sends a `beat` frame (a state plus `n`), and waits for `resume {n}`; the adapter
+     resumes once both coaches have answered (a side out of budget answers at once; the game
+     resumes by itself after 45 s). Controllers are *manual*: nothing happens by itself, only
+     the queued moves, so the models choose blocks and movement too (`block N`,
+     `crouch_block N`, `approach N`, `retreat N`...). Cost scales with the number of beats: a
+     99-second round is about 100 calls per side at 60-frame beats.
 
 ## Parts
 
@@ -101,6 +119,14 @@ Adapter → game:
   cost cap).
 - `models` `{type, p1, p2}`: each side's "provider:model", for the HUD's name plates.
 - `thinking` `{type, side, on}`: the side's coach is waiting for its model (HUD mark).
+- `mode` `{type, mode: coach|script|beat, beat_ticks}`: sent after hello; `beat` makes both
+  controllers manual.
+- `policy` `{type, side, plan_id, plan?, rules?}`: self-coding mode; answered with `applied`.
+- `resume` `{type, n}`: beat mode; the game goes on after beat `n`.
+
+Game → adapter, in addition: `beat` `{type, n, ...state}` when the game pauses at a beat, and
+`round_end` carries `round` and `summary {p1, p2}` (attacks by input with hit/counter/blocked/
+whiffed counts, throws, knockdowns, health_left, max_health, rule_fired_last).
 
 The adapter never blocks the game: a late plan applies when it arrives; a disconnected link
 leaves both fighters on their last plan.

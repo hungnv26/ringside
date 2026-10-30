@@ -7,8 +7,8 @@ import type { GameLink } from "./link.ts";
 import type { BattleLog } from "./log.ts";
 import { toolCallsForLog } from "./log.ts";
 import type { Effort } from "./models.ts";
-import { TOOLS, buildSystemPrompt, buildTurnMessage, mergePlan, validatePlan, validateQueue, validateSay } from "./prompt.ts";
-import type { Applied, GameEvent, Hello, ModelClient, Plan, Side, State } from "./types.ts";
+import { BEAT_TOOLS, SCRIPT_TOOLS, TOOLS, buildBeatMessage, buildBeatSystemPrompt, buildScriptSystemPrompt, buildScriptTurnMessage, buildSystemPrompt, buildTurnMessage, mergePlan, validatePlan, validateQueue, validateRules, validateSay } from "./prompt.ts";
+import type { Applied, Beat, GameEvent, Hello, Mode, ModelClient, Plan, Rule, Side, State } from "./types.ts";
 import { other } from "./types.ts";
 
 export type CoachStatus = "waiting" | "thinking" | "coaching" | "out of budget" | "stopped" | "failed";
@@ -27,9 +27,15 @@ export interface CoachStats {
   lastError: string | null;
   lastCaption: string | null;
   plan: Plan | null;
+  rules?: Rule[] | null;
 }
 
 export interface CoachOptions {
+  /** coach: a turn every cadence; script: a turn before the match and after each round (set_policy); beat: a turn per beat. */
+  mode?: Mode;
+  beatTicks?: number;
+  /** Beat mode: called when this side's turn for beat n is over (the director resumes the game once both are). */
+  onBeatDone?: (side: Side, n: number) => void;
   cadenceMs?: number;
   capUsd?: number;
   effort?: Effort;
@@ -64,6 +70,10 @@ export class Coach {
   private stopped = false;
   readonly cadenceMs: number;
   readonly capUsd: number;
+  readonly mode: Mode;
+  private beat: number | null = null; // the beat being answered
+  private readonly onBeatDone: CoachOptions["onBeatDone"];
+  rules: Rule[] | null = null;
   private readonly now: () => number;
   private readonly setTimer: (fn: () => void, ms: number) => unknown;
   private readonly clearTimer: (t: unknown) => void;
@@ -90,13 +100,17 @@ export class Coach {
     this.setTimer = opts.setTimer ?? ((fn, ms) => setTimeout(fn, ms));
     this.clearTimer = opts.clearTimer ?? ((t) => clearTimeout(t as NodeJS.Timeout));
     this.onTurn = opts.onTurn;
-    this.system = buildSystemPrompt(side, hello, opts.effort ?? "low");
+    this.mode = opts.mode ?? "coach";
+    this.onBeatDone = opts.onBeatDone;
+    this.system = this.mode === "script" ? buildScriptSystemPrompt(side, hello) : this.mode === "beat" ? buildBeatSystemPrompt(side, hello, opts.beatTicks ?? 60) : buildSystemPrompt(side, hello, opts.effort ?? "low");
     log?.system(side, spec, this.system);
     link.on("event", this.onEvent);
     link.on("state", this.onState);
     link.on("applied", this.onApplied);
+    link.on("beat", this.onBeat);
+    if (this.mode === "script") this.turn("match_start"); // the first policy, before round 1
     // A coach made after the round started (hello and round_start can arrive in one read).
-    if (link.roundLive) {
+    else if (this.mode === "coach" && link.roundLive) {
       this.roundLive = true;
       this.turn("round_start");
     }
@@ -117,6 +131,7 @@ export class Coach {
       lastError: this.lastError,
       lastCaption: this.lastCaption,
       plan: this.plan,
+      rules: this.rules,
     };
   }
 
@@ -127,7 +142,14 @@ export class Coach {
     this.link.off("event", this.onEvent);
     this.link.off("state", this.onState);
     this.link.off("applied", this.onApplied);
+    this.link.off("beat", this.onBeat);
   }
+
+  private onBeat = (b: Beat): void => {
+    if (this.mode !== "beat") return;
+    this.beat = b.n;
+    this.turn("beat");
+  };
 
   private onEvent = (e: GameEvent): void => {
     this.events.push(e);
@@ -135,18 +157,19 @@ export class Coach {
     if (e.event === "round_start") {
       this.roundLive = true;
       this.lastHealth = null;
-      this.turn("round_start");
+      if (this.mode === "coach") this.turn("round_start");
     } else if (e.event === "knockdown" && e.side === this.side) {
-      this.turn("knockdown");
+      if (this.mode === "coach") this.turn("knockdown");
     } else if (e.event === "round_end" || e.event === "match_end") {
       this.roundLive = false;
       this.clearCadence();
+      if (this.mode === "script" && e.event === "round_end") this.turn("round_end");
     }
   };
 
   private onState = (s: State): void => {
     const h: [number, number] = [s.p1.health / Math.max(1, s.p1.max_health), s.p2.health / Math.max(1, s.p2.max_health)];
-    if (this.lastHealth && this.roundLive && (this.lastHealth[0] - h[0] >= HEALTH_SWING || this.lastHealth[1] - h[1] >= HEALTH_SWING)) {
+    if (this.mode === "coach" && this.lastHealth && this.roundLive && (this.lastHealth[0] - h[0] >= HEALTH_SWING || this.lastHealth[1] - h[1] >= HEALTH_SWING)) {
       this.turn("health_swing"); // lastHealth is reset by the turn
     }
     if (!this.lastHealth) this.lastHealth = h;
@@ -169,7 +192,7 @@ export class Coach {
 
   private schedule(): void {
     this.clearCadence();
-    if (this.stopped || !this.roundLive || this.status === "out of budget" || this.status === "failed") return;
+    if (this.mode !== "coach" || this.stopped || !this.roundLive || this.status === "out of budget" || this.status === "failed") return;
     this.timer = this.setTimer(() => {
       this.timer = null;
       this.turn("cadence");
@@ -178,7 +201,10 @@ export class Coach {
 
   // Starts a turn now, or remembers to start one when the current one ends.
   turn(reason: string): void {
-    if (this.stopped || this.status === "out of budget" || this.status === "failed") return;
+    if (this.stopped || this.status === "out of budget" || this.status === "failed") {
+      if (reason === "beat" && this.beat !== null) this.onBeatDone?.(this.side, this.beat); // nothing to pick with: the game goes on
+      return;
+    }
     if (this.inFlight) {
       this.wanted = reason;
       return;
@@ -194,13 +220,16 @@ export class Coach {
     const state = this.link.latest;
     const events = this.events.splice(0);
     const results = this.results.splice(0);
-    const prompt = buildTurnMessage(this.side, state, events, this.plan, results);
+    const beatState = this.mode === "beat" ? (state as (State & { n?: number }) | null) : null;
+    if (beatState) beatState.n = this.beat ?? undefined;
+    const prompt = this.mode === "script" ? buildScriptTurnMessage(this.side, this.hello, events, results) : this.mode === "beat" && beatState ? buildBeatMessage(this.side, beatState, events, results) : buildTurnMessage(this.side, state, events, this.plan, results);
+    const tools = this.mode === "script" ? SCRIPT_TOOLS : this.mode === "beat" ? BEAT_TOOLS : TOOLS;
     if (state) this.lastHealth = [state.p1.health / Math.max(1, state.p1.max_health), state.p2.health / Math.max(1, state.p2.max_health)];
     let error: string | undefined;
     let reply: Awaited<ReturnType<ModelClient["chat"]>> | null = null;
     this.link.send({ type: "thinking", side: this.side, on: true });
     try {
-      reply = await this.client.chat(this.spec, { messages: [{ role: "system", content: this.system }, { role: "user", content: prompt }], tools: TOOLS });
+      reply = await this.client.chat(this.spec, { messages: [{ role: "system", content: this.system }, { role: "user", content: prompt }], tools });
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
       this.errors++;
@@ -242,6 +271,20 @@ export class Coach {
             }
             break;
           }
+          case "set_policy": {
+            const a = (args && typeof args === "object" ? args : {}) as Record<string, unknown>;
+            const { plan, problems } = validatePlan(a.plan ?? {});
+            const r = validateRules(a.rules ?? []);
+            const all = [...problems, ...r.problems];
+            if (all.length) this.results.push(`set_policy: ${all.join(", ")}`);
+            if (Object.keys(plan).length) this.plan = mergePlan(this.plan, plan);
+            this.rules = r.rules;
+            const what = `set_policy ${r.rules.length} rules${Object.keys(plan).length ? ` + plan ${JSON.stringify(plan)}` : ""}`;
+            this.pending.set(id, what);
+            if (!this.link.send({ type: "policy", side: this.side, plan_id: id, plan: Object.keys(plan).length ? plan : undefined, rules: r.rules })) this.results.push("set_policy: the game is not connected");
+            sent.push(what);
+            break;
+          }
           case "say": {
             const text = validateSay(args);
             if (text) {
@@ -279,6 +322,11 @@ export class Coach {
     });
     this.onTurn?.(this.side, { reason, calls: sent, caption, seconds, usd: reply?.usd ?? null, error });
     this.inFlight = false;
+    if (reason === "beat" && this.beat !== null) {
+      const n = this.beat;
+      this.beat = null;
+      this.onBeatDone?.(this.side, n);
+    }
     const wanted = this.wanted;
     this.wanted = null;
     if (wanted && this.roundLive) void this.run(wanted);

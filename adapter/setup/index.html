@@ -123,7 +123,12 @@ video { width: 100%; max-width: 720px; border-radius: 6px; border: 1px solid var
   </section>
 
   <section class="step">
-    <h2><span class="n">3</span> Match <small>stage, budget, pace</small></h2>
+    <h2><span class="n">3</span> Match <small>mode, stage, budget, pace</small></h2>
+    <div class="row">
+      <label>Mode <select id="mode"></select></label>
+      <label>Beat length, frames (beat mode) <input id="beat-ticks" type="number" min="15" max="600" step="15" value="60"></label>
+    </div>
+    <div class="note" id="mode-note"></div>
     <div class="row">
       <label>Stage <select id="stage"></select></label>
       <label>Seed <input id="seed" type="number" min="0" placeholder="random"></label>
@@ -165,7 +170,7 @@ video { width: 100%; max-width: 720px; border-radius: 6px; border: 1px solid var
 
   <section class="step">
     <h2><span class="n">5</span> Results <small>every finished match, newest first</small></h2>
-    <div class="table"><table id="results"><thead><tr><th>When</th><th>Corner 1</th><th>Corner 2</th><th>Stage</th><th>Winner</th><th class="num">Rounds</th><th class="num">Cost</th><th>Logs</th></tr></thead><tbody></tbody></table></div>
+    <div class="table"><table id="results"><thead><tr><th>When</th><th>Corner 1</th><th>Corner 2</th><th>Stage</th><th>Mode</th><th>Winner</th><th class="num">Rounds</th><th class="num">Cost</th><th>Logs</th></tr></thead><tbody></tbody></table></div>
     <h2 style="font-size:16px"><span class="n">↕</span> Elo by model <small>K 32 from 1000, draws count half</small></h2>
     <div class="table"><table id="elo"><thead><tr><th>Model</th><th class="num">Rating</th><th class="num">W</th><th class="num">L</th><th class="num">D</th><th class="num">Spent</th></tr></thead><tbody></tbody></table></div>
   </section>
@@ -242,6 +247,11 @@ async function init() {
   }
   fill($("stage"), setup.stages.map((s) => ({ value: s.id, label: s.name })), last.stage);
   fill($("effort"), setup.efforts.map((e) => ({ value: e, label: e })), last.effort);
+  fill($("mode"), setup.modes.map((m) => ({ value: m.id, label: m.name })), last.mode || "coach");
+  $("beat-ticks").value = last.beatTicks ?? 60;
+  const modeNote = () => { const m = setup.modes.find((x) => x.id === $("mode").value); $("mode-note").textContent = m ? m.blurb : ""; $("beat-ticks").disabled = $("mode").value !== "beat"; };
+  $("mode").addEventListener("change", modeNote);
+  modeNote();
   fill($("key-provider"), setup.providers.filter((p) => p !== "fake" && p !== "ollama").map((p) => ({ value: p, label: p })));
   $("cap").value = last.cap ?? 1;
   $("cadence").value = last.cadence ?? 2000;
@@ -272,7 +282,7 @@ $("start").addEventListener("click", async () => {
   const request = {
     p1: { fighter: $("p1-fighter").value, spec: spec("p1") },
     p2: { fighter: $("p2-fighter").value, spec: spec("p2") },
-    stage: $("stage").value, seed: $("seed").value, cap: $("cap").value, cadence: $("cadence").value, effort: $("effort").value, capture: $("capture").checked, record: $("record").checked,
+    stage: $("stage").value, seed: $("seed").value, cap: $("cap").value, cadence: $("cadence").value, effort: $("effort").value, capture: $("capture").checked, record: $("record").checked, mode: $("mode").value, beatTicks: $("beat-ticks").value,
   };
   try {
     const r = await api("/api/match", request);
@@ -322,7 +332,7 @@ function render(s) {
   const phase = live ? live.phase : "starting";
   if (s.match.exit != null && (!live || live.phase !== "over")) { status.className = "status error"; status.textContent = `adapter exited (${s.match.exit})`; }
   else { status.className = "status " + (phase === "live" ? "live" : phase === "over" ? "over" : "off"); status.textContent = { waiting: "Waiting for the game", starting: "Starting", between: "Between rounds", live: "Round live", over: "Match over" }[phase] || phase; }
-  $("live-sub").textContent = `${s.match.id}`;
+  $("live-sub").textContent = `${s.match.id}${s.match.request && s.match.request.mode && s.match.request.mode !== "coach" ? ` · ${s.match.request.mode === "beat" ? "beat fighter" : "self-coding"}` : ""}`;
   $("console").textContent = (s.console || []).join("\n");
   if (!live || !live.hello) return;
   names = { p1: live.hello.p1.name, p2: live.hello.p2.name };
@@ -334,7 +344,7 @@ function render(s) {
     if (c) {
       $("coach-caption-" + side).textContent = c.lastCaption ? `“${c.lastCaption}”` : "";
       $("coach-stats-" + side).textContent = `${c.status} · ${c.turns} turns · ${c.avgSeconds != null ? c.avgSeconds.toFixed(1) : "—"} s/turn · ${c.tokens} tokens · ${usd(c.usd)}${c.refused ? ` · ${c.refused} refused` : ""}${c.errors ? ` · ${c.errors} errors` : ""}`;
-      $("coach-plan-" + side).textContent = c.plan ? planText(c.plan) : "";
+      $("coach-plan-" + side).textContent = (c.plan ? planText(c.plan) : "") + (c.rules && c.rules.length ? `${c.plan ? " · " : ""}${c.rules.length} rules: ${c.rules.map((r) => r.name).join(", ")}` : "");
     }
     if (st && st[side]) {
       const f = st[side];
@@ -388,8 +398,8 @@ async function refreshResults() {
     const side = (s) => `${esc(b.sides[s]?.fighter)} · <span class="key-hint">${esc(b.sides[s]?.model)}</span>`;
     const cost = (b.coaches.p1?.usd ?? 0) + (b.coaches.p2?.usd ?? 0);
     const logs = ["p1.md", "p2.md", "battle.json"].map((f) => `<a href="/api/log?id=${esc(b.id)}&file=${f}" target="_blank">${f}</a>`).join(" ") + (b.video ? ` <a href="/api/video/${esc(b.id)}.mp4" target="_blank">video</a>` : "");
-    return `<tr><td>${esc(b.at.replace("T", " ").slice(0, 16))}</td><td>${side("p1")}</td><td>${side("p2")}</td><td>${esc(b.stage)}</td><td>${b.winner ? esc(b.sides[b.winner]?.fighter) + " (" + (b.winner === "p1" ? "corner 1" : "corner 2") + ")" : "draw"}</td><td class="num">${(b.wins || []).join("–")}</td><td class="num">${usd(cost)}</td><td>${logs}</td></tr>`;
-  }).join("") || `<tr><td colspan="8" class="note">No matches yet.</td></tr>`;
+    return `<tr><td>${esc(b.at.replace("T", " ").slice(0, 16))}</td><td>${side("p1")}</td><td>${side("p2")}</td><td>${esc(b.stage)}</td><td>${esc(b.mode === "script" ? "self-coding" : b.mode === "beat" ? "beat" : "coach")}</td><td>${b.winner ? esc(b.sides[b.winner]?.fighter) + " (" + (b.winner === "p1" ? "corner 1" : "corner 2") + ")" : "draw"}</td><td class="num">${(b.wins || []).join("–")}</td><td class="num">${usd(cost)}</td><td>${logs}</td></tr>`;
+  }).join("") || `<tr><td colspan="9" class="note">No matches yet.</td></tr>`;
   $("elo").querySelector("tbody").innerHTML = elo.map((r) => `<tr><td><span class="key-hint">${esc(r.model)}</span></td><td class="num">${r.rating}</td><td class="num">${r.wins}</td><td class="num">${r.losses}</td><td class="num">${r.draws}</td><td class="num">${usd(r.usd)}</td></tr>`).join("") || `<tr><td colspan="6" class="note">No ratings yet.</td></tr>`;
 }
 init().catch((e) => { $("match-msg").className = "msg err"; $("match-msg").textContent = e.message; });

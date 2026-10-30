@@ -4,6 +4,10 @@ A one-on-one 3D fighting game where nobody holds a controller: each fighter is c
 AI model. The fight runs at 60 frames a second in the game; the model sits ringside, watches,
 and changes its fighter's game plan every couple of seconds (range, aggression, what to block
 and punish, which moves to go for), the way Outpost War's sides are commanded by models.
+Three ways to play, picked per match: the **coach** adjusts its fighter's plan every couple
+of seconds; the **self-coding fighter** writes a rule set before the match and rewrites it
+after every round from what actually landed, with no model calls during a round; the **beat
+fighter** pauses the game every beat until both models have chosen their next moves.
 Working name. Plan and protocol: [docs/ringside-plan.md](docs/ringside-plan.md).
 
 Built on [3D Fighter](https://github.com/GabrielGonHo/3d-fighter) (MIT code, CC0 assets): its
@@ -50,7 +54,8 @@ cd adapter && npm test && npm run typecheck                # the adapter and the
 
 ## What was added
 
-- `scripts/ai/coach_controller.gd`: the CPU fighter with a coach; plans, queued moves, captions.
+- `scripts/ai/coach_controller.gd`: the CPU fighter with a coach; plans, queued moves, captions,
+  the self-coding rules engine and the manual (beat) mode.
 - `scripts/coach/coach_link.gd`: the WebSocket link to the adapter; observation frames and events.
 - `GameState.Mode.COACH`, `-- --coach=...` on the command line, both sides coached in `FightManager`.
 - `adapter/`: the coaches, the model calls (Anthropic, OpenAI, OpenRouter, Ollama, a fake), logs.

@@ -14,6 +14,8 @@ const RECENT := 8
 const QUIT_AFTER_MATCH_TICKS := 30 * 60
 const QUIT_FLAG_TICKS := 5 * 60
 const SIDES := ["p1", "p2"]
+## A beat hold ends by itself after this long without `resume` (wall clock).
+const HOLD_TIMEOUT_MS := 45_000
 ## `-- --capture-dir=DIR` saves a screenshot this often during the fight (and at the result).
 const CAPTURE_EVERY := 10 * 60
 const LEVEL_NAMES := ["high", "mid", "low", "overhead"]
@@ -35,6 +37,15 @@ var _captions: Array[Label] = []
 var _thinking: Array[Label] = []
 ## Model per side ("provider:model"), from the adapter's `models` frame; shown on the HUD.
 var models := ["", ""]
+## coach (default), script (self-coding: rules between rounds) or beat (the game pauses every
+## `beat_ticks` until both coaches have picked). From the adapter's `mode` frame.
+var mode := "coach"
+var beat_ticks := 60
+var beat_n := 0
+var holding := false
+var _hold_since_ms := 0
+## Per side, per round: attacks by input -> {hit, counter, blocked, whiffed}, throws, knockdowns.
+var _tally := [{}, {}]
 var _capture_dir := ""
 var _captures := 0
 
@@ -65,6 +76,9 @@ func setup(fight_manager: Node, link_url: String, coached: Array[CoachController
 
 
 func _process(_delta: float) -> void:
+	if holding and (Time.get_ticks_msec() - _hold_since_ms > HOLD_TIMEOUT_MS or _peer == null):
+		print("CoachLink: beat %d: no resume from the adapter; going on" % beat_n)
+		_resume()
 	if _peer == null:
 		return
 	_peer.poll()
@@ -205,6 +219,24 @@ func _handle(msg: Dictionary) -> void:
 			for i in 2:
 				models[i] = str(msg.get(SIDES[i], ""))
 			_show_models()
+		"mode":
+			mode = str(msg.get("mode", "coach"))
+			beat_ticks = clampi(int(msg.get("beat_ticks", 60)), 15, 600)
+			for controller in controllers:
+				controller.manual = mode == "beat"
+			print("CoachLink: mode ", mode, " (beat every %d ticks)" % beat_ticks if mode == "beat" else "")
+		"policy":
+			if side < 0:
+				return
+			var errors: Array[String] = []
+			if msg.get("plan") is Dictionary:
+				errors.append_array(controllers[side].apply_plan(msg.plan, str(msg.get("plan_id", ""))))
+			if msg.get("rules") is Array:
+				errors.append_array(controllers[side].set_rules(msg.rules, manager.fighters[side]))
+			_applied(side, msg, errors)
+		"resume":
+			if holding and int(msg.get("n", beat_n)) == beat_n:
+				_resume()
 		"thinking":
 			if side < 0:
 				return
@@ -227,6 +259,8 @@ func _on_ticked() -> void:
 		_last_phase = phase
 		if phase == manager.Phase.FIGHT:
 			_recent = [[], []]
+			_tally = [{}, {}]
+			beat_n = 0
 			_event("round_start", {round = manager.round_number})
 			_send(state())
 		elif phase == manager.Phase.MATCH_OVER:
@@ -239,13 +273,16 @@ func _on_ticked() -> void:
 		var fighter: Fighter = manager.fighters[i]
 		if fighter.state != _last_state[i]:
 			if fighter.state == Fighter.State.KNOCKDOWN:
+				_tally[i]["knockdowns"] = int(_tally[i].get("knockdowns", 0)) + 1
 				_event("knockdown", {side = SIDES[i]})
 			_last_state[i] = fighter.state
 		var recent: Array = _recent[i]
 		if not recent.is_empty() and recent[-1].outcome == "pending" and fighter.state != Fighter.State.ATTACK:
-			recent[-1].outcome = "whiffed"
+			_resolve(i, recent[-1], "whiffed")
 	if phase == manager.Phase.FIGHT and manager.phase_ticks % STATE_EVERY == 0:
 		_send(state())
+	if mode == "beat" and phase == manager.Phase.FIGHT and manager.phase_ticks % beat_ticks == 0 and _peer != null:
+		_hold()
 	if _capture_dir != "" and ((phase == manager.Phase.FIGHT and manager.phase_ticks % CAPTURE_EVERY == CAPTURE_EVERY - 1) or _match_over_ticks == 4 * 60):
 		_capture()
 	if _match_over_ticks >= 0:
@@ -270,14 +307,38 @@ func _on_hit(attacker: Fighter, defender: Fighter, move: MoveData, result: Fight
 	var outcome: String = ["hit", "blocked", "counter"][result]
 	var recent: Array = _recent[index]
 	if not recent.is_empty() and (recent[-1].outcome == "pending" or recent[-1].input == move.input):
-		recent[-1].outcome = outcome
+		_resolve(index, recent[-1], outcome)
 	# A follow-up (input "~...") happens by itself: name it, but give no input to copy.
 	_event("hit", {attacker = SIDES[index], defender = SIDES[manager.fighters.find(defender)],
 		input = "" if move.input.begins_with("~") else move.input, name = move.name, result = outcome,
 		damage = move.damage, combo = defender.combo_hits})
 
 
+## Sets an attack's outcome and counts it for the round summary.
+func _resolve(index: int, entry: Dictionary, outcome: String) -> void:
+	entry.outcome = outcome
+	var attacks: Dictionary = _tally[index].get_or_add("attacks", {})
+	var counts: Dictionary = attacks.get_or_add(entry.input, {hit = 0, counter = 0, blocked = 0, whiffed = 0})
+	counts[outcome] = int(counts.get(outcome, 0)) + 1
+
+
+## The round's numbers per side (the self-coding coach rewrites its rules from these).
+func round_summary() -> Dictionary:
+	var out := {}
+	for i in 2:
+		var fighter: Fighter = manager.fighters[i]
+		var tally: Dictionary = _tally[i]
+		out[SIDES[i]] = {
+			attacks = tally.get("attacks", {}), throws = int(tally.get("throws", 0)),
+			knockdowns = int(tally.get("knockdowns", 0)),
+			health_left = fighter.health, max_health = fighter.data.max_health,
+			rule_fired_last = controllers[i].last_rule if i < controllers.size() else "",
+		}
+	return out
+
+
 func _on_throw(attacker: Fighter, defender: Fighter) -> void:
+	_tally[manager.fighters.find(attacker)]["throws"] = int(_tally[manager.fighters.find(attacker)].get("throws", 0)) + 1
 	_event("throw", {attacker = SIDES[manager.fighters.find(attacker)],
 		defender = SIDES[manager.fighters.find(defender)]})
 
@@ -287,7 +348,31 @@ func _on_super_started(fighter: Fighter, move: MoveData) -> void:
 
 
 func _on_round_ended(winner: Fighter, reason: String) -> void:
-	_event("round_end", {winner = SIDES[manager.fighters.find(winner)] if winner else null, reason = reason})
+	if holding:
+		_resume()
+	_event("round_end", {winner = SIDES[manager.fighters.find(winner)] if winner else null, reason = reason,
+		round = manager.round_number, summary = round_summary()})
+
+
+# --- Beat mode ---------------------------------------------------------------------
+
+## Stops the simulation (the picture holds) and asks both coaches for their next moves.
+func _hold() -> void:
+	if holding:
+		return
+	holding = true
+	beat_n += 1
+	_hold_since_ms = Time.get_ticks_msec()
+	manager.set_physics_process(false)
+	var frame := state()
+	frame.type = "beat"
+	frame.n = beat_n
+	_send(frame)
+
+
+func _resume() -> void:
+	holding = false
+	manager.set_physics_process(true)
 
 
 # --- Captions --------------------------------------------------------------------

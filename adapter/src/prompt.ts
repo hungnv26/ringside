@@ -1,5 +1,5 @@
 // What a coach reads and the tools it answers with. Pure functions: the tests pin the text.
-import { OPTION_NAMES, other, type ChatBody, type FighterInfo, type GameEvent, type Hello, type Plan, type RecentAttack, type Side, type SideState, type State } from "./types.ts";
+import { OPTION_NAMES, other, type ChatBody, type FighterInfo, type GameEvent, type Hello, type Plan, type RecentAttack, type Rule, type Side, type SideState, type State } from "./types.ts";
 import type { Effort } from "./models.ts";
 
 export const MAX_CAPTION = 60;
@@ -192,4 +192,156 @@ export function mergePlan(current: Plan | null, next: Plan): Plan {
   const out: Plan = { ...(current ?? {}), ...next };
   if (current?.options || next.options) out.options = { ...(current?.options ?? {}), ...(next.options ?? {}) };
   return out;
+}
+
+// ---- phase 4: the self-coding fighter and the beat fighter ----
+
+export const OPPONENT_STATES = ["idle", "attacking", "recovering", "blocking", "knocked_down", "jumping", "stunned"];
+
+export const POLICY_TOOL: NonNullable<ChatBody["tools"]>[number] = {
+  type: "function",
+  function: {
+    name: "set_policy",
+    description:
+      "Write your fighter's behaviour for the next round: the plan (tendencies) and up to 12 rules. Every 10 frames, when the fighter is free and has nothing queued, the rules whose conditions all hold are collected and one is picked by weight; its moves are then performed in order. A rule rests 45 frames after firing. With no matching rule the fighter plays its own style under the plan. Replaces the previous rules entirely.",
+    parameters: {
+      type: "object",
+      properties: {
+        plan: TOOLS[0].function.parameters,
+        rules: {
+          type: "array",
+          maxItems: 12,
+          items: {
+            type: "object",
+            required: ["when", "do"],
+            properties: {
+              name: { type: "string", description: "A short name, shown in the logs." },
+              when: {
+                type: "object",
+                description: "All conditions must hold. Leave a field out to not test it.",
+                properties: {
+                  range: { type: "string", enum: ["close", "mid", "far"], description: "close under 1.2 m, mid under 2.2 m, far beyond." },
+                  opponent: { type: "string", enum: OPPONENT_STATES, description: "attacking = their move is about to hit; recovering = they whiffed or finished a move and are open; blocking = in blockstun; stunned = being hit." },
+                  opponent_cornered: { type: "boolean" },
+                  cornered: { type: "boolean", description: "Your own back is at the edge." },
+                  meter_full: { type: "boolean", description: "Your super is ready." },
+                  health_below: { type: "number", minimum: 0, maximum: 1, description: "Your health share is below this." },
+                  opponent_health_below: { type: "number", minimum: 0, maximum: 1 },
+                },
+              },
+              do: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 4, description: "Move inputs from your list, or throw, dash, backdash, jump, jump_in, sidestep, 'block N', 'crouch_block N', 'wait N', 'approach N', 'retreat N' (N frames)." },
+              weight: { type: "number", minimum: 0, maximum: 5, description: "Relative chance among the rules that match (default 1)." },
+            },
+          },
+        },
+      },
+    },
+  },
+};
+
+export const SCRIPT_TOOLS: NonNullable<ChatBody["tools"]> = [POLICY_TOOL, TOOLS[2]];
+export const BEAT_TOOLS: NonNullable<ChatBody["tools"]> = [TOOLS[1], TOOLS[2]];
+
+export function buildScriptSystemPrompt(side: Side, hello: Hello): string {
+  const me = hello[side];
+  const them = hello[other(side)];
+  return `You program ${me.name}, a fighter in a one-on-one 3D fighting game (best of ${hello.rounds_to_win * 2 - 1} rounds of ${hello.round_seconds} seconds, ${me.max_health} health). You cannot act during a round: before the match and after every round you write the fighter's behaviour with set_policy (a plan of tendencies plus rules: when the fight looks like this, do these moves), and the fighter runs it alone at 60 frames a second. After each round you see what happened: every attack by both sides with how often it hit, was blocked or whiffed, throws, knockdowns, health left. Rewrite the rules to beat what the opponent actually did. Give set_policy once per turn, optionally say once; nothing else.
+
+Your fighter, ${me.name}${me.archetype ? ` (${me.archetype})` : ""}:
+${movesText(me)}
+Shared basics: LP jab (4f, cancels), HP straight, LK mid kick, HK roundhouse (long), 2LP, 2LK low kick, 2HP uppercut (launcher, anti-air), 2HK sweep (low, knockdown), jump attacks are overheads, throw (unblockable, techable). Lows must be blocked crouching, overheads standing. A whiffed heavy leaves the attacker open about 20 frames.
+
+Opponent: ${them.name}${them.archetype ? ` (${them.archetype})` : ""}, ${them.max_health} health. Their moves:
+${movesText(them)}
+
+Good rules are specific: a punish when the opponent is recovering at close range, an anti-air when they are jumping, a low when they block standing a lot, the super when meter_full and in range, a retreat when your health is low and you are not cornered. Three to eight rules usually beat twelve.`;
+}
+
+export function summaryText(side: Side, summary: any): string {
+  if (!summary || typeof summary !== "object") return "no summary";
+  const one = (label: string, s: any) => {
+    if (!s) return `${label}: nothing`;
+    const attacks = Object.entries((s.attacks ?? {}) as Record<string, Record<string, number>>)
+      .map(([input, c]) => `${input} ${c.hit ?? 0} hit, ${c.counter ?? 0} counter, ${c.blocked ?? 0} blocked, ${c.whiffed ?? 0} whiffed`)
+      .join("; ");
+    return `${label}: health left ${pct(s.health_left ?? 0, s.max_health ?? 1)}, ${s.throws ?? 0} throws, knocked down ${s.knockdowns ?? 0} times. Attacks: ${attacks || "none"}.${s.rule_fired_last ? ` Last rule that fired: ${s.rule_fired_last}.` : ""}`;
+  };
+  return `${one("You", summary[side])}\n${one("Opponent", summary[other(side)])}`;
+}
+
+export function buildScriptTurnMessage(side: Side, hello: Hello, events: GameEvent[], lastResults: string[]): string {
+  const lines: string[] = [];
+  const ends = events.filter((e) => e.event === "round_end");
+  if (ends.length === 0) lines.push(`The match is about to start. Write ${hello[side].name}'s behaviour for round 1.`);
+  for (const e of ends) {
+    lines.push(`Round ${e.round ?? "?"} over: ${e.winner == null ? "draw" : e.winner === side ? "you won it" : "they won it"} (${e.reason}).`);
+    lines.push(summaryText(side, (e as any).summary));
+  }
+  if (lastResults.length) lines.push(`Your last tools: ${lastResults.join("; ")}.`);
+  lines.push("Write the behaviour for the next round with set_policy.");
+  return lines.join("\n");
+}
+
+export function buildBeatSystemPrompt(side: Side, hello: Hello, beatTicks: number): string {
+  const me = hello[side];
+  const them = hello[other(side)];
+  return `You fight as ${me.name} in a one-on-one 3D fighting game played in beats: every ${(beatTicks / 60).toFixed(1)} seconds the game pauses and both players choose their next moves; then it plays on with both choices. Choose with queue (one to four inputs, performed in order as soon as your fighter can act; nothing happens by itself, so choose blocks too) and optionally say a caption. Answer with the tools only.
+
+Your fighter, ${me.name}${me.archetype ? ` (${me.archetype})` : ""}:
+${movesText(me)}
+Shared basics: LP jab (4f, cancels), HP straight, LK mid kick, HK roundhouse (long), 2LP, 2LK low kick, 2HP uppercut (launcher, anti-air), 2HK sweep (low, knockdown), j.HK flying kick (overhead), throw (unblockable, techable, under 1 m). Movement: 'approach N' / 'retreat N' walk for N frames, dash, backdash, jump, 'block N' (stand, blocks highs and mids), 'crouch_block N' (blocks lows and mids), 'wait N'. Lows must be blocked crouching, overheads standing.
+
+Opponent: ${them.name}${them.archetype ? ` (${them.archetype})` : ""}, ${them.max_health} health. Their specials: ${them.moves
+    .filter((mv) => /^\d{3}/.test(mv.input))
+    .map((mv) => `${mv.input} ${mv.name}`)
+    .join(", ") || "none"}.
+
+Distance matters: at over 2.2 m only specials and walking reach; at 1.2 to 2.2 m long kicks and lunges; under 1.2 m everything, throws under 1 m. Read what they did last beat and answer it.`;
+}
+
+export function buildBeatMessage(side: Side, beat: State & { n?: number }, events: GameEvent[], lastResults: string[]): string {
+  const lines: string[] = [];
+  const me = beat[side];
+  const them = beat[other(side)];
+  lines.push(`Beat ${beat.n ?? "?"}, round ${beat.round}, ${beat.timer} s left, rounds won you ${beat.wins[side === "p1" ? 0 : 1]} - ${beat.wins[side === "p1" ? 1 : 0]} them. Distance ${m(beat.distance)}.`);
+  lines.push(sideText("You", me) + (me.queued && me.queued.length ? ` Still queued: ${me.queued.join(", ")}.` : ""));
+  lines.push(sideText("Opponent", them));
+  lines.push(events.length ? `Since the last beat: ${events.map((e) => eventText(e, side)).join(" ")}` : "Since the last beat: nothing landed.");
+  if (lastResults.length) lines.push(`Your last tools: ${lastResults.join("; ")}.`);
+  lines.push("Choose your moves for this beat with queue.");
+  return lines.join("\n");
+}
+
+/** The rules the model gave, cleaned for the game (which validates them again). */
+export function validateRules(raw: unknown): { rules: Rule[]; problems: string[] } {
+  const problems: string[] = [];
+  if (!Array.isArray(raw)) return { rules: [], problems: ["rules must be an array"] };
+  const rules: Rule[] = [];
+  for (const [i, r] of raw.entries()) {
+    if (rules.length >= 12) {
+      problems.push("at most 12 rules; the rest were dropped");
+      break;
+    }
+    if (!r || typeof r !== "object") {
+      problems.push(`rule ${i + 1} is not an object`);
+      continue;
+    }
+    const o = r as Record<string, unknown>;
+    const when = o.when && typeof o.when === "object" ? (o.when as Record<string, unknown>) : {};
+    const moves = Array.isArray(o.do) ? o.do.map((x) => String(x).trim()).filter(Boolean).slice(0, 4) : [];
+    if (!moves.length) {
+      problems.push(`rule ${i + 1} (${String(o.name ?? "")}) has no moves`);
+      continue;
+    }
+    const w: Rule["when"] = {};
+    for (const [k, v] of Object.entries(when)) {
+      if (k === "range" && ["close", "mid", "far"].includes(String(v))) w.range = v as Rule["when"]["range"];
+      else if (k === "opponent" && OPPONENT_STATES.includes(String(v))) w.opponent = String(v);
+      else if (["opponent_cornered", "cornered", "meter_full"].includes(k) && typeof v === "boolean") (w as Record<string, unknown>)[k] = v;
+      else if (["health_below", "opponent_health_below"].includes(k) && typeof v === "number") (w as Record<string, unknown>)[k] = Math.min(1, Math.max(0, v));
+      else problems.push(`rule ${i + 1}: condition ${k}=${JSON.stringify(v)} dropped`);
+    }
+    rules.push({ name: o.name ? String(o.name).slice(0, 40) : `rule ${i + 1}`, when: w, do: moves, weight: typeof o.weight === "number" ? Math.min(5, Math.max(0, o.weight)) : 1 });
+  }
+  return { rules, problems };
 }

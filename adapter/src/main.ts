@@ -8,6 +8,7 @@ import { Coach } from "./coach.ts";
 import { FakeModelClient } from "./fake.ts";
 import { Link } from "./link.ts";
 import { BattleLog, battleId } from "./log.ts";
+import type { Mode } from "./types.ts";
 import { ProviderClient, REPO_ROOT, splitSpec, type Effort } from "./models.ts";
 import { SIDES, type Hello, type ModelClient, type Side } from "./types.ts";
 
@@ -25,6 +26,8 @@ interface Args {
   capture: string;
   log: string;
   record: string;
+  mode: Mode;
+  beatTicks: number;
 }
 
 export function parseCli(argv: string[]): Args {
@@ -41,6 +44,9 @@ export function parseCli(argv: string[]): Args {
     return { fighter: v.slice(0, i), spec: v.slice(i + 1) };
   };
   const effort = get("effort", "low") as Effort;
+  const mode = get("mode", "coach") as Mode;
+  if (!["coach", "script", "beat"].includes(mode)) throw new Error("--mode must be coach, script or beat");
+  const beatTicks = Math.min(600, Math.max(15, Number(get("beat-ticks", "60")) || 60));
   if (!["low", "medium", "high"].includes(effort)) throw new Error(`--effort must be low, medium or high`);
   return {
     sides: { p1: side("p1", "jin"), p2: side("p2", "kenji") },
@@ -56,6 +62,8 @@ export function parseCli(argv: string[]): Args {
     capture: get("capture", "") ?? "",
     log: get("log", "") ?? "",
     record: get("record", "") ?? "",
+    mode,
+    beatTicks,
   };
 }
 
@@ -96,7 +104,7 @@ async function main(): Promise<void> {
   const args = parseCli(process.argv.slice(2));
   const link = new Link(args.port);
   await link.listen();
-  say(`link on ws://127.0.0.1:${args.port}; ${args.sides.p1.fighter} (${args.sides.p1.spec}) vs ${args.sides.p2.fighter} (${args.sides.p2.spec}) on ${args.stage}, seed ${args.seed}, cap $${args.cap} per side, effort ${args.effort}`);
+  say(`link on ws://127.0.0.1:${args.port}; ${args.sides.p1.fighter} (${args.sides.p1.spec}) vs ${args.sides.p2.fighter} (${args.sides.p2.spec}) on ${args.stage}, seed ${args.seed}, cap $${args.cap} per side, effort ${args.effort}, mode ${args.mode}${args.mode === "beat" ? ` (a beat every ${args.beatTicks} ticks)` : ""}`);
 
   let game: ChildProcess | null = null;
   let ending = false;
@@ -159,6 +167,18 @@ async function main(): Promise<void> {
   link.once("hello", (hello: Hello) => {
     say(`game connected: ${hello.p1.name} vs ${hello.p2.name} on ${hello.stage}, first to ${hello.rounds_to_win}`);
     link.send({ type: "models", p1: args.sides.p1.spec, p2: args.sides.p2.spec }); // the HUD's name plates
+    link.send({ type: "mode", mode: args.mode, beat_ticks: args.beatTicks });
+    // Beat mode: the game waits at each beat until both coaches have answered.
+    const beatDone = new Map<number, Set<Side>>();
+    const onBeatDone = (side: Side, n: number) => {
+      const done = beatDone.get(n) ?? new Set<Side>();
+      done.add(side);
+      beatDone.set(n, done);
+      if (done.size === 2) {
+        beatDone.delete(n);
+        link.send({ type: "resume", n });
+      }
+    };
     const log = args.log ? BattleLog.at(args.log) : new BattleLog(battleId(hello));
     const clients = new Map<string, ModelClient>();
     const recent: unknown[] = []; // the last events, for live.json
@@ -175,6 +195,7 @@ async function main(): Promise<void> {
         phase: result ? "over" : link.roundLive ? "live" : "between",
         hello: { p1: { id: hello.p1.id, name: hello.p1.name }, p2: { id: hello.p2.id, name: hello.p2.name }, stage: hello.stage, rounds_to_win: hello.rounds_to_win },
         sides: Object.fromEntries(SIDES.map((s) => [s, { fighter: hello[s].id, model: args.sides[s].spec }])),
+        mode: args.mode,
         state: link.latest,
         coaches: Object.fromEntries(coaches.map((c) => [c.side, c.stats()])),
         events: recent.slice(-12),
@@ -187,6 +208,9 @@ async function main(): Promise<void> {
           cadenceMs: args.cadence,
           capUsd: args.cap,
           effort: args.effort,
+          mode: args.mode,
+          beatTicks: args.beatTicks,
+          onBeatDone,
           onTurn: (s, t) => {
             const who = `${s} ${hello[s].name}`;
             if (t.error) say(`${who}: error ${t.error}`);
@@ -222,7 +246,7 @@ async function main(): Promise<void> {
           sides: Object.fromEntries(SIDES.map((s) => [s, { fighter: hello[s].id, model: args.sides[s].spec }])),
           result: { winner, wins: e.wins ?? null, reason: e.reason ?? null },
           coaches: Object.fromEntries(coaches.map((c) => [c.side, c.stats()])),
-          settings: { cap: args.cap, cadence: args.cadence, effort: args.effort },
+          settings: { cap: args.cap, cadence: args.cadence, effort: args.effort, mode: args.mode, beatTicks: args.beatTicks },
         });
         live();
         say(`log: ${log.dir}`);

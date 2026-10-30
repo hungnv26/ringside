@@ -13,6 +13,10 @@ const OPTION_KEYS := ["poke", "string", "rush", "dash", "jump", "throw", "grab",
 	"ground_special", "sidestep", "wait", "retreat", "approach", "stance", "reversal", "glide"]
 const MAX_QUEUE := 8
 const MAX_CAPTION := 60
+const MAX_RULES := 12
+const RULE_INTERVAL := 10
+const RULE_COOLDOWN := 45
+const OPPONENT_STATES := ["idle", "attacking", "recovering", "blocking", "knocked_down", "jumping", "stunned"]
 
 ## The last plan applied, merged (what the coach is told it is running).
 var plan := {}
@@ -22,6 +26,18 @@ var plan_age := 0
 var caption := ""
 ## Named moves the coach queued, done in order when the fighter is actionable.
 var queued: Array[String] = []
+## Self-coding mode (docs/ringside-plan.md phase 4): rules the coach wrote, checked every
+## RULE_INTERVAL ticks when the fighter is free; a matching rule queues its moves. Each rule:
+## {name, when: {range, opponent, opponent_cornered, cornered, meter_full, health_below,
+## opponent_health_below}, do: [moves], weight}.
+var rules: Array[Dictionary] = []
+## Beat mode: nothing happens by itself; only queued moves are performed (no AI decisions,
+## no reactive blocking). The coach picks every move.
+var manual := false
+## The last rule that fired (its name), for the observation.
+var last_rule := ""
+var _rule_tick := 0
+var _rule_cooldown := {} # rule index -> tick it may fire again
 var _base_weights := {}
 
 
@@ -44,8 +60,16 @@ func reset() -> void:
 
 func read(fighter: Fighter) -> int:
 	plan_age += 1
+	_rule_tick += 1
 	if _plan.is_empty() and not queued.is_empty() and fighter.is_actionable():
 		_queue_named(queued.pop_front(), fighter)
+	if manual:
+		# Beat mode: queued steps only; otherwise stand still.
+		if not _plan.is_empty():
+			return _without_accidental_dash(_next_plan_input())
+		return InputBuffer.pack(InputBuffer.NEUTRAL, 0)
+	if _plan.is_empty() and queued.is_empty() and not rules.is_empty() and fighter.is_actionable() 			and _rule_tick % RULE_INTERVAL == 0:
+		_apply_rules(fighter)
 	return super.read(fighter)
 
 
@@ -109,6 +133,144 @@ func queue_moves(moves: Array, fighter: Fighter) -> Array[String]:
 		else:
 			queued.append(name)
 	return errors
+
+
+## Replaces the rule set (self-coding mode). Returns the problems; bad rules are dropped.
+func set_rules(new_rules: Array, fighter: Fighter) -> Array[String]:
+	var errors: Array[String] = []
+	var kept: Array[Dictionary] = []
+	for entry in new_rules:
+		if kept.size() >= MAX_RULES:
+			errors.append("at most %d rules" % MAX_RULES)
+			break
+		if not entry is Dictionary:
+			errors.append("a rule must be an object")
+			continue
+		var rule: Dictionary = entry
+		var name := str(rule.get("name", "rule %d" % (kept.size() + 1)))
+		var when = rule.get("when", {})
+		if not when is Dictionary:
+			errors.append("%s: when must be an object" % name)
+			continue
+		var moves = rule.get("do", [])
+		if not moves is Array or moves.is_empty():
+			errors.append("%s: do must list moves" % name)
+			continue
+		var ok := true
+		for move in moves:
+			if not _known_move(String(move).strip_edges(), fighter):
+				errors.append("%s: unknown move %s" % [name, move])
+				ok = false
+		for key in when:
+			match String(key):
+				"range":
+					if not when[key] in RANGES.keys():
+						errors.append("%s: range must be close, mid or far" % name)
+						ok = false
+				"opponent":
+					if not when[key] in OPPONENT_STATES:
+						errors.append("%s: opponent must be one of %s" % [name, ", ".join(OPPONENT_STATES)])
+						ok = false
+				"opponent_cornered", "cornered", "meter_full":
+					if not when[key] is bool:
+						errors.append("%s: %s must be true or false" % [name, key])
+						ok = false
+				"health_below", "opponent_health_below":
+					if not (when[key] is float or when[key] is int):
+						errors.append("%s: %s must be a number 0..1" % [name, key])
+						ok = false
+				_:
+					errors.append("%s: unknown condition %s" % [name, key])
+					ok = false
+		if ok:
+			kept.append({name = name, when = when, do = moves.slice(0, 4).map(func(m) -> String: return String(m).strip_edges()),
+				weight = clampf(float(rule.get("weight", 1.0)), 0.0, 5.0)})
+	rules = kept
+	_rule_cooldown.clear()
+	return errors
+
+
+## Checks the rules against the fight and queues the moves of one that matches.
+func _apply_rules(fighter: Fighter) -> void:
+	var opponent := fighter.opponent
+	var delta: Vector3 = opponent.position - fighter.position
+	var dist := Vector2(delta.x, delta.z).length()
+	var range_name := "close" if dist < CLOSE_RANGE else "mid" if dist < FAR_RANGE else "far"
+	var opp_state := _opponent_state(opponent)
+	var facts := {
+		range = range_name, opponent = opp_state,
+		opponent_cornered = opponent.is_pinned_against_bounds(-opponent.forward),
+		cornered = fighter.is_pinned_against_bounds(-fighter.forward),
+		meter_full = fighter.meter >= Fighter.MAX_METER,
+		health = fighter.health / float(fighter.data.max_health),
+		opponent_health = opponent.health / float(opponent.data.max_health),
+	}
+	var options: Array = []
+	var total := 0.0
+	for i in rules.size():
+		if int(_rule_cooldown.get(i, 0)) > _rule_tick:
+			continue
+		var rule := rules[i]
+		if _rule_matches(rule.when, facts) and rule.weight > 0.0:
+			options.append([rule.weight, i])
+			total += rule.weight
+	if options.is_empty():
+		return
+	var roll := _rng.randf() * total
+	for option in options:
+		roll -= option[0]
+		if roll <= 0.0:
+			_fire_rule(option[1], fighter)
+			return
+	_fire_rule(options[-1][1], fighter)
+
+
+func _fire_rule(index: int, fighter: Fighter) -> void:
+	var rule := rules[index]
+	_rule_cooldown[index] = _rule_tick + RULE_COOLDOWN
+	last_rule = rule.name
+	for move in rule.do:
+		if queued.size() < MAX_QUEUE:
+			queued.append(move)
+	if _plan.is_empty() and not queued.is_empty() and fighter.is_actionable():
+		_queue_named(queued.pop_front(), fighter)
+
+
+static func _rule_matches(when: Dictionary, facts: Dictionary) -> bool:
+	for key in when:
+		match String(key):
+			"range", "opponent":
+				if facts[key] != when[key]:
+					return false
+			"opponent_cornered", "cornered", "meter_full":
+				if facts[key] != bool(when[key]):
+					return false
+			"health_below":
+				if not facts.health < float(when[key]):
+					return false
+			"opponent_health_below":
+				if not facts.opponent_health < float(when[key]):
+					return false
+	return true
+
+
+## What the opponent is doing, in the rules' words.
+static func _opponent_state(opponent: Fighter) -> String:
+	match opponent.state:
+		Fighter.State.ATTACK:
+			var move := opponent.current_move
+			if move and opponent.state_frame <= move.startup + move.active:
+				return "attacking"
+			return "recovering"
+		Fighter.State.BLOCKSTUN:
+			return "blocking"
+		Fighter.State.KNOCKDOWN, Fighter.State.GETUP:
+			return "knocked_down"
+		Fighter.State.JUMP, Fighter.State.JUMP_SQUAT:
+			return "jumping"
+		Fighter.State.HITSTUN, Fighter.State.AIR_HIT, Fighter.State.WALL_SPLAT:
+			return "stunned"
+	return "idle"
 
 
 func set_caption(text: String) -> void:

@@ -1,7 +1,7 @@
 // Shared fixtures: a hello, a state and a fake link the coaches can drive without a socket.
 import { EventEmitter } from "node:events";
 import type { GameLink, LinkEvents } from "../src/link.ts";
-import type { AdapterFrame, Hello, State } from "../src/types.ts";
+import type { AdapterFrame, Beat, Hello, Side, State } from "../src/types.ts";
 
 export const hello: Hello = {
   type: "hello",
@@ -68,6 +68,13 @@ export class FakeLink extends EventEmitter<LinkEvents> implements GameLink {
     if (event === "round_start") this.roundLive = true;
     if (event === "round_end" || event === "match_end") this.roundLive = false;
     this.emit("event", { type: "event", tick: this.latest?.tick ?? 0, event, ...extra });
+  }
+  feedApplied(side: Side, plan_id: string, ok: boolean, error = ""): void {
+    this.emit("applied", { type: "applied", side, plan_id, ok, error });
+  }
+  feedBeat(b: Beat): void {
+    this.latest = { ...b, type: "state" };
+    this.emit("beat", b);
   }
 }
 

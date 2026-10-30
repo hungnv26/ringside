@@ -107,6 +107,68 @@ func _initialize() -> void:
 	check("a thinking frame for an unknown side is ignored", true)
 	link._handle({type = "thinking", side = "nobody", on = true})
 
+	# rules (self-coding mode)
+	errors = coach.set_rules([
+		{name = "punish", when = {range = "close", opponent = "recovering"}, do = ["2HP"], weight = 2},
+		{name = "sweep", when = {range = "close"}, do = ["2HK"]},
+		{name = "bad", when = {range = "nowhere"}, do = ["LP"]},
+		{name = "bad2", when = {}, do = ["nope"]},
+		{name = "super", when = {meter_full = true, range = "mid"}, do = ["236236K"]},
+	], p1)
+	check("bad rules are reported and dropped, good ones kept", errors.size() == 2 and coach.rules.size() == 3, ", ".join(errors) + " | %d kept" % coach.rules.size())
+	check("rule facts: opponent state names", CoachController._opponent_state(p2) in CoachController.OPPONENT_STATES)
+	check("rule matching: health_below and range", CoachController._rule_matches({range = "close", health_below = 0.5}, {range = "close", health = 0.4})
+		and not CoachController._rule_matches({range = "close", health_below = 0.5}, {range = "close", health = 0.6})
+		and not CoachController._rule_matches({opponent = "idle"}, {opponent = "jumping"}))
+	# standing close with the dummy idle: the "sweep" rule (close) should fire and the sweep come out
+	coach.queued.clear()
+	coach.rules = coach.rules.filter(func(r: Dictionary) -> bool: return r.name == "sweep")
+	coach.apply_plan({aggression = 0.0, options = {wait = 3.0}})
+	p1.position.x = p2.position.x - 0.9
+	p1.reset_physics_interpolation()
+	var rule_fired := false
+	for i in 120:
+		step()
+		if coach.last_rule == "sweep":
+			rule_fired = true
+			break
+	check("a matching rule fires and names itself", rule_fired, coach.last_rule)
+	coach.rules.clear()
+	step(60)
+
+	# round summary tallies the attacks
+	var summary := link.round_summary()
+	var p1_attacks: Dictionary = summary.p1.attacks
+	check("round summary counts p1's sweeps", p1_attacks.has("2HK") and int(p1_attacks["2HK"].hit) + int(p1_attacks["2HK"].blocked) + int(p1_attacks["2HK"].whiffed) + int(p1_attacks["2HK"].counter) >= 2, str(p1_attacks))
+	check("round summary has health left", summary.p2.health_left < summary.p2.max_health)
+
+	# beat mode: manual control, hold and resume
+	link._handle({type = "mode", mode = "beat", beat_ticks = 30})
+	check("beat mode makes both controllers manual", coach.manual and link.mode == "beat" and link.beat_ticks == 30)
+	coach.queued.clear()
+	var x_before := p1.position.x
+	step(40)
+	check("in manual mode the fighter does nothing by itself", is_equal_approx(p1.position.x, x_before) and p1.state == Fighter.State.IDLE, Fighter.State.keys()[p1.state])
+	coach.queue_moves(["LP"], p1)
+	var jabbed := false
+	for i in 30:
+		step()
+		if p1.state == Fighter.State.ATTACK and p1.current_move and p1.current_move.input == "LP":
+			jabbed = true
+			break
+	check("a queued move is performed in manual mode", jabbed)
+	link._hold()
+	check("a hold stops the simulation and sends a beat frame", link.holding and not m.is_physics_processing() and link.sent[-1].type == "beat" and link.sent[-1].n == 1)
+	link._handle({type = "resume", n = 1})
+	check("resume restarts the simulation", not link.holding and m.is_physics_processing())
+	m.set_physics_process(false) # the test drives ticks itself
+	link._handle({type = "mode", mode = "coach"})
+	check("back in coach mode", not coach.manual)
+
+	# policy frame applies plan and rules together
+	link._handle({type = "policy", side = "p1", plan_id = "pol-1", plan = {aggression = 0.4}, rules = [{name = "r", when = {range = "far"}, do = ["approach 20"]}]})
+	check("policy frame applies plan and rules", is_equal_approx(coach.aggression, 0.4) and coach.rules.size() == 1 and link.sent[-1].type == "applied" and link.sent[-1].ok)
+
 	# captions
 	coach.set_caption("  Keep him at kick range, punish the step in with the spinning back kick!  ")
 	check("captions are trimmed to 60 characters", coach.caption.length() == 60, coach.caption)

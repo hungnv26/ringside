@@ -50,6 +50,7 @@ export interface SideState {
   x?: number;
   cornered?: boolean;
   plan_age_ticks?: number;
+  queued?: string[];
   recent?: RecentAttack[];
 }
 
@@ -79,7 +80,22 @@ export interface Applied {
   error?: string;
 }
 
-export type GameFrame = Hello | State | GameEvent | Applied;
+/** Beat mode: the game is paused at beat `n` and waits for `resume`. The rest is a State. */
+export interface Beat extends Omit<State, "type"> {
+  type: "beat";
+  n: number;
+}
+export type GameFrame = Hello | State | GameEvent | Applied | Beat;
+
+export type Mode = "coach" | "script" | "beat";
+
+/** A self-coding rule: when the fight looks like `when`, do these moves. */
+export interface Rule {
+  name?: string;
+  when: { range?: "close" | "mid" | "far"; opponent?: string; opponent_cornered?: boolean; cornered?: boolean; meter_full?: boolean; health_below?: number; opponent_health_below?: number };
+  do: string[];
+  weight?: number;
+}
 
 // Adapter -> game.
 export interface Plan {
@@ -128,7 +144,24 @@ export interface ThinkingFrame {
   side: Side;
   on: boolean;
 }
-export type AdapterFrame = PlanFrame | QueueFrame | SayFrame | EndFrame | ModelsFrame | ThinkingFrame;
+export interface ModeFrame {
+  type: "mode";
+  mode: Mode;
+  beat_ticks?: number;
+}
+/** Self-coding mode: a plan and the rule set, applied together. */
+export interface PolicyFrame {
+  type: "policy";
+  side: Side;
+  plan_id: string;
+  plan?: Plan;
+  rules?: Rule[];
+}
+export interface ResumeFrame {
+  type: "resume";
+  n: number;
+}
+export type AdapterFrame = PlanFrame | QueueFrame | SayFrame | EndFrame | ModelsFrame | ThinkingFrame | ModeFrame | PolicyFrame | ResumeFrame;
 
 // Model calls, in the OpenAI chat format (the provider translation is models.ts's business).
 export interface ToolCall {

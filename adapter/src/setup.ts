@@ -9,6 +9,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { keyStatus, listModels, modelPrices, PROVIDERS, REPO_ROOT, saveKey, splitSpec, type Effort } from "./models.ts";
+import type { Mode } from "./types.ts";
 
 export const DEFAULT_PORT = 8798;
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -64,6 +65,7 @@ export interface BattleSummary {
   stage: string;
   seed: number | null;
   sides: Record<string, { fighter: string; model: string }>;
+  mode: string;
   winner: string | null;
   wins: number[] | null;
   reason: string | null;
@@ -75,7 +77,7 @@ export function summarize(battle: any, id: string): BattleSummary | null {
   if (!battle || typeof battle !== "object" || !battle.sides) return null;
   const coaches: BattleSummary["coaches"] = {};
   for (const [side, c] of Object.entries((battle.coaches ?? {}) as Record<string, any>)) coaches[side] = { turns: Number(c.turns ?? 0), tokens: Number(c.tokens ?? 0), usd: Number(c.usd ?? 0), avgSeconds: c.avgSeconds ?? null, errors: Number(c.errors ?? 0) };
-  return { id, at: String(battle.at ?? ""), stage: String(battle.stage ?? ""), seed: battle.seed ?? null, sides: battle.sides, winner: battle.result?.winner ?? null, wins: battle.result?.wins ?? null, reason: battle.result?.reason ?? null, coaches, video: false };
+  return { id, at: String(battle.at ?? ""), stage: String(battle.stage ?? ""), seed: battle.seed ?? null, sides: battle.sides, mode: String(battle.settings?.mode ?? "coach"), winner: battle.result?.winner ?? null, wins: battle.result?.wins ?? null, reason: battle.result?.reason ?? null, coaches, video: false };
 }
 
 /** Every finished battle under battle-logs, newest first. */
@@ -144,6 +146,8 @@ export interface MatchRequest {
   effort?: Effort;
   capture?: boolean;
   record?: boolean;
+  mode?: Mode;
+  beatTicks?: number;
 }
 
 export function validateMatch(raw: any, fighters: Fighter[], stageIds: string[]): MatchRequest {
@@ -169,8 +173,11 @@ export function validateMatch(raw: any, fighters: Fighter[], stageIds: string[])
   };
   const effort = String(raw?.effort ?? "low") as Effort;
   if (!EFFORTS.includes(effort)) throw new Error("effort must be low, medium or high");
+  const mode = String(raw?.mode ?? "coach") as Mode;
+  if (!["coach", "script", "beat"].includes(mode)) throw new Error("mode must be coach, script or beat");
+  const beatTicks = Math.floor(num("beatTicks", 60, 15, 600));
   const seed = raw?.seed === undefined || raw?.seed === null || raw?.seed === "" ? null : Math.floor(num("seed", 0, 0, 2 ** 31 - 1));
-  return { p1, p2, stage, seed, cap: num("cap", 1, 0, 50), cadence: Math.floor(num("cadence", 2000, 500, 30000)), effort, capture: !!raw?.capture, record: !!raw?.record };
+  return { p1, p2, stage, seed, cap: num("cap", 1, 0, 50), cadence: Math.floor(num("cadence", 2000, 500, 30000)), effort, capture: !!raw?.capture, record: !!raw?.record, mode, beatTicks };
 }
 
 export function matchArgs(m: MatchRequest, logDir: string, captureDir: string): string[] {
@@ -178,6 +185,8 @@ export function matchArgs(m: MatchRequest, logDir: string, captureDir: string): 
   if (m.seed != null) args.push("--seed", String(m.seed));
   if (m.capture) args.push("--capture", captureDir);
   if (m.record) args.push("--record", join(logDir, "match.mp4"));
+  if (m.mode && m.mode !== "coach") args.push("--mode", m.mode);
+  if (m.mode === "beat") args.push("--beat-ticks", String(m.beatTicks ?? 60));
   return args;
 }
 
@@ -304,6 +313,11 @@ export function createSetupServer(runner = new Runner(), root = REPO_ROOT, fetch
           keys: keyStatus(),
           priced: Object.keys(prices),
           efforts: EFFORTS,
+          modes: [
+            { id: "coach", name: "Coach", blurb: "the model adjusts its fighter's plan every couple of seconds" },
+            { id: "script", name: "Self-coding", blurb: "the model writes rules before the match and rewrites them after every round; no calls during a round" },
+            { id: "beat", name: "Beat fighter", blurb: "the game pauses every beat until both models have chosen their moves" },
+          ],
           defaults: { p1: { fighter: "jin", spec: "anthropic:claude-haiku-5-5" }, p2: { fighter: "kenji", spec: "openai:gpt-5.4-mini" }, stage: "rooftop", cap: 1, cadence: 2000, effort: "low" },
           running: runner.running,
         });

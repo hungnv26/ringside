@@ -31,7 +31,7 @@ test("roster and stages come from the game's files", () => {
 });
 
 const battle = (at: string, p1: string, p2: string, winner: string | null, usd1 = 0.01, usd2 = 0.02): BattleSummary => ({
-  id: at, at, stage: "ring", seed: 1, sides: { p1: { fighter: "jin", model: p1 }, p2: { fighter: "kenji", model: p2 } }, winner, wins: winner === "p1" ? [2, 0] : winner === "p2" ? [0, 2] : [1, 1], reason: winner ? "rounds" : "draw", video: false,
+  id: at, at, stage: "ring", seed: 1, sides: { p1: { fighter: "jin", model: p1 }, p2: { fighter: "kenji", model: p2 } }, winner, wins: winner === "p1" ? [2, 0] : winner === "p2" ? [0, 2] : [1, 1], reason: winner ? "rounds" : "draw", video: false, mode: "coach",
   coaches: { p1: { turns: 10, tokens: 100, usd: usd1, avgSeconds: 2, errors: 0 }, p2: { turns: 10, tokens: 100, usd: usd2, avgSeconds: 2, errors: 0 } },
 });
 
