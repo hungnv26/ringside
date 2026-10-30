@@ -1,0 +1,314 @@
+{
+ "m1": {
+  "vertices": 1878,
+  "rows": 99,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    25
+   ],
+   "talk": [
+    25,
+    44
+   ],
+   "cheer": [
+    69,
+    18
+   ],
+   "clap": [
+    87,
+    12
+   ]
+  },
+  "lod": {
+   "vertices": 1048
+  }
+ },
+ "m2": {
+  "vertices": 1359,
+  "rows": 99,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    25
+   ],
+   "talk": [
+    25,
+    44
+   ],
+   "cheer": [
+    69,
+    18
+   ],
+   "clap": [
+    87,
+    12
+   ]
+  },
+  "lod": {
+   "vertices": 563
+  }
+ },
+ "m3": {
+  "vertices": 1568,
+  "rows": 99,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    25
+   ],
+   "talk": [
+    25,
+    44
+   ],
+   "cheer": [
+    69,
+    18
+   ],
+   "clap": [
+    87,
+    12
+   ]
+  },
+  "lod": {
+   "vertices": 726
+  }
+ },
+ "m4": {
+  "vertices": 1337,
+  "rows": 99,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    25
+   ],
+   "talk": [
+    25,
+    44
+   ],
+   "cheer": [
+    69,
+    18
+   ],
+   "clap": [
+    87,
+    12
+   ]
+  },
+  "lod": {
+   "vertices": 548
+  }
+ },
+ "m5": {
+  "vertices": 2435,
+  "rows": 99,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    25
+   ],
+   "talk": [
+    25,
+    44
+   ],
+   "cheer": [
+    69,
+    18
+   ],
+   "clap": [
+    87,
+    12
+   ]
+  },
+  "lod": {
+   "vertices": 1488
+  }
+ },
+ "m6": {
+  "vertices": 1356,
+  "rows": 99,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    25
+   ],
+   "talk": [
+    25,
+    44
+   ],
+   "cheer": [
+    69,
+    18
+   ],
+   "clap": [
+    87,
+    12
+   ]
+  },
+  "lod": {
+   "vertices": 564
+  }
+ },
+ "m7": {
+  "vertices": 1957,
+  "rows": 99,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    25
+   ],
+   "talk": [
+    25,
+    44
+   ],
+   "cheer": [
+    69,
+    18
+   ],
+   "clap": [
+    87,
+    12
+   ]
+  },
+  "lod": {
+   "vertices": 1035
+  }
+ },
+ "m8": {
+  "vertices": 1527,
+  "rows": 99,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    25
+   ],
+   "talk": [
+    25,
+    44
+   ],
+   "cheer": [
+    69,
+    18
+   ],
+   "clap": [
+    87,
+    12
+   ]
+  },
+  "lod": {
+   "vertices": 697
+  }
+ },
+ "f1": {
+  "vertices": 1734,
+  "rows": 99,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    25
+   ],
+   "talk": [
+    25,
+    44
+   ],
+   "cheer": [
+    69,
+    18
+   ],
+   "clap": [
+    87,
+    12
+   ]
+  },
+  "lod": {
+   "vertices": 873
+  }
+ },
+ "f2": {
+  "vertices": 1574,
+  "rows": 99,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    25
+   ],
+   "talk": [
+    25,
+    44
+   ],
+   "cheer": [
+    69,
+    18
+   ],
+   "clap": [
+    87,
+    12
+   ]
+  },
+  "lod": {
+   "vertices": 707
+  }
+ },
+ "f3": {
+  "vertices": 1596,
+  "rows": 99,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    25
+   ],
+   "talk": [
+    25,
+    44
+   ],
+   "cheer": [
+    69,
+    18
+   ],
+   "clap": [
+    87,
+    12
+   ]
+  },
+  "lod": {
+   "vertices": 716
+  }
+ },
+ "f4": {
+  "vertices": 1384,
+  "rows": 99,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    25
+   ],
+   "talk": [
+    25,
+    44
+   ],
+   "cheer": [
+    69,
+    18
+   ],
+   "clap": [
+    87,
+    12
+   ]
+  },
+  "lod": {
+   "vertices": 579
+  }
+ }
+}

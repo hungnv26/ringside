@@ -34,7 +34,8 @@ saves `match.mp4` next to the logs (Godot's movie writer plus ffmpeg).
 
 Picture quality is *High* by default (the 3D at 1080p upscaled with MetalFX, with ambient
 occlusion, indirect light and reflections) or *Showcase* for recordings (full resolution plus
-global illumination); see [docs/graphics-plan.md](docs/graphics-plan.md).
+global illumination); see [docs/graphics-plan.md](docs/graphics-plan.md). The Boxing Ring's
+stands hold about a thousand real people on stadium seats who get up and cheer with the fight.
 
 While a match runs the HUD shows, at each corner, the coach's *corner talk* (the first line of
 its reply), *plan chips* for what each plan change did ("block ↑ 0.95", "SUPER QUEUED"), and a

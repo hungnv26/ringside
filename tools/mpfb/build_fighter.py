@@ -505,4 +505,5 @@ def main():
         log("alt skin", spec["alt_skin"])
 
 
-main()
+if __name__ == "__main__" and not getattr(sys, "_ringside_import", False):
+    main()

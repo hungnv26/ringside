@@ -1221,12 +1221,12 @@ func stage_tests() -> void:
 		scene.free()
 	check("Stages: baked contact shadows and ambient effects", missing.is_empty(), "%s" % [missing])
 	var ring_crowd := (load(gs.DEFAULT_STAGE) as PackedScene).instantiate()
-	check("Stages: the ring crowd is animated", (ring_crowd.get_node("Crowd") as Crowd).jump > 0.0)
+	_people_crowd_tests(ring_crowd)
 	# Download size: 3D textures must not be imported lossless (a 1K photo texture is 2-3 MB
 	# lossless, about 0.4 MB as lossy WebP). Godot only switches them automatically in the
 	# editor, so textures imported headless stay lossless unless their .import says otherwise.
 	var lossless := []
-	for dir in ["res://assets/stages/", "res://assets/characters/"]:
+	for dir in ["res://assets/stages/", "res://assets/characters/", "res://assets/crowd/"]:
 		for path in _files_under(dir):
 			if path.ends_with(".import"):
 				var text := FileAccess.get_file_as_string(path)
@@ -1372,6 +1372,86 @@ func polish_tests() -> void:
 	wait_until(func() -> bool: return p1.projectile == null, 120)
 	check("FX: projectile impact burst + ring", fx.spawned >= before + 2, "%d effects" % (fx.spawned - before))
 	gs.stage_path = gs.DEFAULT_STAGE
+
+
+## The Ring's crowd of real people (Crowd.people, tools/mpfb/build_crowd.py): every
+## spectator's meshes, animation textures and colourways line up, the stands fill with
+## animated people on seats, back rows use the lighter level of detail, the crowd follows the
+## stage's excitement, and the officials never cheer.
+func _people_crowd_tests(stage: Node) -> void:
+	var crowd := stage.get_node("Crowd") as Crowd
+	check("Ring crowd: real people on seats", crowd.people and crowd.officials.size() == 3)
+	var meta: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://assets/crowd/crowd.json"))
+	var broken := []
+	for id: String in meta:
+		var info: Dictionary = meta[id]
+		for stem: String in [id, id + "_lod"]:
+			var width: int = info.vertices if stem == id else info.lod.vertices
+			var pos := load("res://assets/crowd/%s_pos.res" % stem) as Texture2D
+			var nrm := load("res://assets/crowd/%s_nrm.res" % stem) as Texture2D
+			if pos == null or nrm == null or pos.get_width() != width or pos.get_height() != int(info.rows) or nrm.get_size() != pos.get_size():
+				broken.append(stem + " VAT")
+				continue
+			# Every vertex's column (UV2, two 6-bit halves) is inside the texture.
+			var mesh := crowd._person_mesh(stem)
+			var uv2: PackedVector2Array = mesh.surface_get_arrays(0)[Mesh.ARRAY_TEX_UV2]
+			var top := 0
+			for uv in uv2:
+				top = maxi(top, int(uv.x * 64.0) + 64 * (63 - int(uv.y * 64.0)))
+			if top != width - 1:
+				broken.append("%s columns %d of %d" % [stem, top + 1, width])
+		for atlas in ["_atlas.png", "_atlas_alt.png"]:
+			if not ResourceLoader.exists("res://assets/crowd/" + id + atlas):
+				broken.append(id + atlas)
+		var clips: Dictionary = info.clips
+		var rows := 0
+		for clip in ["idle", "talk", "cheer", "clap"]:
+			rows += int(clips[clip][1]) if clips.has(clip) else 0
+		if rows != int(info.rows):
+			broken.append(id + " clips")
+	check("Ring crowd: %d spectators, each with two levels of detail, matching animation textures and two colourways" % meta.size(),
+		meta.size() >= 12 and broken.is_empty(), "%s" % [broken])
+	root.add_child(stage)
+	var people := 0
+	var full := 0
+	var materials := {}
+	for mi in crowd.get_children():
+		if mi.name.begins_with("People_"):
+			var mm := (mi as MultiMeshInstance3D).multimesh
+			people += mm.instance_count
+			full += mm.instance_count if mi.name.ends_with("_full") else 0
+			materials[(mi as MultiMeshInstance3D).material_override] = true
+	var seats := (crowd.get_node("Seats") as MultiMeshInstance3D).multimesh.instance_count
+	check("Ring crowd: stands full of people on seats, front rows in full detail",
+		people > 600 and seats > people and full > 0 and full < people / 2, "%d people, %d seats, %d full" % [people, seats, full])
+	var sound: StageAmbience = null
+	for n in stage.get_children():
+		if n is StageAmbience:
+			sound = n
+	sound.excitement = 1.0
+	for i in 60:
+		crowd._process(1.0 / 60.0)
+	var excited := true
+	for m: ShaderMaterial in materials:
+		excited = excited and float(m.get_shader_parameter("excitement")) > 0.99
+	sound.excitement = 0.0
+	for i in 60:
+		crowd._process(1.0 / 60.0)
+	var calm := true
+	for m: ShaderMaterial in materials:
+		calm = calm and float(m.get_shader_parameter("excitement")) < 0.01
+	check("Ring crowd: follows the stage's excitement, rising over half a second", excited and calm)
+	# (The headless renderer keeps no per-instance data, so check what the officials get.)
+	var officials := 0
+	for mi in crowd.get_children():
+		if mi.name.contains("_officials_"):
+			officials += (mi as MultiMeshInstance3D).multimesh.instance_count
+	var rng := RandomNumberGenerator.new()
+	var officials_cheer := officials != 3
+	for i in 20:
+		officials_cheer = officials_cheer or crowd._official_custom(rng).g <= 1.0
+	check("Ring crowd: the officials never cheer", not officials_cheer)
+	root.remove_child(stage)
 
 
 ## The reacting crowd (StageAmbience on a stage with an audience): what it reacts to,

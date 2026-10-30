@@ -2,7 +2,7 @@ extends SceneTree
 ## Builds the boxing ring stage (res://scenes/stages/ring.tscn): ring, arena, crowd,
 ## lighting truss, and environment. Re-run after changing anything below.
 ##
-## Atmosphere: a restless crowd (Crowd sway/jump), dust in the beams and camera flashes
+## Atmosphere: a crowd of real people that cheers with the fight (Crowd.people), dust in the beams and camera flashes
 ## in the stands (StageFX), and baked contact shadows on the canvas and floor (StageAO).
 ##
 ## Run: godot_console --headless --path . -s res://tools/build_ring_stage.gd
@@ -41,6 +41,7 @@ func _initialize() -> void:
 	_build_lights()
 	_build_ring()
 	_build_arena()
+	_build_ringside()
 	_build_crowd()
 	_build_atmosphere()
 	_add(stage, StageFX.ambience([["res://assets/audio/ambience/arena_crowd.ogg", -10.0]], "res://assets/audio/ambience/crowd_cheer.ogg", -4.0), "Sound") # ambient loops (StageAmbience)
@@ -151,6 +152,17 @@ func _build_ring() -> void:
 	var canvas := _box(Vector3(CANVAS_HALF * 2, 0.12, CANVAS_HALF * 2), canvas_mat)
 	canvas.position.y = -0.06
 	_add(ring, canvas, "Canvas")
+	# Wear on the canvas: scuffed where the fighters work, rubber marks, dried stains, grime
+	# along the ropes (multiplied over it, like the contact shadows).
+	var wear := StageAO.overlay(_canvas_wear(), Vector2.ZERO, Vector2(CANVAS_HALF, CANVAS_HALF), 0.0)
+	wear.position.y = 0.001
+	_add(ring, wear, "CanvasWear")
+	# Sponsor prints (fictional) between the logo and the ropes.
+	for i in 2:
+		var print_label := _label(["IRONWOOD ATHLETICS", "HARBOUR CITY BOXING CLUB"][i], 64, Color(BRAND_NAVY, 0.7))
+		print_label.position = Vector3(0, 0.004, -3.0 if i == 0 else 3.0)
+		print_label.rotation_degrees.x = -90.0
+		_add(ring, print_label, "CanvasPrint%d" % i)
 
 	# Center logo: a disc and the game's name printed on the canvas.
 	var disc_mat := _material(Color(BRAND_NAVY, 0.85), 0.0, 0.7)
@@ -262,8 +274,9 @@ func _build_arena() -> void:
 		strip.rotation_degrees = wall.rotation_degrees
 		_add(arena, strip, "LedStrip%d" % i)
 
-	# Tiered seating on all four sides.
-	var tier_mat := _material(Color(0.08, 0.08, 0.1), 0.0, 0.9)
+	# Tiered concrete stands on all four sides (the seats and the people in them are
+	# Crowd's).
+	var tier_mat := _textured("concrete_floor_worn_001", Color(0.32, 0.32, 0.34), 0.4)
 	for side in 4:
 		for row in CROWD_ROWS:
 			var tier := _box(Vector3(TIER_WIDTH, TIER_RISE * (row + 1), TIER_DEPTH), tier_mat)
@@ -271,6 +284,140 @@ func _build_arena() -> void:
 			tier.position = _side_point(side, dist, 0.0) + Vector3.UP * (FLOOR_Y + TIER_RISE * (row + 1) / 2.0)
 			tier.rotation.y = side * PI / 2.0
 			_add(arena, tier, "Tier_%d_%d" % [side, row])
+
+
+# --- Ringside ----------------------------------------------------------------------
+
+const PROPS := "res://assets/stages/ring/props/"
+## Officials at the judges' table (seated spectator models, see _build_crowd).
+var _officials: Array[Transform3D] = []
+
+
+## Poly Haven props (CC0) between the ring and the barricades: each corner's stool, spit
+## bucket, water and the cutman's kit; the judges' table on the far side with its officials
+## and a camcorder;
+## crates, boxes, bins and extinguishers by the barricades.
+func _build_ringside() -> void:
+	var ringside := _add(stage, Node3D.new(), "Ringside")
+	for corner_sign in [-1.0, 1.0]:
+		var c: float = corner_sign
+		var corner := "Red" if c < 0 else "Blue"
+		_prop(ringside, "metal_stool_01", Vector3(c * 5.3, FLOOR_Y, c * 5.25), 30.0, corner + "Stool")
+		_prop(ringside, "wooden_bucket_01", Vector3(c * 4.95, FLOOR_Y + 0.01, c * 5.55), 0.0, corner + "Bucket")
+		_prop(ringside, "plastic_bottle_gallon", Vector3(c * 5.7, FLOOR_Y, c * 5.6), 75.0, corner + "Water")
+		_prop(ringside, "medical_box", Vector3(c * 6.05, FLOOR_Y + 0.04, c * 4.95), 20.0, corner + "CutmanKit")
+		_prop(ringside, "medical_tape", Vector3(c * 6.0, FLOOR_Y + 0.1, c * 4.95), 0.0, corner + "Tape")
+	# Judges' table along the far (-Z) side, facing the ring: a draped press table with a
+	# camcorder on it, three officials behind it.
+	var drape := _textured("terlenka", BRAND_NAVY.lightened(0.08), 2.0)
+	var table := _box(Vector3(5.0, 0.76, 0.8), drape)
+	table.position = Vector3(0, FLOOR_Y + 0.38, -6.0)
+	_add(ringside, table, "JudgesTable")
+	var top := _box(Vector3(5.04, 0.02, 0.84), _textured("terlenka", Color(0.82, 0.83, 0.86), 2.0))
+	top.position = Vector3(0, FLOOR_Y + 0.77, -6.0)
+	_add(ringside, top, "JudgesTableTop")
+	_prop(ringside, "vintage_video_camera", Vector3(2.2, FLOOR_Y + 0.78, -5.85), 180.0, "Camcorder")
+	for i in 4:
+		var x := -1.9 + i * 1.25
+		_prop(ringside, "plastic_monobloc_chair_01", Vector3(x, FLOOR_Y, -7.0), 0.0, "JudgesChair%d" % i)
+		if i < 3:
+			_officials.append(Transform3D(Basis(), Vector3(x, FLOOR_Y - 0.04, -6.92)))
+	# Clutter by the barricades.
+	_prop(ringside, "metal_trash_can", Vector3(-7.35, FLOOR_Y + 0.07, -7.35), 15.0, "Bin0")
+	_prop(ringside, "metal_trash_can", Vector3(7.35, FLOOR_Y + 0.07, -7.35), -40.0, "Bin1")
+	_prop(ringside, "plastic_crate_02", Vector3(-7.4, FLOOR_Y, -3.0), 90.0, "Crate0")
+	_prop(ringside, "plastic_crate_02", Vector3(-7.4, FLOOR_Y + 0.25, -3.0), 80.0, "Crate1")
+	_prop(ringside, "plastic_crate_02", Vector3(-7.35, FLOOR_Y, -2.45), 95.0, "Crate2")
+	_prop(ringside, "cardboard_box_01", Vector3(7.3, FLOOR_Y + 0.18, -3.4), 10.0, "Box0")
+	_prop(ringside, "cardboard_box_01", Vector3(7.3, FLOOR_Y + 0.52, -3.35), 25.0, "Box1")
+	_prop(ringside, "korean_fire_extinguisher_01", Vector3(7.65, FLOOR_Y, -5.6), -90.0, "Extinguisher0")
+	_prop(ringside, "korean_fire_extinguisher_01", Vector3(-7.65, FLOOR_Y, 5.6), 90.0, "Extinguisher1")
+
+
+func _prop(parent: Node, id: String, pos: Vector3, yaw_degrees: float, node_name: String) -> Node3D:
+	var prop: Node3D = (load(PROPS + "%s/%s_1k.gltf" % [id, id]) as PackedScene).instantiate()
+	prop.position = pos
+	prop.rotation_degrees.y = yaw_degrees
+	_add(parent, prop, node_name)
+	return prop
+
+
+## The canvas's wear as a multiply texture over the 9 m canvas (white = clean): broad
+## scuffing where the fighters work (the middle, along X), rubber marks from shoes, a few
+## dried water and sweat stains, grime along the ropes. Seeded, so rebuilds match.
+func _canvas_wear() -> Texture2D:
+	const SIZE := 2048
+	var metres_per_px := CANVAS_HALF * 2.0 / SIZE
+	var broad := FastNoiseLite.new()
+	broad.seed = 11
+	broad.fractal_octaves = 5
+	broad.frequency = metres_per_px / 0.7 # features about 0.7 m across
+	var fine := FastNoiseLite.new()
+	fine.seed = 12
+	fine.frequency = metres_per_px / 0.04
+	var broad_img := broad.get_image(SIZE, SIZE)
+	var fine_img := fine.get_image(SIZE, SIZE)
+	var amount := PackedFloat32Array()
+	amount.resize(SIZE * SIZE)
+	for y in SIZE:
+		var z := (y + 0.5) * metres_per_px - CANVAS_HALF
+		for x in SIZE:
+			var xm := (x + 0.5) * metres_per_px - CANVAS_HALF
+			var n := broad_img.get_pixel(x, y).r
+			var f := fine_img.get_pixel(x, y).r
+			var r := sqrt(xm * xm + z * z)
+			var work := smoothstep(4.2, 0.6, r) * (0.45 + 0.55 * exp(-pow(z / 1.6, 2.0)))
+			var edge := smoothstep(0.5, 0.0, CANVAS_HALF - maxf(absf(xm), absf(z)))
+			amount[y * SIZE + x] = work * 0.2 * smoothstep(0.3, 0.75, n) + edge * 0.22 * n + 0.035 * f
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 2026
+	# Dried stains: a faint inside and a darker rim.
+	for i in 9:
+		var cx := rng.randf_range(-3.8, 3.8)
+		var cz := rng.randf_range(-3.8, 3.8)
+		var radius := rng.randf_range(0.12, 0.4)
+		var reach := int((radius * 1.3) / metres_per_px)
+		var px := int((cx + CANVAS_HALF) / metres_per_px)
+		var py := int((cz + CANVAS_HALF) / metres_per_px)
+		for y in range(maxi(py - reach, 0), mini(py + reach, SIZE)):
+			for x in range(maxi(px - reach, 0), mini(px + reach, SIZE)):
+				var d := Vector2(x - px, y - py).length() * metres_per_px
+				var wobble := radius * (1.0 + 0.25 * (broad_img.get_pixel(x, y).r - 0.5))
+				if d < wobble:
+					var rim := smoothstep(wobble * 0.8, wobble, d)
+					amount[y * SIZE + x] += 0.03 + 0.04 * rim
+	# Rubber marks from shoes: short arcs, mostly in the middle.
+	for i in 220:
+		var p := Vector2(rng.randfn(0.0, 1.6), rng.randfn(0.0, 1.0)).clampf(-4.0, 4.0)
+		var heading := rng.randf() * TAU
+		var turn := rng.randf_range(-2.5, 2.5)
+		var length := rng.randf_range(0.08, 0.45)
+		var width := rng.randf_range(0.006, 0.02)
+		var dark := rng.randf_range(0.05, 0.16)
+		var steps := int(length / (metres_per_px * 0.7))
+		for s in steps:
+			var t := float(s) / steps
+			var fade := sin(t * PI) # thin at both ends
+			var w := width * fade
+			var cx := int((p.x + CANVAS_HALF) / metres_per_px)
+			var cy := int((p.y + CANVAS_HALF) / metres_per_px)
+			var rad := maxi(int(w / metres_per_px), 1)
+			for y in range(maxi(cy - rad, 0), mini(cy + rad + 1, SIZE)):
+				for x in range(maxi(cx - rad, 0), mini(cx + rad + 1, SIZE)):
+					var k := y * SIZE + x
+					amount[k] = maxf(amount[k], dark * fade)
+			heading += turn * metres_per_px * 0.7
+			p += Vector2(cos(heading), sin(heading)) * metres_per_px * 0.7
+	var grime := Color(0.36, 0.31, 0.27)
+	var img := Image.create(SIZE, SIZE, false, Image.FORMAT_RGB8)
+	for y in SIZE:
+		for x in SIZE:
+			var a := clampf(amount[y * SIZE + x], 0.0, 0.6)
+			img.set_pixel(x, y, Color(1.0 - a * (1.0 - grime.r), 1.0 - a * (1.0 - grime.g), 1.0 - a * (1.0 - grime.b)))
+	img.generate_mipmaps()
+	var tex := ImageTexture.create_from_image(img)
+	ResourceSaver.save(tex, AO_DIR + "canvas_wear.res", ResourceSaver.FLAG_COMPRESS)
+	return load(AO_DIR + "canvas_wear.res")
 
 
 const CROWD_ROWS := 9
@@ -301,8 +448,8 @@ func _build_crowd() -> void:
 	crowd.set("row_width", TIER_WIDTH)
 	crowd.set("seat_spacing", SEAT_SPACING)
 	crowd.set("floor_y", FLOOR_Y)
-	crowd.set("sway", 0.02) # restless, and now and then someone jumps up
-	crowd.set("jump", 0.16)
+	crowd.set("people", true) # MakeHuman spectators on stadium seats (tools/mpfb/build_crowd.py)
+	crowd.set("officials", _officials)
 	_add(stage, crowd, "Crowd")
 
 

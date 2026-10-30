@@ -1,9 +1,13 @@
 class_name Crowd
 extends MultiMeshInstance3D
-## Low-poly spectators on tiered seating around the ring (or kneeling students along a
-## dojo's walls), generated at runtime (a MultiMesh built in a headless tool doesn't keep
-## its instance data). One merged torso + head mesh, instanced per seat with a random
-## shirt color, or a color from `palette`.
+## Spectators on tiered seating around the ring (or kneeling students along a dojo's walls),
+## generated at runtime (a MultiMesh built in a headless tool doesn't keep its instance data).
+##
+## With `people`, real people: the twelve MakeHuman spectators from tools/mpfb/build_crowd.py
+## on modelled stadium seats, animated by vertex-animation textures (crowd_vat.gdshader). Each
+## sits still or chats while the arena is calm and cheers or claps once the stage's crowd
+## excitement (StageAmbience) passes their own threshold. Without it, one merged torso + head
+## mesh, instanced per seat with a random shirt color, or a color from `palette`.
 
 @export var rows := 9
 ## Distance from the ring center to the first row, and per-row depth/rise.
@@ -26,13 +30,41 @@ extends MultiMeshInstance3D
 ## how far cheering spectators spring up now and then (0 = they stay seated).
 @export var sway := 0.0
 @export var jump := 0.0
+## Real people on stadium seats (see above); `sway`, `jump`, `palette` and `kneeling` are
+## for the simple figures only.
+@export var people := false
+@export var seat_color := Color(0.36, 0.05, 0.06)
+## Seats between two aisles (0 = no aisles).
+@export var aisle_every := 12
+## Extra seated people with `people` (ringside officials): where each one's feet are,
+## facing +Z. They sit still or chat and never cheer; their chairs are the stage's.
+@export var officials: Array[Transform3D] = []
 
 const CROWD_SHADER := "res://assets/stages/shared/crowd.gdshader"
+const PEOPLE_DIR := "res://assets/crowd/"
+const PEOPLE_SHADER := "res://assets/crowd/crowd_vat.gdshader"
+## Share of the spectators who chat rather than sit still, and who clap rather than cheer.
+const TALKERS := 0.35
+const CLAPPERS := 0.45
+## How fast (per second) the drawn excitement follows the stage's, so a sudden bump turns
+## into people getting up over half a second rather than in one frame.
+const EXCITEMENT_RATE := 2.0
+## Rows drawn with the full mesh; the rows behind them use the lighter level of detail.
+const NEAR_ROWS := 3
+## How much darker each row is than the one in front of it.
+const BACK_ROW_DIMMING := 0.035
+
+var _people_materials: Array[ShaderMaterial] = []
+var _ambience: Node
+var _excitement := 0.0
 
 
 func _ready() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = crowd_seed
+	if people:
+		_build_people(rng)
+		return
 	if sway > 0.0 or jump > 0.0:
 		var animated := ShaderMaterial.new()
 		animated.shader = load(CROWD_SHADER)
@@ -78,6 +110,176 @@ func _ready() -> void:
 		mm.set_instance_transform(i, seats[i])
 		mm.set_instance_color(i, colors[i])
 	multimesh = mm
+
+
+func _process(delta: float) -> void:
+	if _people_materials.is_empty():
+		return
+	if _ambience == null:
+		_ambience = _find_ambience()
+	var target: float = _ambience.excitement if _ambience else 0.0
+	_excitement = move_toward(_excitement, target, EXCITEMENT_RATE * delta)
+	for m in _people_materials:
+		m.set_shader_parameter("excitement", _excitement)
+
+
+## The stage's StageAmbience (its crowd excitement), if it has one.
+func _find_ambience() -> Node:
+	for n in get_parent().get_children():
+		if n is StageAmbience:
+			return n
+	return null
+
+
+## Seats (one MultiMesh) and the people in them (a MultiMesh per spectator model, colourway
+## and side, so the stands behind the camera are culled as a whole).
+func _build_people(rng: RandomNumberGenerator) -> void:
+	set_process(true)
+	var meta: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(PEOPLE_DIR + "crowd.json"))
+	var ids: Array = meta.keys()
+	ids.sort()
+	var seats: Array[Transform3D] = []
+	var seat_colors: Array[Color] = []
+	var placed := {} # "id/colourway/side/detail" -> [[Transform3D, Color custom, Color tint], ...]
+	var seats_per_row := int(row_width / seat_spacing) - 2
+	for side in sides:
+		var angle := side * PI / 2.0
+		var out := Vector3(sin(angle), 0, cos(angle))
+		var tangent := Vector3(cos(angle), 0, -sin(angle))
+		var facing := Basis(Vector3.UP, angle + PI) # the models face +Z; turn them to the ring
+		for row in rows:
+			for seat in seats_per_row:
+				if aisle_every > 0 and seat % (aisle_every + 1) == aisle_every:
+					continue
+				var along := (seat - seats_per_row / 2.0) * seat_spacing
+				var pos := out * (tier_start + row * tier_depth) + tangent * along + Vector3.UP * (floor_y + tier_rise * (row + 1))
+				seats.append(Transform3D(facing, pos))
+				seat_colors.append(seat_color.darkened(rng.randf_range(0.0, 0.12)))
+				if rng.randf() < empty_seat_chance:
+					continue
+				var id: String = ids[rng.randi() % ids.size()]
+				var turn := Basis(Vector3.UP, angle + PI + rng.randf_range(-0.12, 0.12))
+				var xform := Transform3D(turn.scaled(Vector3.ONE * rng.randf_range(0.96, 1.04)), pos)
+				var custom := Color(rng.randf(), rng.randf_range(0.12, 0.85), 1.0 if rng.randf() < TALKERS else 0.0, 1.0 if rng.randf() < CLAPPERS else 0.0)
+				# Rows further back sit a little further from the ring lights.
+				var tint := Color.WHITE.darkened(rng.randf_range(0.0, 0.08) + row * BACK_ROW_DIMMING)
+				var key := "%s/%d/%d/%s" % [id, rng.randi() % 2, side, "full" if row < NEAR_ROWS else "lod"]
+				if not placed.has(key):
+					placed[key] = []
+				placed[key].append([xform, custom, tint])
+
+	for xform in officials:
+		var id: String = ids[rng.randi() % ids.size()]
+		var key := "%s/%d/officials/full" % [id, rng.randi() % 2]
+		if not placed.has(key):
+			placed[key] = []
+		placed[key].append([xform, _official_custom(rng), Color.WHITE])
+
+	var seat_mm := MultiMesh.new()
+	seat_mm.transform_format = MultiMesh.TRANSFORM_3D
+	seat_mm.use_colors = true
+	seat_mm.mesh = _seat_mesh()
+	seat_mm.instance_count = seats.size()
+	for i in seats.size():
+		seat_mm.set_instance_transform(i, seats[i])
+		seat_mm.set_instance_color(i, seat_colors[i])
+	var seat_mi := MultiMeshInstance3D.new()
+	seat_mi.name = "Seats"
+	seat_mi.multimesh = seat_mm
+	var seat_mat := StandardMaterial3D.new()
+	seat_mat.vertex_color_use_as_albedo = true
+	seat_mat.vertex_color_is_srgb = true
+	seat_mat.roughness = 0.45 # moulded plastic
+	seat_mi.material_override = seat_mat
+	seat_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(seat_mi)
+
+	var materials := {}
+	for key: String in placed:
+		var id := key.get_slice("/", 0)
+		var stem := id if key.get_slice("/", 3) == "full" or not meta[id].has("lod") else id + "_lod"
+		var look := "%s/%s" % [stem, key.get_slice("/", 1)]
+		if not materials.has(look):
+			materials[look] = _person_material(id, stem, meta[id], key.get_slice("/", 1) == "1")
+		var list: Array = placed[key]
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		mm.use_custom_data = true
+		mm.mesh = _person_mesh(stem)
+		mm.instance_count = list.size()
+		for i in list.size():
+			mm.set_instance_transform(i, list[i][0])
+			mm.set_instance_custom_data(i, list[i][1])
+			mm.set_instance_color(i, list[i][2])
+		var mi := MultiMeshInstance3D.new()
+		mi.name = "People_" + key.replace("/", "_")
+		mi.multimesh = mm
+		mi.material_override = materials[look]
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.extra_cull_margin = 0.6 # cheering arms reach past the rest pose's bounds
+		add_child(mi)
+	_people_materials.assign(materials.values())
+
+
+## `stem`: the spectator `id` or its level of detail (id_lod), which has its own mesh and
+## VAT; the atlas is shared. `alt`: the second colourway of the clothes
+## (tools/mpfb/build_crowd.py bake_atlas).
+## An official's per-instance data for crowd_vat.gdshader: a random phase, a cheering
+## threshold the excitement (0-1) never reaches, sitting still or chatting, never clapping.
+func _official_custom(rng: RandomNumberGenerator) -> Color:
+	return Color(rng.randf(), 2.0, 1.0 if rng.randf() < 0.5 else 0.0, 0.0)
+
+
+func _person_material(id: String, stem: String, info: Dictionary, alt: bool) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = load(PEOPLE_SHADER)
+	m.set_shader_parameter("vat_pos", load(PEOPLE_DIR + stem + "_pos.res"))
+	m.set_shader_parameter("vat_nrm", load(PEOPLE_DIR + stem + "_nrm.res"))
+	m.set_shader_parameter("albedo_tex", load(PEOPLE_DIR + id + ("_atlas_alt.png" if alt else "_atlas.png")))
+	m.set_shader_parameter("fps", float(info.fps))
+	for clip: String in info.clips:
+		m.set_shader_parameter("clip_" + clip, Vector2(info.clips[clip][0], info.clips[clip][1]))
+	return m
+
+
+func _person_mesh(id: String) -> Mesh:
+	var scene: Node = (load(PEOPLE_DIR + id + ".glb") as PackedScene).instantiate()
+	var mesh := (scene.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).mesh
+	scene.free()
+	return mesh
+
+
+## A moulded stadium seat facing +Z, for a seated spectator standing at the origin (their
+## seat is 0.5 m up, between 0.42 and 0.03 m behind their feet): seat pan with a rounded
+## front lip, a backrest leaning back, on a steel stem and foot plate. The plastic takes the
+## instance colour; the steel is dark grey.
+func _seat_mesh() -> Mesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var white := Color.WHITE
+	var steel := Color(0.16, 0.16, 0.17)
+	var pan := BoxMesh.new()
+	pan.size = Vector3(0.44, 0.04, 0.36)
+	_append_colored(st, pan, Transform3D(Basis(), Vector3(0, 0.48, -0.23)), white)
+	var lip := CylinderMesh.new()
+	lip.top_radius = 0.025
+	lip.bottom_radius = 0.025
+	lip.height = 0.44
+	lip.radial_segments = 8
+	lip.rings = 1
+	_append_colored(st, lip, Transform3D(Basis(Vector3.FORWARD, PI / 2.0), Vector3(0, 0.475, -0.05)), white)
+	var back := BoxMesh.new()
+	back.size = Vector3(0.44, 0.42, 0.035)
+	_append_colored(st, back, Transform3D(Basis(Vector3.RIGHT, -0.14), Vector3(0, 0.72, -0.44)), white)
+	var stem := BoxMesh.new()
+	stem.size = Vector3(0.05, 0.46, 0.05)
+	_append_colored(st, stem, Transform3D(Basis(), Vector3(0, 0.23, -0.3)), steel)
+	var plate := BoxMesh.new()
+	plate.size = Vector3(0.2, 0.015, 0.14)
+	_append_colored(st, plate, Transform3D(Basis(), Vector3(0, 0.0075, -0.3)), steel)
+	st.generate_normals()
+	return st.commit()
 
 
 ## Seiza figure facing +Z: folded legs in a dark hakama, white gi torso with a black

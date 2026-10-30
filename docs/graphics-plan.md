@@ -243,3 +243,46 @@ on disk, and in git history).
 - **Known weak spots**: MakeHuman's hair cards (best on Rhea and Valka, roughest on the short
   male cuts), the beard is a shaped shell rather than strands, folds are procedural.
 - Reference: `docs/look/phase2/fighters_compare.jpg`, `portraits_after.jpg`.
+
+### Phase 3 pilot: the Boxing Ring (built 2026-10-30)
+
+The pill crowd is gone. The Ring's stands hold about a thousand real people, and the floor
+around the ring is dressed with modelled props.
+
+- **Crowd**: twelve MakeHuman spectators (`tools/mpfb/crowd.json`: men and women of several
+  ages and ethnicities in MakeHuman's casual, work, elegant and sport suits, one in a fedora)
+  built by `tools/mpfb/build_crowd.py`. Each is rigged like a fighter, joined, its look
+  baked into one 1024 px atlas in two colourways (the clothes hue-shifted, so the stands
+  don't fill with one shirt), and decimated to 2,400 triangles, plus a 900-triangle level of
+  detail for the back rows.
+- **Animation**: four seated clips baked into vertex-animation textures at 15 frames a
+  second: idle and talking from the Universal Animation Library, cheering and clapping posed
+  on top of the idle. Each vertex's column is in its second UV set (two 6-bit halves, since
+  Godot stores UV2 at half precision). Blender writes raw half floats (`*.vat`, not in git);
+  `tools/crowd_vat_import.gd` turns them into Godot textures, because Godot's EXR reader
+  garbles Blender's half-float EXRs.
+- **Drawing**: `scripts/stages/crowd.gd` with `people` seats everyone on a moulded stadium
+  seat (instanced), with aisles every twelve seats and empty seats here and there; a
+  MultiMesh per model, colourway, side and detail level, drawn by
+  `assets/crowd/crowd_vat.gdshader`. Each spectator has a phase, a talker or still-sitter
+  calm clip, a cheer or clap loud clip, and a threshold: they get up when the stage's crowd
+  excitement (StageAmbience) passes it, over half a second. Rows further back are a little
+  darker.
+- **Ringside**: Poly Haven CC0 models (`assets/stages/ring/props/`): corner stools, spit
+  buckets, water, the cutman's kit and tape at both corners; a draped judges' table with a
+  camcorder and three seated officials (crowd models that never cheer); bins, crates, boxes
+  and fire extinguishers by the barricades. Concrete stands, fictional sponsor prints on the
+  canvas, and a generated wear layer over it (scuffing where the fighters work, rubber marks,
+  dried stains, grime along the ropes).
+- `tools/render_stage_views.gd` renders free-camera stills (judges, red corner, stands,
+  wide) at a given crowd excitement.
+- **Cost**: the Ring runs at about 62 fps at High (75 before; runs vary by about 3 fps). The
+  people cost about 2.5 ms a frame. Neither the lighter back rows nor reading one animation
+  frame instead of two moved it beyond noise, so the cost is drawing a thousand detailed
+  figures with multisampled edges rather than vertex work. Impostor cards for the far
+  stands are the next lever if a stage needs it.
+- **Not done in the pilot**: the barricades, apron and truss are still primitives; the far
+  side of the arena beyond the stands is a dark void.
+- Reference: `docs/look/phase3/ring_before_after.jpg`, `ring_fight_before_after.jpg`, and
+  the close views `ring_judges.jpg`, `ring_red_corner.jpg`, `ring_stands.jpg`,
+  `ring_wide.jpg`.
