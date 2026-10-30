@@ -70,6 +70,7 @@ func _initialize() -> void:
 	stage = Node3D.new()
 	stage.name = "Market"
 	stage.set_script(load(STAGE_SCRIPT))
+	stage.set("dust_color", Color(0.6, 0.58, 0.56)) # street grit
 	stage.set("rope_line", 50.0) # nothing sits between the camera and the fight
 	stage.set("music", &"market")
 

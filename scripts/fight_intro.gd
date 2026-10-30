@@ -1,6 +1,8 @@
 class_name FightIntro
 extends Node
-## Pre-fight intro before round 1 of an offline match: each fighter in turn, P1 first,
+## Pre-fight intro before round 1 of an offline match: first the stage (a slow crane sweep
+## down toward the fight, its name and line in the lower third), then each fighter in
+## turn, P1 first,
 ## gets a 3/4 front close-up (ActionCamera.start_intro), plays its intro animation
 ## (CharacterData.intro_animation), shouts and says a line in the lower third, under the
 ## letterbox. Any attack button from either player skips it.
@@ -11,6 +13,7 @@ extends Node
 signal finished
 
 const SHOT_SECONDS := 2.4
+const STAGE_SECONDS := 2.2
 const LINE_AT := 0.25 # the name and line appear...
 const SHOUT_AT := 0.45 # ...and the fighter shouts
 ## [intro line, win quote] when a fighter meets their own double (mirror match, Arcade boss).
@@ -27,6 +30,8 @@ var _lines: Array[String] = []
 var _done := false
 ## While true the intro holds its first frame (FightManager: until it's on screen).
 var hold := false
+## True during the opening shot of the stage.
+var _stage_shot := false
 
 
 ## The line `data` opens with against `opponent`: the rival line if there is one, else a
@@ -53,7 +58,14 @@ func setup(fight_manager: Node) -> void:
 	for fighter: Fighter in manager.fighters:
 		_lines.append(intro_line(fighter.data, fighter.opponent.data, manager._cosmetic_rng))
 	manager.hud.start_cinematic(true)
-	_next_shot()
+	if manager.stage:
+		_stage_shot = true
+		_time = 0.0
+		manager.camera.start_stage_shot()
+		manager.hud.announce("")
+		manager.hud.show_quote("")
+	else:
+		_next_shot()
 
 
 func _process(delta: float) -> void:
@@ -77,6 +89,16 @@ func advance(delta: float) -> void:
 	if _done:
 		return
 	_time += delta
+	if _stage_shot:
+		if _time >= LINE_AT and not _line_shown:
+			_line_shown = true
+			var info := stage_info()
+			manager.hud.announce(str(info.get("name", "")).to_upper())
+			manager.hud.show_quote(str(info.get("blurb", "")))
+		if _time >= STAGE_SECONDS:
+			_stage_shot = false
+			_next_shot()
+		return
 	var fighter: Fighter = manager.fighters[_shot]
 	if _time >= LINE_AT and not _line_shown:
 		_line_shown = true
@@ -106,8 +128,21 @@ func is_done() -> bool:
 	return _done
 
 
+## The fighter on camera (-1 during the stage shot).
 func current_shot() -> int:
-	return _shot
+	return -1 if _stage_shot else _shot
+
+
+## The stage's entry in GameState.STAGES (name, blurb), looked up at run time: tests
+## compile this class before the autoloads exist.
+func stage_info() -> Dictionary:
+	var game_state := get_tree().root.get_node_or_null("GameState") if is_inside_tree() else null
+	if game_state == null or manager.stage == null:
+		return {}
+	for entry: Dictionary in game_state.STAGES:
+		if str(entry.path) == manager.stage.scene_file_path:
+			return entry
+	return {}
 
 
 func _next_shot() -> void:

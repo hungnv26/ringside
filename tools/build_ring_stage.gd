@@ -35,6 +35,7 @@ func _initialize() -> void:
 	stage = Node3D.new()
 	stage.name = "Ring"
 	stage.set_script(load(STAGE_SCRIPT))
+	stage.set("dust_color", Color(0.85, 0.85, 0.86)) # canvas chalk and resin
 	stage.set("edge_style", 1) # Fighter.EdgeStyle.ROPES: knocked into the ropes, fighters bounce off
 
 	_build_environment()

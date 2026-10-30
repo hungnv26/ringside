@@ -502,6 +502,8 @@ shader_parameter/peak_light = null
 shader_parameter/detail = null
 shader_parameter/scale = null
 shader_parameter/peak_height = 22.0
+shader_parameter/scroll = null
+shader_parameter/period = null
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_xosv8"]
 _surfaces = [{
@@ -523,6 +525,8 @@ shader_parameter/peak_light = null
 shader_parameter/detail = null
 shader_parameter/scale = null
 shader_parameter/peak_height = 34.0
+shader_parameter/scroll = null
+shader_parameter/period = null
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_w47iv"]
 _surfaces = [{
@@ -544,6 +548,8 @@ shader_parameter/peak_light = null
 shader_parameter/detail = null
 shader_parameter/scale = null
 shader_parameter/peak_height = 48.0
+shader_parameter/scroll = null
+shader_parameter/period = null
 
 [sub_resource type="ArrayMesh" id="ArrayMesh_dkxvs"]
 _surfaces = [{
@@ -833,18 +839,19 @@ disable_receive_shadows = true
 material = SubResource("StandardMaterial3D_mownd")
 size = Vector2(32, 32)
 
-[node name="Temple" type="Node3D" unique_id=1227720396]
+[node name="Temple" type="Node3D" unique_id=809779186]
 script = ExtResource("1_2vjvp")
 music = &"temple"
+dust_color = Color(0.72, 0.66, 0.6, 1)
 rope_line = 50.0
 side_lines = PackedFloat32Array()
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1216011229]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1839196074]
 environment = SubResource("Environment_gd1ui")
 
-[node name="Lights" type="Node3D" parent="." unique_id=385177298]
+[node name="Lights" type="Node3D" parent="." unique_id=213329290]
 
-[node name="Sun" type="DirectionalLight3D" parent="Lights" unique_id=117111587]
+[node name="Sun" type="DirectionalLight3D" parent="Lights" unique_id=619881122]
 transform = Transform3D(-0.73135376, -0.10668805, 0.6736018, 0, 0.98768836, 0.15643448, -0.6819983, 0.11440894, -0.7223496, 0, 0, 0)
 light_color = Color(1, 0.56, 0.28, 1)
 light_energy = 2.2
@@ -852,692 +859,692 @@ light_volumetric_fog_energy = 1.5
 shadow_enabled = true
 directional_shadow_max_distance = 35.0
 
-[node name="SkyFill" type="DirectionalLight3D" parent="Lights" unique_id=506257329]
+[node name="SkyFill" type="DirectionalLight3D" parent="Lights" unique_id=1622254797]
 transform = Transform3D(0.76604444, -0.3686878, 0.52654076, 0, 0.81915206, 0.57357645, -0.6427876, -0.43938506, 0.62750685, 0, 0, 0)
 light_color = Color(0.6, 0.65, 0.9, 1)
 light_energy = 0.35
 
-[node name="ToriiPillarL" type="MeshInstance3D" parent="." unique_id=1569596256]
+[node name="ToriiPillarL" type="MeshInstance3D" parent="." unique_id=1849311855]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.7, 2.7, -10.5)
 mesh = SubResource("CylinderMesh_0lfcs")
 
-[node name="ToriiBaseL" type="MeshInstance3D" parent="." unique_id=851012581]
+[node name="ToriiBaseL" type="MeshInstance3D" parent="." unique_id=775366790]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.7, -0.15, -10.5)
 mesh = SubResource("CylinderMesh_tcutj")
 
-[node name="ToriiPillarR" type="MeshInstance3D" parent="." unique_id=92345456]
+[node name="ToriiPillarR" type="MeshInstance3D" parent="." unique_id=2021649777]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.7, 2.7, -10.5)
 mesh = SubResource("CylinderMesh_v8kpc")
 
-[node name="ToriiBaseR" type="MeshInstance3D" parent="." unique_id=1028089907]
+[node name="ToriiBaseR" type="MeshInstance3D" parent="." unique_id=1558840660]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.7, -0.15, -10.5)
 mesh = SubResource("CylinderMesh_wbr6v")
 
-[node name="PagodaSpire" type="MeshInstance3D" parent="." unique_id=989616548]
+[node name="PagodaSpire" type="MeshInstance3D" parent="." unique_id=2017268655]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.5, 12.900001, -21)
 mesh = SubResource("CylinderMesh_d0lj4")
 
-[node name="SpireRing0" type="MeshInstance3D" parent="." unique_id=910174790]
+[node name="SpireRing0" type="MeshInstance3D" parent="." unique_id=120859910]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.5, 11.900001, -21)
 mesh = SubResource("CylinderMesh_fxf0l")
 
-[node name="SpireRing1" type="MeshInstance3D" parent="." unique_id=2133079471]
+[node name="SpireRing1" type="MeshInstance3D" parent="." unique_id=988402004]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.5, 12.35, -21)
 mesh = SubResource("CylinderMesh_gf4ch")
 
-[node name="SpireRing2" type="MeshInstance3D" parent="." unique_id=1591005415]
+[node name="SpireRing2" type="MeshInstance3D" parent="." unique_id=313187140]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.5, 12.8, -21)
 mesh = SubResource("CylinderMesh_15qi5")
 
-[node name="SpireRing3" type="MeshInstance3D" parent="." unique_id=1699410640]
+[node name="SpireRing3" type="MeshInstance3D" parent="." unique_id=733753302]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.5, 13.25, -21)
 mesh = SubResource("CylinderMesh_syyd2")
 
-[node name="SpireRing4" type="MeshInstance3D" parent="." unique_id=1765877786]
+[node name="SpireRing4" type="MeshInstance3D" parent="." unique_id=797201354]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.5, 13.700001, -21)
 mesh = SubResource("CylinderMesh_usaq6")
 
-[node name="LanternBase0" type="MeshInstance3D" parent="." unique_id=526692007]
+[node name="LanternBase0" type="MeshInstance3D" parent="." unique_id=808677943]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, -0.25, -6)
 mesh = SubResource("CylinderMesh_aijii")
 
-[node name="LanternPost0" type="MeshInstance3D" parent="." unique_id=1147801588]
+[node name="LanternPost0" type="MeshInstance3D" parent="." unique_id=1516728327]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0.4, -6)
 mesh = SubResource("CylinderMesh_mxy4t")
 
-[node name="LanternShelf0" type="MeshInstance3D" parent="." unique_id=349097000]
+[node name="LanternShelf0" type="MeshInstance3D" parent="." unique_id=988586345]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0.99, -6)
 mesh = SubResource("CylinderMesh_fvm83")
 
-[node name="LanternFire0" type="MeshInstance3D" parent="." unique_id=2001069690]
+[node name="LanternFire0" type="MeshInstance3D" parent="." unique_id=458250467]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 1.2900001, -6)
 mesh = SubResource("CylinderMesh_42pic")
 
-[node name="LanternRoof0" type="MeshInstance3D" parent="." unique_id=877605571]
+[node name="LanternRoof0" type="MeshInstance3D" parent="." unique_id=1510566523]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 1.7099999, -6)
 mesh = SubResource("CylinderMesh_y8258")
 
-[node name="LanternFinial0" type="MeshInstance3D" parent="." unique_id=744459964]
+[node name="LanternFinial0" type="MeshInstance3D" parent="." unique_id=218309885]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 1.9800001, -6)
 mesh = SubResource("SphereMesh_n86pc")
 
-[node name="LanternLight0" type="OmniLight3D" parent="." unique_id=541904663]
+[node name="LanternLight0" type="OmniLight3D" parent="." unique_id=936508780]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 1.3000001, -6)
 light_color = Color(1, 0.65, 0.35, 1)
 light_energy = 1.2
 omni_range = 4.0
 
-[node name="LanternBase1" type="MeshInstance3D" parent="." unique_id=1717793904]
+[node name="LanternBase1" type="MeshInstance3D" parent="." unique_id=852913801]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, -0.25, -6)
 mesh = SubResource("CylinderMesh_n34kf")
 
-[node name="LanternPost1" type="MeshInstance3D" parent="." unique_id=1617446306]
+[node name="LanternPost1" type="MeshInstance3D" parent="." unique_id=1086959226]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0.4, -6)
 mesh = SubResource("CylinderMesh_ll304")
 
-[node name="LanternShelf1" type="MeshInstance3D" parent="." unique_id=19759811]
+[node name="LanternShelf1" type="MeshInstance3D" parent="." unique_id=472463903]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0.99, -6)
 mesh = SubResource("CylinderMesh_6eyel")
 
-[node name="LanternFire1" type="MeshInstance3D" parent="." unique_id=798208722]
+[node name="LanternFire1" type="MeshInstance3D" parent="." unique_id=1234404085]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 1.2900001, -6)
 mesh = SubResource("CylinderMesh_yanab")
 
-[node name="LanternRoof1" type="MeshInstance3D" parent="." unique_id=1709000815]
+[node name="LanternRoof1" type="MeshInstance3D" parent="." unique_id=1619222356]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 1.7099999, -6)
 mesh = SubResource("CylinderMesh_gcprc")
 
-[node name="LanternFinial1" type="MeshInstance3D" parent="." unique_id=1780809050]
+[node name="LanternFinial1" type="MeshInstance3D" parent="." unique_id=1529655027]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 1.9800001, -6)
 mesh = SubResource("SphereMesh_o2dig")
 
-[node name="LanternLight1" type="OmniLight3D" parent="." unique_id=502214323]
+[node name="LanternLight1" type="OmniLight3D" parent="." unique_id=125532353]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 1.3000001, -6)
 light_color = Color(1, 0.65, 0.35, 1)
 light_energy = 1.2
 omni_range = 4.0
 
-[node name="LanternBase2" type="MeshInstance3D" parent="." unique_id=123278689]
+[node name="LanternBase2" type="MeshInstance3D" parent="." unique_id=1279688977]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.2, -0.25, -12.5)
 mesh = SubResource("CylinderMesh_ki7ud")
 
-[node name="LanternPost2" type="MeshInstance3D" parent="." unique_id=846924908]
+[node name="LanternPost2" type="MeshInstance3D" parent="." unique_id=1686972025]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.2, 0.4, -12.5)
 mesh = SubResource("CylinderMesh_bds6o")
 
-[node name="LanternShelf2" type="MeshInstance3D" parent="." unique_id=813019892]
+[node name="LanternShelf2" type="MeshInstance3D" parent="." unique_id=1793874454]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.2, 0.99, -12.5)
 mesh = SubResource("CylinderMesh_obcvy")
 
-[node name="LanternFire2" type="MeshInstance3D" parent="." unique_id=815088477]
+[node name="LanternFire2" type="MeshInstance3D" parent="." unique_id=1431212216]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.2, 1.2900001, -12.5)
 mesh = SubResource("CylinderMesh_0j4ud")
 
-[node name="LanternRoof2" type="MeshInstance3D" parent="." unique_id=215079665]
+[node name="LanternRoof2" type="MeshInstance3D" parent="." unique_id=2018010803]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.2, 1.7099999, -12.5)
 mesh = SubResource("CylinderMesh_7quo6")
 
-[node name="LanternFinial2" type="MeshInstance3D" parent="." unique_id=1405483528]
+[node name="LanternFinial2" type="MeshInstance3D" parent="." unique_id=877777779]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.2, 1.9800001, -12.5)
 mesh = SubResource("SphereMesh_co8vs")
 
-[node name="LanternLight2" type="OmniLight3D" parent="." unique_id=1749296496]
+[node name="LanternLight2" type="OmniLight3D" parent="." unique_id=1557256967]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.2, 1.3000001, -12.5)
 light_color = Color(1, 0.65, 0.35, 1)
 light_energy = 1.2
 omni_range = 4.0
 
-[node name="LanternBase3" type="MeshInstance3D" parent="." unique_id=836470989]
+[node name="LanternBase3" type="MeshInstance3D" parent="." unique_id=2092669723]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.2, -0.25, -12.5)
 mesh = SubResource("CylinderMesh_238gf")
 
-[node name="LanternPost3" type="MeshInstance3D" parent="." unique_id=5976021]
+[node name="LanternPost3" type="MeshInstance3D" parent="." unique_id=1174577806]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.2, 0.4, -12.5)
 mesh = SubResource("CylinderMesh_cehul")
 
-[node name="LanternShelf3" type="MeshInstance3D" parent="." unique_id=2043895421]
+[node name="LanternShelf3" type="MeshInstance3D" parent="." unique_id=407718131]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.2, 0.99, -12.5)
 mesh = SubResource("CylinderMesh_yma6o")
 
-[node name="LanternFire3" type="MeshInstance3D" parent="." unique_id=1988112561]
+[node name="LanternFire3" type="MeshInstance3D" parent="." unique_id=99702697]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.2, 1.2900001, -12.5)
 mesh = SubResource("CylinderMesh_vqdt4")
 
-[node name="LanternRoof3" type="MeshInstance3D" parent="." unique_id=33854107]
+[node name="LanternRoof3" type="MeshInstance3D" parent="." unique_id=1338222429]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.2, 1.7099999, -12.5)
 mesh = SubResource("CylinderMesh_q2l22")
 
-[node name="LanternFinial3" type="MeshInstance3D" parent="." unique_id=1185214014]
+[node name="LanternFinial3" type="MeshInstance3D" parent="." unique_id=223036134]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.2, 1.9800001, -12.5)
 mesh = SubResource("SphereMesh_qbp1o")
 
-[node name="LanternLight3" type="OmniLight3D" parent="." unique_id=915024675]
+[node name="LanternLight3" type="OmniLight3D" parent="." unique_id=250498378]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.2, 1.3000001, -12.5)
 light_color = Color(1, 0.65, 0.35, 1)
 light_energy = 1.2
 omni_range = 4.0
 
-[node name="LanternBase4" type="MeshInstance3D" parent="." unique_id=1306237792]
+[node name="LanternBase4" type="MeshInstance3D" parent="." unique_id=2050679876]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.5, -0.25, 1)
 mesh = SubResource("CylinderMesh_4yk22")
 
-[node name="LanternPost4" type="MeshInstance3D" parent="." unique_id=1959093557]
+[node name="LanternPost4" type="MeshInstance3D" parent="." unique_id=1678626238]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.5, 0.4, 1)
 mesh = SubResource("CylinderMesh_bolu4")
 
-[node name="LanternShelf4" type="MeshInstance3D" parent="." unique_id=664145069]
+[node name="LanternShelf4" type="MeshInstance3D" parent="." unique_id=1358988225]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.5, 0.99, 1)
 mesh = SubResource("CylinderMesh_w21c6")
 
-[node name="LanternFire4" type="MeshInstance3D" parent="." unique_id=776467310]
+[node name="LanternFire4" type="MeshInstance3D" parent="." unique_id=233319635]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.5, 1.2900001, 1)
 mesh = SubResource("CylinderMesh_cxmka")
 
-[node name="LanternRoof4" type="MeshInstance3D" parent="." unique_id=1389360479]
+[node name="LanternRoof4" type="MeshInstance3D" parent="." unique_id=552300609]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.5, 1.7099999, 1)
 mesh = SubResource("CylinderMesh_wvfek")
 
-[node name="LanternFinial4" type="MeshInstance3D" parent="." unique_id=651767953]
+[node name="LanternFinial4" type="MeshInstance3D" parent="." unique_id=1900937077]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.5, 1.9800001, 1)
 mesh = SubResource("SphereMesh_5h40o")
 
-[node name="LanternBase5" type="MeshInstance3D" parent="." unique_id=592084243]
+[node name="LanternBase5" type="MeshInstance3D" parent="." unique_id=1156628403]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.5, -0.25, 1)
 mesh = SubResource("CylinderMesh_wuvm7")
 
-[node name="LanternPost5" type="MeshInstance3D" parent="." unique_id=2101564929]
+[node name="LanternPost5" type="MeshInstance3D" parent="." unique_id=798937678]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.5, 0.4, 1)
 mesh = SubResource("CylinderMesh_chxmn")
 
-[node name="LanternShelf5" type="MeshInstance3D" parent="." unique_id=613177838]
+[node name="LanternShelf5" type="MeshInstance3D" parent="." unique_id=536339285]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.5, 0.99, 1)
 mesh = SubResource("CylinderMesh_pidqm")
 
-[node name="LanternFire5" type="MeshInstance3D" parent="." unique_id=1068774006]
+[node name="LanternFire5" type="MeshInstance3D" parent="." unique_id=2053252337]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.5, 1.2900001, 1)
 mesh = SubResource("CylinderMesh_xvo7t")
 
-[node name="LanternRoof5" type="MeshInstance3D" parent="." unique_id=243151927]
+[node name="LanternRoof5" type="MeshInstance3D" parent="." unique_id=425434354]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.5, 1.7099999, 1)
 mesh = SubResource("CylinderMesh_ihkrf")
 
-[node name="LanternFinial5" type="MeshInstance3D" parent="." unique_id=1227676915]
+[node name="LanternFinial5" type="MeshInstance3D" parent="." unique_id=112813725]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.5, 1.9800001, 1)
 mesh = SubResource("SphereMesh_argjm")
 
-[node name="CherryTree0" type="Node3D" parent="." unique_id=679768904]
+[node name="CherryTree0" type="Node3D" parent="." unique_id=361310967]
 transform = Transform3D(-0.95538604, 0, 0.07194708, 0, 0.95809126, 0, -0.07194708, 0, -0.95538604, -10.5, -0.4, -7)
 
-[node name="Blossom" type="MeshInstance3D" parent="CherryTree0" unique_id=1206601602]
+[node name="Blossom" type="MeshInstance3D" parent="CherryTree0" unique_id=433603007]
 cast_shadow = 0
 mesh = ExtResource("9_o5beu")
 
-[node name="Bark1" type="MeshInstance3D" parent="CherryTree0" unique_id=337574507]
+[node name="Bark1" type="MeshInstance3D" parent="CherryTree0" unique_id=507350346]
 mesh = ExtResource("10_hlbhl")
 
-[node name="Bark2" type="MeshInstance3D" parent="CherryTree0" unique_id=244985527]
+[node name="Bark2" type="MeshInstance3D" parent="CherryTree0" unique_id=1631678946]
 mesh = ExtResource("11_3ln61")
 
-[node name="CherryTree1" type="Node3D" parent="." unique_id=563441490]
+[node name="CherryTree1" type="Node3D" parent="." unique_id=1132619829]
 transform = Transform3D(-0.5207406, 0, 0.8567065, 0, 1.0025551, 0, -0.8567065, 0, -0.5207406, 11, -0.4, -8.5)
 
-[node name="Blossom" type="MeshInstance3D" parent="CherryTree1" unique_id=773141155]
+[node name="Blossom" type="MeshInstance3D" parent="CherryTree1" unique_id=1566435811]
 cast_shadow = 0
 mesh = ExtResource("9_o5beu")
 
-[node name="Bark1" type="MeshInstance3D" parent="CherryTree1" unique_id=405292057]
+[node name="Bark1" type="MeshInstance3D" parent="CherryTree1" unique_id=1247430329]
 mesh = ExtResource("10_hlbhl")
 
-[node name="Bark2" type="MeshInstance3D" parent="CherryTree1" unique_id=151273982]
+[node name="Bark2" type="MeshInstance3D" parent="CherryTree1" unique_id=1566768649]
 mesh = ExtResource("11_3ln61")
 
-[node name="CherryTree2" type="Node3D" parent="." unique_id=1261921936]
+[node name="CherryTree2" type="Node3D" parent="." unique_id=1591550399]
 transform = Transform3D(0.7055958, 0, 0.8067932, 0, 1.0718119, 0, -0.8067932, 0, 0.7055958, -12, -0.4, -13)
 
-[node name="Blossom" type="MeshInstance3D" parent="CherryTree2" unique_id=1797650225]
+[node name="Blossom" type="MeshInstance3D" parent="CherryTree2" unique_id=1281961570]
 cast_shadow = 0
 mesh = ExtResource("9_o5beu")
 
-[node name="Bark1" type="MeshInstance3D" parent="CherryTree2" unique_id=1937438379]
+[node name="Bark1" type="MeshInstance3D" parent="CherryTree2" unique_id=225978691]
 mesh = ExtResource("10_hlbhl")
 
-[node name="Bark2" type="MeshInstance3D" parent="CherryTree2" unique_id=1488373211]
+[node name="Bark2" type="MeshInstance3D" parent="CherryTree2" unique_id=982408861]
 mesh = ExtResource("11_3ln61")
 
-[node name="CherryTree3" type="Node3D" parent="." unique_id=1660506579]
+[node name="CherryTree3" type="Node3D" parent="." unique_id=296979065]
 transform = Transform3D(1.0230448, 0, 0.26377952, 0, 1.0565038, 0, -0.26377952, 0, 1.0230448, 12.5, -0.4, -3)
 
-[node name="Blossom" type="MeshInstance3D" parent="CherryTree3" unique_id=93290411]
+[node name="Blossom" type="MeshInstance3D" parent="CherryTree3" unique_id=1512358516]
 cast_shadow = 0
 mesh = ExtResource("9_o5beu")
 
-[node name="Bark1" type="MeshInstance3D" parent="CherryTree3" unique_id=215268909]
+[node name="Bark1" type="MeshInstance3D" parent="CherryTree3" unique_id=1956022323]
 mesh = ExtResource("10_hlbhl")
 
-[node name="Bark2" type="MeshInstance3D" parent="CherryTree3" unique_id=770413209]
+[node name="Bark2" type="MeshInstance3D" parent="CherryTree3" unique_id=953679954]
 mesh = ExtResource("11_3ln61")
 
-[node name="CherryTree4" type="Node3D" parent="." unique_id=229116634]
+[node name="CherryTree4" type="Node3D" parent="." unique_id=117772192]
 transform = Transform3D(-0.12576503, 0, -1.0424639, 0, 1.0500227, 0, 1.0424639, 0, -0.12576503, -11.5, -0.4, 3.5)
 
-[node name="Blossom" type="MeshInstance3D" parent="CherryTree4" unique_id=2100632234]
+[node name="Blossom" type="MeshInstance3D" parent="CherryTree4" unique_id=1701812126]
 cast_shadow = 0
 mesh = ExtResource("9_o5beu")
 
-[node name="Bark1" type="MeshInstance3D" parent="CherryTree4" unique_id=384332187]
+[node name="Bark1" type="MeshInstance3D" parent="CherryTree4" unique_id=1631265042]
 mesh = ExtResource("10_hlbhl")
 
-[node name="Bark2" type="MeshInstance3D" parent="CherryTree4" unique_id=2094103637]
+[node name="Bark2" type="MeshInstance3D" parent="CherryTree4" unique_id=2047471993]
 mesh = ExtResource("11_3ln61")
 
-[node name="CherryTree5" type="Node3D" parent="." unique_id=1680817950]
+[node name="CherryTree5" type="Node3D" parent="." unique_id=497748541]
 transform = Transform3D(-1.0495602, 0, -0.24998423, 0, 1.0789201, 0, 0.24998423, 0, -1.0495602, 4.5, -0.4, -14.5)
 
-[node name="Blossom" type="MeshInstance3D" parent="CherryTree5" unique_id=1186859212]
+[node name="Blossom" type="MeshInstance3D" parent="CherryTree5" unique_id=27562972]
 cast_shadow = 0
 mesh = ExtResource("9_o5beu")
 
-[node name="Bark1" type="MeshInstance3D" parent="CherryTree5" unique_id=676696435]
+[node name="Bark1" type="MeshInstance3D" parent="CherryTree5" unique_id=94524419]
 mesh = ExtResource("10_hlbhl")
 
-[node name="Bark2" type="MeshInstance3D" parent="CherryTree5" unique_id=266561477]
+[node name="Bark2" type="MeshInstance3D" parent="CherryTree5" unique_id=1249817704]
 mesh = ExtResource("11_3ln61")
 
-[node name="Garden" type="Node3D" parent="." unique_id=867092914]
+[node name="Garden" type="Node3D" parent="." unique_id=1069797635]
 
-[node name="Rock0" type="MeshInstance3D" parent="Garden" unique_id=879994454]
+[node name="Rock0" type="MeshInstance3D" parent="Garden" unique_id=480443089]
 transform = Transform3D(0.52011734, 0, 0.44246075, 0, 0.6828569, 0, -0.44246075, 0, 0.52011734, -8.6, -0.4, -3.2)
 mesh = ExtResource("12_64gjk")
 
-[node name="Rock0_0" type="MeshInstance3D" parent="Garden" unique_id=496278871]
+[node name="Rock0_0" type="MeshInstance3D" parent="Garden" unique_id=445385258]
 transform = Transform3D(0.38413557, 0, -0.03506623, 0, 0.3857328, 0, 0.03506623, 0, 0.38413557, -8.562093, -0.4, -4.019327)
 mesh = ExtResource("13_srl4v")
 
-[node name="Rock0_1" type="MeshInstance3D" parent="Garden" unique_id=1774020064]
+[node name="Rock0_1" type="MeshInstance3D" parent="Garden" unique_id=1140855019]
 transform = Transform3D(0.38645288, 0, -0.30331144, 0, 0.49126738, 0, 0.30331144, 0, 0.38645288, -9.429078, -0.4, -4.1376896)
 mesh = ExtResource("14_3huex")
 
-[node name="Fern0_0" type="MeshInstance3D" parent="Garden" unique_id=425265419]
+[node name="Fern0_0" type="MeshInstance3D" parent="Garden" unique_id=1814101444]
 transform = Transform3D(0.76558506, 0, 0.33185375, 0, 0.83441436, 0, -0.33185375, 0, 0.76558506, -8.516549, -0.4, -2.7125974)
 cast_shadow = 0
 mesh = ExtResource("15_r3t48")
 
-[node name="Fern0_1" type="MeshInstance3D" parent="Garden" unique_id=1275829884]
+[node name="Fern0_1" type="MeshInstance3D" parent="Garden" unique_id=461223300]
 transform = Transform3D(0.49182597, 0, -1.0687431, 0, 1.1764798, 0, 1.0687431, 0, 0.49182597, -8.667034, -0.4, -2.2847738)
 cast_shadow = 0
 mesh = ExtResource("16_aa8iq")
 
-[node name="Fern0_2" type="MeshInstance3D" parent="Garden" unique_id=2008875177]
+[node name="Fern0_2" type="MeshInstance3D" parent="Garden" unique_id=1515575447]
 transform = Transform3D(1.0063908, 0, -0.5519477, 0, 1.1478105, 0, 0.5519477, 0, 1.0063908, -9.323024, -0.4, -3.8173447)
 cast_shadow = 0
 mesh = ExtResource("17_s3r54")
 
-[node name="Rock1" type="MeshInstance3D" parent="Garden" unique_id=1356957069]
+[node name="Rock1" type="MeshInstance3D" parent="Garden" unique_id=2072932447]
 transform = Transform3D(-0.3944805, 0, -0.54678816, 0, 0.6742345, 0, 0.54678816, 0, -0.3944805, 8.2, -0.4, -4.6)
 mesh = ExtResource("18_sky01")
 
-[node name="Rock1_0" type="MeshInstance3D" parent="Garden" unique_id=1835452983]
+[node name="Rock1_0" type="MeshInstance3D" parent="Garden" unique_id=160045727]
 transform = Transform3D(-0.022624124, 0, -0.52511007, 0, 0.5255972, 0, 0.52511007, 0, -0.022624124, 9.455486, -0.4, -4.1206865)
 mesh = ExtResource("14_3huex")
 
-[node name="Rock1_1" type="MeshInstance3D" parent="Garden" unique_id=1264742140]
+[node name="Rock1_1" type="MeshInstance3D" parent="Garden" unique_id=294145236]
 transform = Transform3D(-0.3374177, 0, 0.20225547, 0, 0.39339292, 0, -0.20225547, 0, -0.3374177, 7.9007225, -0.4, -4.4200873)
 mesh = ExtResource("19_ep2f7")
 
-[node name="Fern1_0" type="MeshInstance3D" parent="Garden" unique_id=1033321879]
+[node name="Fern1_0" type="MeshInstance3D" parent="Garden" unique_id=1146623448]
 transform = Transform3D(-0.20136021, 0, -1.1231674, 0, 1.1410745, 0, 1.1231674, 0, -0.20136021, 9.215171, -0.4, -3.6023707)
 cast_shadow = 0
 mesh = ExtResource("16_aa8iq")
 
-[node name="Fern1_1" type="MeshInstance3D" parent="Garden" unique_id=1642244484]
+[node name="Fern1_1" type="MeshInstance3D" parent="Garden" unique_id=1900117751]
 transform = Transform3D(0.7723546, 0, 0.38113517, 0, 0.86127555, 0, -0.38113517, 0, 0.7723546, 6.9694834, -0.4, -4.1272945)
 cast_shadow = 0
 mesh = ExtResource("17_s3r54")
 
-[node name="Fern1_2" type="MeshInstance3D" parent="Garden" unique_id=718272208]
+[node name="Fern1_2" type="MeshInstance3D" parent="Garden" unique_id=1596303728]
 transform = Transform3D(0.08289878, 0, -1.0047349, 0, 1.0081489, 0, 1.0047349, 0, 0.08289878, 8.724791, -0.4, -3.708354)
 cast_shadow = 0
 mesh = ExtResource("20_ucbbs")
 
-[node name="Rock2" type="MeshInstance3D" parent="Garden" unique_id=209249506]
+[node name="Rock2" type="MeshInstance3D" parent="Garden" unique_id=1977280006]
 transform = Transform3D(0.64602226, 0, -0.17025644, 0, 0.6680808, 0, 0.17025644, 0, 0.64602226, -7.4, -0.4, -12.2)
 mesh = ExtResource("21_8ppol")
 
-[node name="Rock2_0" type="MeshInstance3D" parent="Garden" unique_id=1797669294]
+[node name="Rock2_0" type="MeshInstance3D" parent="Garden" unique_id=254915559]
 transform = Transform3D(0.4508658, 0, 0.07283583, 0, 0.4567111, 0, -0.07283583, 0, 0.4508658, -6.3492675, -0.4, -12.520011)
 mesh = ExtResource("19_ep2f7")
 
-[node name="Rock2_1" type="MeshInstance3D" parent="Garden" unique_id=9860610]
+[node name="Rock2_1" type="MeshInstance3D" parent="Garden" unique_id=171506898]
 transform = Transform3D(0.3903356, 0, 0.25026792, 0, 0.4636765, 0, -0.25026792, 0, 0.3903356, -6.034556, -0.4, -12.055443)
 mesh = ExtResource("13_srl4v")
 
-[node name="Fern2_0" type="MeshInstance3D" parent="Garden" unique_id=546519045]
+[node name="Fern2_0" type="MeshInstance3D" parent="Garden" unique_id=1787130868]
 transform = Transform3D(-0.8554073, 0, -0.30761635, 0, 0.90903765, 0, 0.30761635, 0, -0.8554073, -7.623234, -0.4, -12.078566)
 cast_shadow = 0
 mesh = ExtResource("17_s3r54")
 
-[node name="Fern2_1" type="MeshInstance3D" parent="Garden" unique_id=1197343981]
+[node name="Fern2_1" type="MeshInstance3D" parent="Garden" unique_id=947531134]
 transform = Transform3D(-0.58598685, 0, -0.7471548, 0, 0.94953716, 0, 0.7471548, 0, -0.58598685, -8.048068, -0.4, -11.540501)
 cast_shadow = 0
 mesh = ExtResource("20_ucbbs")
 
-[node name="Fern2_2" type="MeshInstance3D" parent="Garden" unique_id=535862805]
+[node name="Fern2_2" type="MeshInstance3D" parent="Garden" unique_id=1548429326]
 transform = Transform3D(-0.6812627, 0, -0.8511442, 0, 1.0902134, 0, 0.8511442, 0, -0.6812627, -6.23948, -0.4, -12.884342)
 cast_shadow = 0
 mesh = ExtResource("15_r3t48")
 
-[node name="Rock3" type="MeshInstance3D" parent="Garden" unique_id=1399802878]
+[node name="Rock3" type="MeshInstance3D" parent="Garden" unique_id=955153252]
 transform = Transform3D(0.40152627, 0, 0.61140126, 0, 0.73146075, 0, -0.61140126, 0, 0.40152627, 7.8, -0.4, -12)
 mesh = ExtResource("22_tyoy2")
 
-[node name="Rock3_0" type="MeshInstance3D" parent="Garden" unique_id=881467248]
+[node name="Rock3_0" type="MeshInstance3D" parent="Garden" unique_id=78724910]
 transform = Transform3D(0.44079137, 0, 0.10831508, 0, 0.45390436, 0, -0.10831508, 0, 0.44079137, 7.156522, -0.4, -10.8861885)
 mesh = ExtResource("13_srl4v")
 
-[node name="Rock3_1" type="MeshInstance3D" parent="Garden" unique_id=1074840243]
+[node name="Rock3_1" type="MeshInstance3D" parent="Garden" unique_id=913476008]
 transform = Transform3D(-0.1158989, 0, 0.46638936, 0, 0.48057425, 0, -0.46638936, 0, -0.1158989, 8.786297, -0.4, -10.965805)
 mesh = ExtResource("14_3huex")
 
-[node name="Fern3_0" type="MeshInstance3D" parent="Garden" unique_id=1239193698]
+[node name="Fern3_0" type="MeshInstance3D" parent="Garden" unique_id=524601844]
 transform = Transform3D(-0.65103024, 0, 0.84394443, 0, 1.0658717, 0, -0.84394443, 0, -0.65103024, 7.6868296, -0.4, -12.138374)
 cast_shadow = 0
 mesh = ExtResource("20_ucbbs")
 
-[node name="Fern3_1" type="MeshInstance3D" parent="Garden" unique_id=1221110649]
+[node name="Fern3_1" type="MeshInstance3D" parent="Garden" unique_id=1087125239]
 transform = Transform3D(-0.70409954, 0, 0.42021725, 0, 0.8199626, 0, -0.42021725, 0, -0.70409954, 8.037834, -0.4, -12.125427)
 cast_shadow = 0
 mesh = ExtResource("15_r3t48")
 
-[node name="Fern3_2" type="MeshInstance3D" parent="Garden" unique_id=405811578]
+[node name="Fern3_2" type="MeshInstance3D" parent="Garden" unique_id=410557119]
 transform = Transform3D(1.1032401, 0, 0.38740486, 0, 1.1692824, 0, -0.38740486, 0, 1.1032401, 8.5719185, -0.4, -12.394793)
 cast_shadow = 0
 mesh = ExtResource("16_aa8iq")
 
-[node name="Rock4" type="MeshInstance3D" parent="Garden" unique_id=833615047]
+[node name="Rock4" type="MeshInstance3D" parent="Garden" unique_id=2029776534]
 transform = Transform3D(-0.6786217, 0, -0.33356115, 0, 0.75616825, 0, 0.33356115, 0, -0.6786217, -9, -0.4, 6.5)
 mesh = ExtResource("12_64gjk")
 
-[node name="Rock4_0" type="MeshInstance3D" parent="Garden" unique_id=2060122808]
+[node name="Rock4_0" type="MeshInstance3D" parent="Garden" unique_id=551863786]
 transform = Transform3D(0.07496066, 0, -0.38370782, 0, 0.39096135, 0, 0.38370782, 0, 0.07496066, -10.452332, -0.4, 7.459035)
 mesh = ExtResource("14_3huex")
 
-[node name="Rock4_1" type="MeshInstance3D" parent="Garden" unique_id=2063853334]
+[node name="Rock4_1" type="MeshInstance3D" parent="Garden" unique_id=1839493846]
 transform = Transform3D(0.024725223, 0, -0.40208805, 0, 0.40284753, 0, 0.40208805, 0, 0.024725223, -7.7854857, -0.4, 5.4349575)
 mesh = ExtResource("19_ep2f7")
 
-[node name="Fern4_0" type="MeshInstance3D" parent="Garden" unique_id=393106324]
+[node name="Fern4_0" type="MeshInstance3D" parent="Garden" unique_id=999943662]
 transform = Transform3D(-0.18687023, 0, 1.0256293, 0, 1.0425142, 0, -1.0256293, 0, -0.18687023, -8.93377, -0.4, 6.6685953)
 cast_shadow = 0
 mesh = ExtResource("15_r3t48")
 
-[node name="Fern4_1" type="MeshInstance3D" parent="Garden" unique_id=573429438]
+[node name="Fern4_1" type="MeshInstance3D" parent="Garden" unique_id=1861525059]
 transform = Transform3D(1.0826322, 0, -0.48059607, 0, 1.1845105, 0, 0.48059607, 0, 1.0826322, -10.093154, -0.4, 6.3896437)
 cast_shadow = 0
 mesh = ExtResource("16_aa8iq")
 
-[node name="Fern4_2" type="MeshInstance3D" parent="Garden" unique_id=129045690]
+[node name="Fern4_2" type="MeshInstance3D" parent="Garden" unique_id=466234451]
 transform = Transform3D(-1.0112514, 0, -0.0647161, 0, 1.0133201, 0, 0.0647161, 0, -1.0112514, -8.367094, -0.4, 6.122945)
 cast_shadow = 0
 mesh = ExtResource("17_s3r54")
 
-[node name="Rock5" type="MeshInstance3D" parent="Garden" unique_id=301208551]
+[node name="Rock5" type="MeshInstance3D" parent="Garden" unique_id=549595417]
 transform = Transform3D(0.8142767, 0, 0.24315225, 0, 0.8498056, 0, -0.24315225, 0, 0.8142767, 9.2, -0.4, 5.5)
 mesh = ExtResource("18_sky01")
 
-[node name="Rock5_0" type="MeshInstance3D" parent="Garden" unique_id=172744760]
+[node name="Rock5_0" type="MeshInstance3D" parent="Garden" unique_id=2120036626]
 transform = Transform3D(0.059644558, 0, -0.3888218, 0, 0.3933699, 0, 0.3888218, 0, 0.059644558, 8.011343, -0.4, 6.272892)
 mesh = ExtResource("19_ep2f7")
 
-[node name="Rock5_1" type="MeshInstance3D" parent="Garden" unique_id=1828245641]
+[node name="Rock5_1" type="MeshInstance3D" parent="Garden" unique_id=2047935317]
 transform = Transform3D(-0.36701992, 0, -0.3348863, 0, 0.4968425, 0, 0.3348863, 0, -0.36701992, 8.986326, -0.4, 5.213387)
 mesh = ExtResource("13_srl4v")
 
-[node name="Fern5_0" type="MeshInstance3D" parent="Garden" unique_id=67428647]
+[node name="Fern5_0" type="MeshInstance3D" parent="Garden" unique_id=2083254379]
 transform = Transform3D(0.6879659, 0, -0.6266333, 0, 0.93057317, 0, 0.6266333, 0, 0.6879659, 10.095817, -0.4, 5.7842336)
 cast_shadow = 0
 mesh = ExtResource("16_aa8iq")
 
-[node name="Fern5_1" type="MeshInstance3D" parent="Garden" unique_id=1927816168]
+[node name="Fern5_1" type="MeshInstance3D" parent="Garden" unique_id=647280793]
 transform = Transform3D(0.30816528, 0, -0.8643789, 0, 0.9176692, 0, 0.8643789, 0, 0.30816528, 8.20741, -0.4, 5.9686437)
 cast_shadow = 0
 mesh = ExtResource("17_s3r54")
 
-[node name="Fern5_2" type="MeshInstance3D" parent="Garden" unique_id=1016253889]
+[node name="Fern5_2" type="MeshInstance3D" parent="Garden" unique_id=39974294]
 transform = Transform3D(0.3251863, 0, 0.8475846, 0, 0.90782475, 0, -0.8475846, 0, 0.3251863, 9.725218, -0.4, 5.0073533)
 cast_shadow = 0
 mesh = ExtResource("20_ucbbs")
 
-[node name="Shrub0" type="MeshInstance3D" parent="Garden" unique_id=807676074]
+[node name="Shrub0" type="MeshInstance3D" parent="Garden" unique_id=1791085274]
 transform = Transform3D(0.53985983, 0, 0.88357484, 0, 1.0354483, 0, -0.88357484, 0, 0.53985983, -12.750334, -0.4, -13.9)
 cast_shadow = 0
 mesh = ExtResource("23_227co")
 
-[node name="Shrub1" type="MeshInstance3D" parent="Garden" unique_id=646022639]
+[node name="Shrub1" type="MeshInstance3D" parent="Garden" unique_id=1756210839]
 transform = Transform3D(0.783474, 0, -0.65346867, 0, 1.020222, 0, 0.65346867, 0, 0.783474, -10.124768, -0.4, -13.9)
 cast_shadow = 0
 mesh = ExtResource("24_7nta2")
 
-[node name="Shrub2" type="MeshInstance3D" parent="Garden" unique_id=2022829443]
+[node name="Shrub2" type="MeshInstance3D" parent="Garden" unique_id=1736569757]
 transform = Transform3D(-0.13626938, 0, 0.97335595, 0, 0.9828485, 0, -0.97335595, 0, -0.13626938, -6.8384414, -0.4, -13.9)
 cast_shadow = 0
 mesh = ExtResource("25_ca843")
 
-[node name="Shrub3" type="MeshInstance3D" parent="Garden" unique_id=1429030260]
+[node name="Shrub3" type="MeshInstance3D" parent="Garden" unique_id=52903079]
 transform = Transform3D(-0.6049324, 0, 0.67521876, 0, 0.9065669, 0, -0.67521876, 0, -0.6049324, -4.525739, -0.4, -13.9)
 cast_shadow = 0
 mesh = ExtResource("26_s5bsn")
 
-[node name="Shrub4" type="MeshInstance3D" parent="Garden" unique_id=453435449]
+[node name="Shrub4" type="MeshInstance3D" parent="Garden" unique_id=745057895]
 transform = Transform3D(-0.8658691, 0, 0.046975773, 0, 0.86714244, 0, -0.046975773, 0, -0.8658691, 4.276301, -0.4, -13.9)
 cast_shadow = 0
 mesh = ExtResource("23_227co")
 
-[node name="Shrub5" type="MeshInstance3D" parent="Garden" unique_id=1694267569]
+[node name="Shrub5" type="MeshInstance3D" parent="Garden" unique_id=677366114]
 transform = Transform3D(0.12554446, 0, 0.80909973, 0, 0.8187819, 0, -0.80909973, 0, 0.12554446, 6.91741, -0.4, -13.9)
 cast_shadow = 0
 mesh = ExtResource("24_7nta2")
 
-[node name="Shrub6" type="MeshInstance3D" parent="Garden" unique_id=1960324391]
+[node name="Shrub6" type="MeshInstance3D" parent="Garden" unique_id=1058371300]
 transform = Transform3D(0.546668, 0, -0.57685065, 0, 0.7947343, 0, 0.57685065, 0, 0.546668, 10.172237, -0.4, -13.9)
 cast_shadow = 0
 mesh = ExtResource("25_ca843")
 
-[node name="Shrub7" type="MeshInstance3D" parent="Garden" unique_id=431049607]
+[node name="Shrub7" type="MeshInstance3D" parent="Garden" unique_id=1987354317]
 transform = Transform3D(-0.5219793, 0, 0.5954574, 0, 0.7918534, 0, -0.5954574, 0, -0.5219793, 12.821259, -0.4, -13.9)
 cast_shadow = 0
 mesh = ExtResource("26_s5bsn")
 
-[node name="Shrub8" type="MeshInstance3D" parent="Garden" unique_id=149562676]
+[node name="Shrub8" type="MeshInstance3D" parent="Garden" unique_id=953269671]
 transform = Transform3D(0.7276646, 0, 0.61877495, 0, 0.95518494, 0, -0.61877495, 0, 0.7276646, -13.9, -0.4, -10.549323)
 cast_shadow = 0
 mesh = ExtResource("23_227co")
 
-[node name="Shrub9" type="MeshInstance3D" parent="Garden" unique_id=2087076668]
+[node name="Shrub9" type="MeshInstance3D" parent="Garden" unique_id=1399080410]
 transform = Transform3D(0.8777128, 0, 0.029127315, 0, 0.878196, 0, -0.029127315, 0, 0.8777128, -13.9, -0.4, -6.446966)
 cast_shadow = 0
 mesh = ExtResource("24_7nta2")
 
-[node name="Shrub10" type="MeshInstance3D" parent="Garden" unique_id=369037712]
+[node name="Shrub10" type="MeshInstance3D" parent="Garden" unique_id=515462904]
 transform = Transform3D(0.78015673, 0, -0.5167949, 0, 0.93579996, 0, 0.5167949, 0, 0.78015673, -13.9, -0.4, -1.2888865)
 cast_shadow = 0
 mesh = ExtResource("25_ca843")
 
-[node name="Shrub11" type="MeshInstance3D" parent="Garden" unique_id=312314843]
+[node name="Shrub11" type="MeshInstance3D" parent="Garden" unique_id=2134729277]
 transform = Transform3D(-0.9098191, 0, -0.3718528, 0, 0.98287606, 0, 0.3718528, 0, -0.9098191, -13.9, -0.4, 2.6481295)
 cast_shadow = 0
 mesh = ExtResource("26_s5bsn")
 
-[node name="Shrub12" type="MeshInstance3D" parent="Garden" unique_id=879424223]
+[node name="Shrub12" type="MeshInstance3D" parent="Garden" unique_id=1004114367]
 transform = Transform3D(0.06372284, 0, -0.7835826, 0, 0.7861694, 0, 0.7835826, 0, 0.06372284, -13.9, -0.4, 7.688565)
 cast_shadow = 0
 mesh = ExtResource("23_227co")
 
-[node name="Shrub13" type="MeshInstance3D" parent="Garden" unique_id=1456042657]
+[node name="Shrub13" type="MeshInstance3D" parent="Garden" unique_id=1440358958]
 transform = Transform3D(0.34580776, 0, 0.92895794, 0, 0.99123454, 0, -0.92895794, 0, 0.34580776, -13.9, -0.4, 11.453431)
 cast_shadow = 0
 mesh = ExtResource("24_7nta2")
 
-[node name="Shrub14" type="MeshInstance3D" parent="Garden" unique_id=1927662677]
+[node name="Shrub14" type="MeshInstance3D" parent="Garden" unique_id=275485911]
 transform = Transform3D(0.9794185, 0, -0.38278157, 0, 1.0515618, 0, 0.38278157, 0, 0.9794185, 13.9, -0.4, -10.32937)
 cast_shadow = 0
 mesh = ExtResource("25_ca843")
 
-[node name="Shrub15" type="MeshInstance3D" parent="Garden" unique_id=1153837913]
+[node name="Shrub15" type="MeshInstance3D" parent="Garden" unique_id=1091253524]
 transform = Transform3D(-0.9872655, 0, -0.4764063, 0, 1.0962008, 0, 0.4764063, 0, -0.9872655, 13.9, -0.4, -6.472527)
 cast_shadow = 0
 mesh = ExtResource("26_s5bsn")
 
-[node name="Shrub16" type="MeshInstance3D" parent="Garden" unique_id=1738323035]
+[node name="Shrub16" type="MeshInstance3D" parent="Garden" unique_id=141567124]
 transform = Transform3D(0.46525332, 0, -0.70481, 0, 0.84452224, 0, 0.70481, 0, 0.46525332, 13.9, -0.4, -1.6475041)
 cast_shadow = 0
 mesh = ExtResource("23_227co")
 
-[node name="Shrub17" type="MeshInstance3D" parent="Garden" unique_id=500625631]
+[node name="Shrub17" type="MeshInstance3D" parent="Garden" unique_id=947265110]
 transform = Transform3D(1.0525864, 0, -0.28634852, 0, 1.0908408, 0, 0.28634852, 0, 1.0525864, 13.9, -0.4, 3.1986547)
 cast_shadow = 0
 mesh = ExtResource("24_7nta2")
 
-[node name="Shrub18" type="MeshInstance3D" parent="Garden" unique_id=714160437]
+[node name="Shrub18" type="MeshInstance3D" parent="Garden" unique_id=701023192]
 transform = Transform3D(-0.6625503, 0, -0.40866175, 0, 0.7784454, 0, 0.40866175, 0, -0.6625503, 13.9, -0.4, 7.7254286)
 cast_shadow = 0
 mesh = ExtResource("25_ca843")
 
-[node name="Shrub19" type="MeshInstance3D" parent="Garden" unique_id=2062891977]
+[node name="Shrub19" type="MeshInstance3D" parent="Garden" unique_id=2065131280]
 transform = Transform3D(0.87755096, 0, 0.14078644, 0, 0.8887725, 0, -0.14078644, 0, 0.87755096, 13.9, -0.4, 11.569214)
 cast_shadow = 0
 mesh = ExtResource("26_s5bsn")
 
-[node name="Weed0" type="MeshInstance3D" parent="Garden" unique_id=283145885]
+[node name="Weed0" type="MeshInstance3D" parent="Garden" unique_id=219652638]
 transform = Transform3D(1.0362693, 0, -1.3699747, 0, 1.7177558, 0, 1.3699747, 0, 1.0362693, -2.7017288, -0.4, 14.141822)
 cast_shadow = 0
 mesh = ExtResource("27_6hlm8")
 
-[node name="Weed1" type="MeshInstance3D" parent="Garden" unique_id=417261235]
+[node name="Weed1" type="MeshInstance3D" parent="Garden" unique_id=1350601963]
 transform = Transform3D(1.656847, 0, -0.95678264, 0, 1.9132628, 0, 0.95678264, 0, 1.656847, 14.36059, -0.4, -11.452695)
 cast_shadow = 0
 mesh = ExtResource("28_cgirh")
 
-[node name="Weed2" type="MeshInstance3D" parent="Garden" unique_id=227608820]
+[node name="Weed2" type="MeshInstance3D" parent="Garden" unique_id=1750237585]
 transform = Transform3D(-1.7221912, 0, 0.7697828, 0, 1.8864009, 0, -0.7697828, 0, -1.7221912, -10.476998, -0.4, -14.3314)
 cast_shadow = 0
 mesh = ExtResource("29_02u1k")
 
-[node name="Weed3" type="MeshInstance3D" parent="Garden" unique_id=1185247923]
+[node name="Weed3" type="MeshInstance3D" parent="Garden" unique_id=284759869]
 transform = Transform3D(1.4655912, 0, -0.35086915, 0, 1.5070059, 0, 0.35086915, 0, 1.4655912, -14.183406, -0.4, 7.4619236)
 cast_shadow = 0
 mesh = ExtResource("30_vnmq3")
 
-[node name="Weed4" type="MeshInstance3D" parent="Garden" unique_id=1427857282]
+[node name="Weed4" type="MeshInstance3D" parent="Garden" unique_id=1690600552]
 transform = Transform3D(-1.4561882, 0, -1.2977504, 0, 1.9505486, 0, 1.2977504, 0, -1.4561882, 7.0237293, -0.4, 14.415576)
 cast_shadow = 0
 mesh = ExtResource("27_6hlm8")
 
-[node name="Weed5" type="MeshInstance3D" parent="Garden" unique_id=1867279520]
+[node name="Weed5" type="MeshInstance3D" parent="Garden" unique_id=370633750]
 transform = Transform3D(1.5207868, 0, -0.50194526, 0, 1.601481, 0, 0.50194526, 0, 1.5207868, 14.445452, -0.4, -6.5008435)
 cast_shadow = 0
 mesh = ExtResource("28_cgirh")
 
-[node name="Weed6" type="MeshInstance3D" parent="Garden" unique_id=964416776]
+[node name="Weed6" type="MeshInstance3D" parent="Garden" unique_id=1076084085]
 transform = Transform3D(0.99368966, 0, 0.77838266, 0, 1.2622594, 0, -0.77838266, 0, 0.99368966, 8.729814, -0.4, -14.3491)
 cast_shadow = 0
 mesh = ExtResource("29_02u1k")
 
-[node name="Weed7" type="MeshInstance3D" parent="Garden" unique_id=442637181]
+[node name="Weed7" type="MeshInstance3D" parent="Garden" unique_id=1457234755]
 transform = Transform3D(-0.9654275, 0, 1.4827374, 0, 1.7693391, 0, -1.4827374, 0, -0.9654275, -14.227788, -0.4, -10.35442)
 cast_shadow = 0
 mesh = ExtResource("30_vnmq3")
 
-[node name="Weed8" type="MeshInstance3D" parent="Garden" unique_id=1286938230]
+[node name="Weed8" type="MeshInstance3D" parent="Garden" unique_id=907113862]
 transform = Transform3D(-1.0862864, 0, 0.58894515, 0, 1.2356676, 0, -0.58894515, 0, -1.0862864, 11.043556, -0.4, 14.225076)
 cast_shadow = 0
 mesh = ExtResource("27_6hlm8")
 
-[node name="Weed9" type="MeshInstance3D" parent="Garden" unique_id=1302913355]
+[node name="Weed9" type="MeshInstance3D" parent="Garden" unique_id=1055078623]
 transform = Transform3D(1.8750094, 0, 0.3137542, 0, 1.9010792, 0, -0.3137542, 0, 1.8750094, 14.428435, -0.4, 8.61855)
 cast_shadow = 0
 mesh = ExtResource("28_cgirh")
 
-[node name="Weed10" type="MeshInstance3D" parent="Garden" unique_id=208170304]
+[node name="Weed10" type="MeshInstance3D" parent="Garden" unique_id=524223188]
 transform = Transform3D(-1.5900887, 0, 0.97919154, 0, 1.8674042, 0, -0.97919154, 0, -1.5900887, -7.132417, -0.4, -14.385134)
 cast_shadow = 0
 mesh = ExtResource("29_02u1k")
 
-[node name="Weed11" type="MeshInstance3D" parent="Garden" unique_id=1084282742]
+[node name="Weed11" type="MeshInstance3D" parent="Garden" unique_id=1348456565]
 transform = Transform3D(-0.013169572, 0, -1.3528168, 0, 1.352881, 0, 1.3528168, 0, -0.013169572, -14.374167, -0.4, 9.848175)
 cast_shadow = 0
 mesh = ExtResource("30_vnmq3")
 
-[node name="Weed12" type="MeshInstance3D" parent="Garden" unique_id=873024528]
+[node name="Weed12" type="MeshInstance3D" parent="Garden" unique_id=530741279]
 transform = Transform3D(1.9295502, 0, 0.21218146, 0, 1.9411813, 0, -0.21218146, 0, 1.9295502, -5.265896, -0.4, 14.228143)
 cast_shadow = 0
 mesh = ExtResource("27_6hlm8")
 
-[node name="Weed13" type="MeshInstance3D" parent="Garden" unique_id=1336595335]
+[node name="Weed13" type="MeshInstance3D" parent="Garden" unique_id=645518651]
 transform = Transform3D(-0.5357871, 0, -1.281673, 0, 1.3891556, 0, 1.281673, 0, -0.5357871, 14.3422165, -0.4, 6.505588)
 cast_shadow = 0
 mesh = ExtResource("28_cgirh")
 
-[node name="Weed14" type="MeshInstance3D" parent="Garden" unique_id=1756765572]
+[node name="Weed14" type="MeshInstance3D" parent="Garden" unique_id=38900267]
 transform = Transform3D(-1.4715878, 0, -0.8680198, 0, 1.7085166, 0, 0.8680198, 0, -1.4715878, 12.347878, -0.4, -14.219787)
 cast_shadow = 0
 mesh = ExtResource("29_02u1k")
 
-[node name="Weed15" type="MeshInstance3D" parent="Garden" unique_id=2128625285]
+[node name="Weed15" type="MeshInstance3D" parent="Garden" unique_id=828263927]
 transform = Transform3D(-0.7616385, 0, 1.5446305, 0, 1.7222011, 0, -1.5446305, 0, -0.7616385, -14.115457, -0.4, 7.05974)
 cast_shadow = 0
 mesh = ExtResource("30_vnmq3")
 
-[node name="Weed16" type="MeshInstance3D" parent="Garden" unique_id=664574674]
+[node name="Weed16" type="MeshInstance3D" parent="Garden" unique_id=1236073991]
 transform = Transform3D(-0.66960794, 0, -1.0738567, 0, 1.2655209, 0, 1.0738567, 0, -0.66960794, 7.9103966, -0.4, 14.235057)
 cast_shadow = 0
 mesh = ExtResource("27_6hlm8")
 
-[node name="Weed17" type="MeshInstance3D" parent="Garden" unique_id=1966149178]
+[node name="Weed17" type="MeshInstance3D" parent="Garden" unique_id=1875254991]
 transform = Transform3D(1.0847387, 0, -1.1962281, 0, 1.6148126, 0, 1.1962281, 0, 1.0847387, 14.175097, -0.4, -12.3880625)
 cast_shadow = 0
 mesh = ExtResource("28_cgirh")
 
-[node name="Weed18" type="MeshInstance3D" parent="Garden" unique_id=392271967]
+[node name="Weed18" type="MeshInstance3D" parent="Garden" unique_id=876582024]
 transform = Transform3D(0.1452814, 0, 1.6206201, 0, 1.6271191, 0, -1.6206201, 0, 0.1452814, -8.243833, -0.4, -14.274382)
 cast_shadow = 0
 mesh = ExtResource("29_02u1k")
 
-[node name="Weed19" type="MeshInstance3D" parent="Garden" unique_id=1357859657]
+[node name="Weed19" type="MeshInstance3D" parent="Garden" unique_id=1727521483]
 transform = Transform3D(0.17895779, 0, -1.7489301, 0, 1.7580621, 0, 1.7489301, 0, 0.17895779, -14.287126, -0.4, -10.7476425)
 cast_shadow = 0
 mesh = ExtResource("30_vnmq3")
 
-[node name="Weed20" type="MeshInstance3D" parent="Garden" unique_id=1520972630]
+[node name="Weed20" type="MeshInstance3D" parent="Garden" unique_id=939491251]
 transform = Transform3D(-1.1873192, 0, 0.44636038, 0, 1.2684495, 0, -0.44636038, 0, -1.1873192, -0.9197054, -0.4, 14.350489)
 cast_shadow = 0
 mesh = ExtResource("27_6hlm8")
 
-[node name="Weed21" type="MeshInstance3D" parent="Garden" unique_id=101314238]
+[node name="Weed21" type="MeshInstance3D" parent="Garden" unique_id=515554216]
 transform = Transform3D(0.451274, 0, -1.8908005, 0, 1.943907, 0, 1.8908005, 0, 0.451274, 14.367052, -0.4, 4.931125)
 cast_shadow = 0
 mesh = ExtResource("28_cgirh")
 
-[node name="Weed22" type="MeshInstance3D" parent="Garden" unique_id=217541243]
+[node name="Weed22" type="MeshInstance3D" parent="Garden" unique_id=1820648401]
 transform = Transform3D(1.8645998, 0, 0.4384962, 0, 1.9154664, 0, -0.4384962, 0, 1.8645998, 3.598108, -0.4, -14.392105)
 cast_shadow = 0
 mesh = ExtResource("29_02u1k")
 
-[node name="Weed23" type="MeshInstance3D" parent="Garden" unique_id=40936731]
+[node name="Weed23" type="MeshInstance3D" parent="Garden" unique_id=1804270823]
 transform = Transform3D(0.46792608, 0, -1.4200374, 0, 1.4951458, 0, 1.4200374, 0, 0.46792608, -14.465049, -0.4, 12.23391)
 cast_shadow = 0
 mesh = ExtResource("30_vnmq3")
 
-[node name="PavingPetals" type="MeshInstance3D" parent="." unique_id=1468238862]
+[node name="PavingPetals" type="MeshInstance3D" parent="." unique_id=856346147]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.004, 0)
 cast_shadow = 0
 mesh = SubResource("PlaneMesh_38a7j")
 
-[node name="GravelPetals" type="MeshInstance3D" parent="." unique_id=1579059321]
+[node name="GravelPetals" type="MeshInstance3D" parent="." unique_id=1117756566]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.394, 0)
 cast_shadow = 0
 mesh = SubResource("PlaneMesh_4updc")
 
-[node name="Petals" type="GPUParticles3D" parent="." unique_id=1273082643]
+[node name="Petals" type="GPUParticles3D" parent="." unique_id=662838381]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7, -2)
 cast_shadow = 0
 amount = 260
@@ -1547,76 +1554,76 @@ visibility_aabb = AABB(-16, -2, -16, 32, 12, 32)
 process_material = SubResource("ParticleProcessMaterial_5v2fr")
 draw_pass_1 = SubResource("QuadMesh_eeqio")
 
-[node name="Mountains0" type="MeshInstance3D" parent="." unique_id=1225936460]
+[node name="Mountains0" type="MeshInstance3D" parent="." unique_id=119548156]
 cast_shadow = 0
 mesh = SubResource("ArrayMesh_xosv8")
 
-[node name="Mountains1" type="MeshInstance3D" parent="." unique_id=624896710]
+[node name="Mountains1" type="MeshInstance3D" parent="." unique_id=1895961752]
 cast_shadow = 0
 mesh = SubResource("ArrayMesh_w47iv")
 
-[node name="Mountains2" type="MeshInstance3D" parent="." unique_id=598625641]
+[node name="Mountains2" type="MeshInstance3D" parent="." unique_id=588213738]
 cast_shadow = 0
 mesh = SubResource("ArrayMesh_dkxvs")
 
-[node name="LanternFlicker" type="Node" parent="." unique_id=590930730]
+[node name="LanternFlicker" type="Node" parent="." unique_id=839750254]
 script = ExtResource("36_1vlye")
 lights = Array[NodePath]([NodePath("../LanternLight0"), NodePath("../LanternLight1"), NodePath("../LanternLight2"), NodePath("../LanternLight3")])
 amount = 0.15
 
-[node name="Sound" type="Node" parent="." unique_id=2011402798]
+[node name="Sound" type="Node" parent="." unique_id=92180278]
 script = ExtResource("37_ff0bc")
 loops = Array[AudioStream]([ExtResource("38_4e3wr"), ExtResource("39_t6j4e")])
 loop_volumes = PackedFloat32Array(-15, -21)
 
-[node name="Geometry" type="Node3D" parent="." unique_id=1823402009]
+[node name="Geometry" type="Node3D" parent="." unique_id=772349993]
 
-[node name="Batch0" type="MeshInstance3D" parent="Geometry" unique_id=1317142949]
+[node name="Batch0" type="MeshInstance3D" parent="Geometry" unique_id=74884973]
 mesh = SubResource("ArrayMesh_saof2")
 
-[node name="Batch1" type="MeshInstance3D" parent="Geometry" unique_id=772086157]
+[node name="Batch1" type="MeshInstance3D" parent="Geometry" unique_id=91174028]
 mesh = SubResource("ArrayMesh_6n4jr")
 
-[node name="Batch2" type="MeshInstance3D" parent="Geometry" unique_id=836395648]
+[node name="Batch2" type="MeshInstance3D" parent="Geometry" unique_id=1976705401]
 mesh = SubResource("ArrayMesh_l6pg5")
 
-[node name="Batch3" type="MeshInstance3D" parent="Geometry" unique_id=1691450574]
+[node name="Batch3" type="MeshInstance3D" parent="Geometry" unique_id=1987143477]
 mesh = SubResource("ArrayMesh_287xc")
 
-[node name="Batch4" type="MeshInstance3D" parent="Geometry" unique_id=864488114]
+[node name="Batch4" type="MeshInstance3D" parent="Geometry" unique_id=1898968963]
 mesh = SubResource("ArrayMesh_gbvhe")
 
-[node name="Batch5" type="MeshInstance3D" parent="Geometry" unique_id=323106707]
+[node name="Batch5" type="MeshInstance3D" parent="Geometry" unique_id=972202219]
 mesh = SubResource("ArrayMesh_xjbm5")
 
-[node name="Batch6" type="MeshInstance3D" parent="Geometry" unique_id=666221482]
+[node name="Batch6" type="MeshInstance3D" parent="Geometry" unique_id=1705377646]
 mesh = SubResource("ArrayMesh_w2xao")
 
-[node name="Batch7" type="MeshInstance3D" parent="Geometry" unique_id=1358233752]
+[node name="Batch7" type="MeshInstance3D" parent="Geometry" unique_id=756063542]
 mesh = SubResource("ArrayMesh_sbymm")
 
-[node name="Batch8" type="MeshInstance3D" parent="Geometry" unique_id=1508858713]
+[node name="Batch8" type="MeshInstance3D" parent="Geometry" unique_id=2043468398]
 mesh = SubResource("ArrayMesh_7g1eu")
 
-[node name="Batch9" type="MeshInstance3D" parent="Geometry" unique_id=2075058703]
+[node name="Batch9" type="MeshInstance3D" parent="Geometry" unique_id=39998055]
 mesh = SubResource("ArrayMesh_yurbd")
 
-[node name="Batch10" type="MeshInstance3D" parent="Geometry" unique_id=317219887]
+[node name="Batch10" type="MeshInstance3D" parent="Geometry" unique_id=1740601398]
 mesh = SubResource("ArrayMesh_mag87")
 
-[node name="Batch11" type="MeshInstance3D" parent="Geometry" unique_id=1785723851]
+[node name="Batch11" type="MeshInstance3D" parent="Geometry" unique_id=666667645]
 mesh = SubResource("ArrayMesh_rljen")
 
-[node name="Roofs" type="MeshInstance3D" parent="." unique_id=984322563]
+[node name="Roofs" type="MeshInstance3D" parent="." unique_id=1391348935]
 mesh = SubResource("ArrayMesh_bpnoe")
 
-[node name="GravelShadows" type="MeshInstance3D" parent="." unique_id=969838940]
+[node name="GravelShadows" type="MeshInstance3D" parent="." unique_id=1195226259]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.397, 0)
 cast_shadow = 0
 mesh = SubResource("PlaneMesh_rtrv4")
 
-[node name="P1Spawn" type="Marker3D" parent="." unique_id=783935322]
+[node name="P1Spawn" type="Marker3D" parent="." unique_id=1102927898]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, 0)
 
-[node name="P2Spawn" type="Marker3D" parent="." unique_id=609779755]
+[node name="P2Spawn" type="Marker3D" parent="." unique_id=347168846]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 0)

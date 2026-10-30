@@ -274,7 +274,7 @@ func _apply_day() -> void:
 			sky.sky_horizon_color = SKY_HORIZON[0].lerp(SKY_HORIZON[1], e)
 			sky.ground_horizon_color = GROUND_HORIZON[0].lerp(GROUND_HORIZON[1], e)
 			sky.sky_energy_multiplier = lerpf(0.75, 1.0, e)
-		env.ambient_light_energy = lerpf(0.8, 0.85, e)
+		env.ambient_light_energy = lerpf(1.25, 0.85, e) # dawn: enough skylight to read the fighters (Phase 6)
 		env.fog_light_color = HAZE[0].lerp(HAZE[1], e)
 		env.fog_density = lerpf(0.0045, 0.0028, e)
 		env.tonemap_exposure = lerpf(1.25, 0.95, e)
@@ -288,7 +288,7 @@ func _apply_day() -> void:
 	if skyline_material:
 		skyline_material.set_shader_parameter("day", day)
 	if _fill:
-		_fill.light_energy = _fill_energy * lerpf(1.0, 0.55, e)
+		_fill.light_energy = _fill_energy * lerpf(1.45, 0.55, e)
 	if _neon:
 		_neon.modulate = Color(_neon_color * lerpf(1.0, 0.3, e), 1.0)
 
@@ -342,7 +342,6 @@ func _build_neighbours() -> void:
 			var id: String = locals[(i * 3 + 1) % locals.size()]
 			var material := Crowd._person_material(id, id, meta[id], i % 2 == 1, true)
 			var person := _multimesh(Crowd._person_mesh(id), 1, material, "Neighbour%d" % i)
-			person.multimesh.use_colors = false
 			person.extra_cull_margin = 0.6
 			# Phase, cheering threshold (the material's excitement is set per person), talks
 			# rather than stands still, claps rather than cheers.

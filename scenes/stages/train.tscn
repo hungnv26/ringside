@@ -664,205 +664,206 @@ billboard_keep_scale = true
 material = SubResource("StandardMaterial3D_u66tf")
 size = Vector2(1.6, 0.015)
 
-[node name="Train" type="Node3D" unique_id=2055850243]
+[node name="Train" type="Node3D" unique_id=735219651]
 script = ExtResource("1_ie8y8")
 bounds_depth = 1.1
 music = &"train"
+dust_color = Color(0.62, 0.6, 0.58, 1)
 rope_line = 50.0
 side_lines = PackedFloat32Array()
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1319863254]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1525968907]
 environment = SubResource("Environment_peglc")
 
-[node name="Sun" type="DirectionalLight3D" parent="." unique_id=2098228470]
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1091024415]
 transform = Transform3D(0.41461706, -0.30274338, 0.8581604, 0, 0.94303757, 0.33268648, -0.90999603, -0.13793749, 0.39099944, 0, 0, 0)
 light_color = Color(1, 0.76, 0.5, 1)
 light_energy = 2.3
 shadow_enabled = true
 directional_shadow_max_distance = 60.0
 
-[node name="SkyFill" type="DirectionalLight3D" parent="." unique_id=937514209]
+[node name="SkyFill" type="DirectionalLight3D" parent="." unique_id=1773027966]
 transform = Transform3D(-0.41461706, 0.42627186, -0.8039807, 0, 0.8834992, 0.46843266, 0.90999603, 0.19422017, -0.36631382, 0, 0, 0)
 light_color = Color(0.7, 0.8, 1, 1)
 light_energy = 0.3
 
-[node name="Geometry" type="Node3D" parent="." unique_id=2061688175]
+[node name="Geometry" type="Node3D" parent="." unique_id=686530442]
 
-[node name="Batch0" type="MeshInstance3D" parent="Geometry" unique_id=154336164]
+[node name="Batch0" type="MeshInstance3D" parent="Geometry" unique_id=1719307095]
 mesh = SubResource("ArrayMesh_hlrxh")
 
-[node name="Batch1" type="MeshInstance3D" parent="Geometry" unique_id=1278778823]
+[node name="Batch1" type="MeshInstance3D" parent="Geometry" unique_id=164290214]
 mesh = SubResource("ArrayMesh_gmwbj")
 
-[node name="Batch2" type="MeshInstance3D" parent="Geometry" unique_id=1346061454]
+[node name="Batch2" type="MeshInstance3D" parent="Geometry" unique_id=864257491]
 mesh = SubResource("ArrayMesh_tx83w")
 
-[node name="Batch3" type="MeshInstance3D" parent="Geometry" unique_id=13915276]
+[node name="Batch3" type="MeshInstance3D" parent="Geometry" unique_id=387729986]
 mesh = SubResource("ArrayMesh_q2m0p")
 
-[node name="Batch4" type="MeshInstance3D" parent="Geometry" unique_id=2126072522]
+[node name="Batch4" type="MeshInstance3D" parent="Geometry" unique_id=1567571986]
 mesh = SubResource("ArrayMesh_lsrxt")
 
-[node name="Batch5" type="MeshInstance3D" parent="Geometry" unique_id=862563103]
+[node name="Batch5" type="MeshInstance3D" parent="Geometry" unique_id=30943719]
 mesh = SubResource("ArrayMesh_uoig5")
 
-[node name="Batch6" type="MeshInstance3D" parent="Geometry" unique_id=1631924531]
+[node name="Batch6" type="MeshInstance3D" parent="Geometry" unique_id=281577627]
 mesh = SubResource("ArrayMesh_ugko0")
 
-[node name="Batch7" type="MeshInstance3D" parent="Geometry" unique_id=664297280]
+[node name="Batch7" type="MeshInstance3D" parent="Geometry" unique_id=994873911]
 mesh = SubResource("ArrayMesh_473nt")
 
-[node name="Batch8" type="MeshInstance3D" parent="Geometry" unique_id=1203880889]
+[node name="Batch8" type="MeshInstance3D" parent="Geometry" unique_id=1925627253]
 mesh = SubResource("ArrayMesh_nvdi7")
 
-[node name="Batch9" type="MeshInstance3D" parent="Geometry" unique_id=1638472243]
+[node name="Batch9" type="MeshInstance3D" parent="Geometry" unique_id=1915136538]
 mesh = SubResource("ArrayMesh_i7tfq")
 
-[node name="Ground" type="MeshInstance3D" parent="." unique_id=119097270]
+[node name="Ground" type="MeshInstance3D" parent="." unique_id=2070754249]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -4.2, -150)
 mesh = SubResource("PlaneMesh_1vxwe")
 
-[node name="Ridge0_0" type="MeshInstance3D" parent="." unique_id=440968021]
+[node name="Ridge0_0" type="MeshInstance3D" parent="." unique_id=950667973]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1200, 0, 0)
 material_override = SubResource("ShaderMaterial_8eys0")
 cast_shadow = 0
 custom_aabb = AABB(-2400, -50, -50, 4800, 300, 200)
 mesh = SubResource("ArrayMesh_ka2ed")
 
-[node name="Ridge0_1" type="MeshInstance3D" parent="." unique_id=49022787]
+[node name="Ridge0_1" type="MeshInstance3D" parent="." unique_id=1767554351]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -900, 0, 0)
 material_override = SubResource("ShaderMaterial_8eys0")
 cast_shadow = 0
 custom_aabb = AABB(-2400, -50, -50, 4800, 300, 200)
 mesh = SubResource("ArrayMesh_i7yd2")
 
-[node name="Ridge0_2" type="MeshInstance3D" parent="." unique_id=252560331]
+[node name="Ridge0_2" type="MeshInstance3D" parent="." unique_id=907963395]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -600, 0, 0)
 material_override = SubResource("ShaderMaterial_8eys0")
 cast_shadow = 0
 custom_aabb = AABB(-2400, -50, -50, 4800, 300, 200)
 mesh = SubResource("ArrayMesh_vb30e")
 
-[node name="Ridge0_3" type="MeshInstance3D" parent="." unique_id=2081361208]
+[node name="Ridge0_3" type="MeshInstance3D" parent="." unique_id=1416550079]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -300, 0, 0)
 material_override = SubResource("ShaderMaterial_8eys0")
 cast_shadow = 0
 custom_aabb = AABB(-2400, -50, -50, 4800, 300, 200)
 mesh = SubResource("ArrayMesh_og8nq")
 
-[node name="Ridge0_4" type="MeshInstance3D" parent="." unique_id=207911165]
+[node name="Ridge0_4" type="MeshInstance3D" parent="." unique_id=2005676133]
 material_override = SubResource("ShaderMaterial_8eys0")
 cast_shadow = 0
 custom_aabb = AABB(-2400, -50, -50, 4800, 300, 200)
 mesh = SubResource("ArrayMesh_y4w22")
 
-[node name="Ridge0_5" type="MeshInstance3D" parent="." unique_id=1031656059]
+[node name="Ridge0_5" type="MeshInstance3D" parent="." unique_id=472655507]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 300, 0, 0)
 material_override = SubResource("ShaderMaterial_8eys0")
 cast_shadow = 0
 custom_aabb = AABB(-2400, -50, -50, 4800, 300, 200)
 mesh = SubResource("ArrayMesh_vgqmm")
 
-[node name="Ridge0_6" type="MeshInstance3D" parent="." unique_id=576662821]
+[node name="Ridge0_6" type="MeshInstance3D" parent="." unique_id=785235301]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 600, 0, 0)
 material_override = SubResource("ShaderMaterial_8eys0")
 cast_shadow = 0
 custom_aabb = AABB(-2400, -50, -50, 4800, 300, 200)
 mesh = SubResource("ArrayMesh_xl8i1")
 
-[node name="Ridge0_7" type="MeshInstance3D" parent="." unique_id=1648186651]
+[node name="Ridge0_7" type="MeshInstance3D" parent="." unique_id=1539648341]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 900, 0, 0)
 material_override = SubResource("ShaderMaterial_8eys0")
 cast_shadow = 0
 custom_aabb = AABB(-2400, -50, -50, 4800, 300, 200)
 mesh = SubResource("ArrayMesh_82kgn")
 
-[node name="Ridge1_0" type="MeshInstance3D" parent="." unique_id=1511137186]
+[node name="Ridge1_0" type="MeshInstance3D" parent="." unique_id=1404907311]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1200, 0, 0)
 material_override = SubResource("ShaderMaterial_mjfpk")
 cast_shadow = 0
 custom_aabb = AABB(-2400, -50, -50, 4800, 300, 200)
 mesh = SubResource("ArrayMesh_ubxao")
 
-[node name="Ridge1_1" type="MeshInstance3D" parent="." unique_id=983511171]
+[node name="Ridge1_1" type="MeshInstance3D" parent="." unique_id=601426541]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -900, 0, 0)
 material_override = SubResource("ShaderMaterial_mjfpk")
 cast_shadow = 0
 custom_aabb = AABB(-2400, -50, -50, 4800, 300, 200)
 mesh = SubResource("ArrayMesh_4pcw7")
 
-[node name="Ridge1_2" type="MeshInstance3D" parent="." unique_id=1229678638]
+[node name="Ridge1_2" type="MeshInstance3D" parent="." unique_id=1455840707]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -600, 0, 0)
 material_override = SubResource("ShaderMaterial_mjfpk")
 cast_shadow = 0
 custom_aabb = AABB(-2400, -50, -50, 4800, 300, 200)
 mesh = SubResource("ArrayMesh_smnw7")
 
-[node name="Ridge1_3" type="MeshInstance3D" parent="." unique_id=516789221]
+[node name="Ridge1_3" type="MeshInstance3D" parent="." unique_id=448849446]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -300, 0, 0)
 material_override = SubResource("ShaderMaterial_mjfpk")
 cast_shadow = 0
 custom_aabb = AABB(-2400, -50, -50, 4800, 300, 200)
 mesh = SubResource("ArrayMesh_u3gqs")
 
-[node name="Ridge1_4" type="MeshInstance3D" parent="." unique_id=266555509]
+[node name="Ridge1_4" type="MeshInstance3D" parent="." unique_id=2141363001]
 material_override = SubResource("ShaderMaterial_mjfpk")
 cast_shadow = 0
 custom_aabb = AABB(-2400, -50, -50, 4800, 300, 200)
 mesh = SubResource("ArrayMesh_6ub4j")
 
-[node name="Ridge1_5" type="MeshInstance3D" parent="." unique_id=1621075656]
+[node name="Ridge1_5" type="MeshInstance3D" parent="." unique_id=254741205]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 300, 0, 0)
 material_override = SubResource("ShaderMaterial_mjfpk")
 cast_shadow = 0
 custom_aabb = AABB(-2400, -50, -50, 4800, 300, 200)
 mesh = SubResource("ArrayMesh_bkbd8")
 
-[node name="Ridge1_6" type="MeshInstance3D" parent="." unique_id=935886346]
+[node name="Ridge1_6" type="MeshInstance3D" parent="." unique_id=235091320]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 600, 0, 0)
 material_override = SubResource("ShaderMaterial_mjfpk")
 cast_shadow = 0
 custom_aabb = AABB(-2400, -50, -50, 4800, 300, 200)
 mesh = SubResource("ArrayMesh_sf386")
 
-[node name="Ridge1_7" type="MeshInstance3D" parent="." unique_id=2141197123]
+[node name="Ridge1_7" type="MeshInstance3D" parent="." unique_id=71341854]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 900, 0, 0)
 material_override = SubResource("ShaderMaterial_mjfpk")
 cast_shadow = 0
 custom_aabb = AABB(-2400, -50, -50, 4800, 300, 200)
 mesh = SubResource("ArrayMesh_kgqej")
 
-[node name="PassingTrain" type="Node3D" parent="." unique_id=2139787980]
+[node name="PassingTrain" type="Node3D" parent="." unique_id=1101028594]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 400, 0, -4.5)
 
-[node name="Part0" type="MeshInstance3D" parent="PassingTrain" unique_id=2006871687]
+[node name="Part0" type="MeshInstance3D" parent="PassingTrain" unique_id=1271014484]
 mesh = SubResource("ArrayMesh_eqmj8")
 
-[node name="Part1" type="MeshInstance3D" parent="PassingTrain" unique_id=1813343660]
+[node name="Part1" type="MeshInstance3D" parent="PassingTrain" unique_id=851640261]
 mesh = SubResource("ArrayMesh_5fgbc")
 
-[node name="Part2" type="MeshInstance3D" parent="PassingTrain" unique_id=1025481756]
+[node name="Part2" type="MeshInstance3D" parent="PassingTrain" unique_id=1859621927]
 mesh = SubResource("ArrayMesh_hisrf")
 
-[node name="Part3" type="MeshInstance3D" parent="PassingTrain" unique_id=1236899960]
+[node name="Part3" type="MeshInstance3D" parent="PassingTrain" unique_id=620821490]
 mesh = SubResource("ArrayMesh_ni55r")
 
-[node name="Part4" type="MeshInstance3D" parent="PassingTrain" unique_id=1417406821]
+[node name="Part4" type="MeshInstance3D" parent="PassingTrain" unique_id=1340484242]
 mesh = SubResource("ArrayMesh_4dqph")
 
-[node name="Part5" type="MeshInstance3D" parent="PassingTrain" unique_id=814404401]
+[node name="Part5" type="MeshInstance3D" parent="PassingTrain" unique_id=756008545]
 mesh = SubResource("ArrayMesh_ki7p5")
 
-[node name="Part6" type="MeshInstance3D" parent="PassingTrain" unique_id=1229728187]
+[node name="Part6" type="MeshInstance3D" parent="PassingTrain" unique_id=865970390]
 mesh = SubResource("ArrayMesh_vjih3")
 
-[node name="Sound" type="AudioStreamPlayer3D" parent="PassingTrain" unique_id=274085313]
+[node name="Sound" type="AudioStreamPlayer3D" parent="PassingTrain" unique_id=269728901]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30, -1.5, 0)
 stream = ExtResource("11_0lfvm")
 volume_db = -2.0
 unit_size = 25.0
 
-[node name="Motion" type="Node3D" parent="." unique_id=830173174 node_paths=PackedStringArray("passing_train", "passing_sound")]
+[node name="Motion" type="Node3D" parent="." unique_id=314112282 node_paths=PackedStringArray("passing_train", "passing_sound")]
 script = ExtResource("12_vr223")
 materials = Array[ShaderMaterial]([SubResource("ShaderMaterial_xrg54"), SubResource("ShaderMaterial_8eys0"), SubResource("ShaderMaterial_mjfpk"), SubResource("ShaderMaterial_soiob"), SubResource("ShaderMaterial_5hspq")])
 tree_meshes = Array[Mesh]([SubResource("ArrayMesh_wqecn"), SubResource("ArrayMesh_7hkah"), SubResource("ArrayMesh_n3756"), SubResource("ArrayMesh_626e8")])
@@ -873,7 +874,7 @@ ground_y = -4.2
 passing_train = NodePath("../PassingTrain")
 passing_sound = NodePath("../PassingTrain/Sound")
 
-[node name="Wind" type="GPUParticles3D" parent="." unique_id=366682249]
+[node name="Wind" type="GPUParticles3D" parent="." unique_id=123012879]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4, 0.6)
 cast_shadow = 0
 amount = 26
@@ -883,13 +884,13 @@ visibility_aabb = AABB(-43.5, -4.5, -5.25, 87, 9, 10.5)
 process_material = SubResource("ParticleProcessMaterial_qljl2")
 draw_pass_1 = SubResource("QuadMesh_ojbfs")
 
-[node name="Sound" type="Node" parent="." unique_id=550955916]
+[node name="Sound" type="Node" parent="." unique_id=1098892091]
 script = ExtResource("16_dnli3")
 loops = Array[AudioStream]([ExtResource("17_bifbv"), ExtResource("18_2dacc"), ExtResource("19_iv2w6")])
 loop_volumes = PackedFloat32Array(-9, -13, -17)
 
-[node name="P1Spawn" type="Marker3D" parent="." unique_id=1443009440]
+[node name="P1Spawn" type="Marker3D" parent="." unique_id=695606857]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, 0)
 
-[node name="P2Spawn" type="Marker3D" parent="." unique_id=1800338222]
+[node name="P2Spawn" type="Marker3D" parent="." unique_id=1824660071]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 0)

@@ -51,6 +51,8 @@ func _initialize() -> void:
 	stage = Node3D.new()
 	stage.name = "Beach"
 	stage.set_script(load(STAGE_SCRIPT))
+	stage.set("footprints", true) # soft sand
+	stage.set("dust_color", Color(0.86, 0.74, 0.55))
 	stage.set("rope_line", 50.0)
 	stage.set("music", &"beach")
 

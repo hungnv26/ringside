@@ -61,6 +61,7 @@ func _initialize() -> void:
 	stage = Node3D.new()
 	stage.name = "Dojo"
 	stage.set_script(load(STAGE_SCRIPT))
+	stage.set("dust_color", Color(0.86, 0.82, 0.66)) # tatami fibre
 	stage.set("rope_line", 5.8) # students (on the camera's side) hide when the camera is behind them
 	stage.set("music", &"dojo")
 

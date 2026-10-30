@@ -1491,38 +1491,40 @@ disable_receive_shadows = true
 material = SubResource("StandardMaterial3D_x0srw")
 size = Vector2(36, 26)
 
-[node name="Beach" type="Node3D" unique_id=1232364379]
+[node name="Beach" type="Node3D" unique_id=1269986896]
 script = ExtResource("1_i8142")
 music = &"beach"
+dust_color = Color(0.86, 0.74, 0.55, 1)
+footprints = true
 rope_line = 50.0
 side_lines = PackedFloat32Array()
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=737294362]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1863252139]
 environment = SubResource("Environment_kwaxp")
 
-[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1690983498]
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1605632611]
 transform = Transform3D(0.82695425, 0.41792604, -0.3761441, 0, 0.6689751, 0.74328476, 0.5622691, -0.61466247, 0.5532119, 0, 0, 0)
 light_color = Color(1, 0.96, 0.88, 1)
 light_energy = 2.0
 shadow_enabled = true
 directional_shadow_max_distance = 40.0
 
-[node name="SandBounce" type="DirectionalLight3D" parent="." unique_id=1388236724]
+[node name="SandBounce" type="DirectionalLight3D" parent="." unique_id=1425204871]
 transform = Transform3D(0.9396926, 0.1961747, 0.28016648, 0, 0.81915206, -0.57357645, -0.34202012, 0.53898555, 0.76975113, 0, 0, 0)
 light_color = Color(1, 0.85, 0.65, 1)
 light_energy = 0.25
 
-[node name="Sea" type="MeshInstance3D" parent="." unique_id=987902109]
+[node name="Sea" type="MeshInstance3D" parent="." unique_id=1209042954]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.06, -236.9)
 cast_shadow = 0
 mesh = SubResource("PlaneMesh_scklw")
 
-[node name="TorchFlame0" type="MeshInstance3D" parent="." unique_id=118725262]
+[node name="TorchFlame0" type="MeshInstance3D" parent="." unique_id=1308733937]
 transform = Transform3D(0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6, -6.7973084, 2.24, -3.169637)
 cast_shadow = 0
 mesh = SubResource("CylinderMesh_we6dt")
 
-[node name="TorchFire0" type="GPUParticles3D" parent="." unique_id=932826001]
+[node name="TorchFire0" type="GPUParticles3D" parent="." unique_id=1342552363]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.7973084, 2.14, -3.169637)
 cast_shadow = 0
 amount = 20
@@ -1532,7 +1534,7 @@ visibility_aabb = AABB(-0.98999995, -0.98999995, -0.98999995, 1.9799999, 1.97999
 process_material = SubResource("ParticleProcessMaterial_ltsom")
 draw_pass_1 = SubResource("QuadMesh_vfa13")
 
-[node name="TorchEmbers0" type="GPUParticles3D" parent="." unique_id=443267172]
+[node name="TorchEmbers0" type="GPUParticles3D" parent="." unique_id=1951759180]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.7973084, 2.3, -3.169637)
 cast_shadow = 0
 amount = 6
@@ -1542,12 +1544,12 @@ visibility_aabb = AABB(-1.5749999, -4.575, -1.5749999, 3.1499999, 9.15, 3.149999
 process_material = SubResource("ParticleProcessMaterial_idbqt")
 draw_pass_1 = SubResource("QuadMesh_7jyuu")
 
-[node name="TorchFlame1" type="MeshInstance3D" parent="." unique_id=74522713]
+[node name="TorchFlame1" type="MeshInstance3D" parent="." unique_id=2095833731]
 transform = Transform3D(0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6, -5.1468124, 2.24, -5.4553022)
 cast_shadow = 0
 mesh = SubResource("CylinderMesh_suj1k")
 
-[node name="TorchFire1" type="GPUParticles3D" parent="." unique_id=1665088621]
+[node name="TorchFire1" type="GPUParticles3D" parent="." unique_id=195751090]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.1468124, 2.14, -5.4553022)
 cast_shadow = 0
 amount = 20
@@ -1557,7 +1559,7 @@ visibility_aabb = AABB(-0.98999995, -0.98999995, -0.98999995, 1.9799999, 1.97999
 process_material = SubResource("ParticleProcessMaterial_j1p8w")
 draw_pass_1 = SubResource("QuadMesh_75rnt")
 
-[node name="TorchEmbers1" type="GPUParticles3D" parent="." unique_id=1752599564]
+[node name="TorchEmbers1" type="GPUParticles3D" parent="." unique_id=1023511082]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.1468124, 2.3, -5.4553022)
 cast_shadow = 0
 amount = 6
@@ -1567,12 +1569,12 @@ visibility_aabb = AABB(-1.5749999, -4.575, -1.5749999, 3.1499999, 9.15, 3.149999
 process_material = SubResource("ParticleProcessMaterial_fdvgr")
 draw_pass_1 = SubResource("QuadMesh_k68hr")
 
-[node name="TorchFlame2" type="MeshInstance3D" parent="." unique_id=1149333673]
+[node name="TorchFlame2" type="MeshInstance3D" parent="." unique_id=1429176569]
 transform = Transform3D(0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6, -2.769046, 2.24, -6.9701066)
 cast_shadow = 0
 mesh = SubResource("CylinderMesh_7044u")
 
-[node name="TorchFire2" type="GPUParticles3D" parent="." unique_id=834428832]
+[node name="TorchFire2" type="GPUParticles3D" parent="." unique_id=702906903]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.769046, 2.14, -6.9701066)
 cast_shadow = 0
 amount = 20
@@ -1582,7 +1584,7 @@ visibility_aabb = AABB(-0.98999995, -0.98999995, -0.98999995, 1.9799999, 1.97999
 process_material = SubResource("ParticleProcessMaterial_1p4pl")
 draw_pass_1 = SubResource("QuadMesh_4nu4u")
 
-[node name="TorchEmbers2" type="GPUParticles3D" parent="." unique_id=1989362485]
+[node name="TorchEmbers2" type="GPUParticles3D" parent="." unique_id=735475144]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.769046, 2.3, -6.9701066)
 cast_shadow = 0
 amount = 6
@@ -1592,12 +1594,12 @@ visibility_aabb = AABB(-1.5749999, -4.575, -1.5749999, 3.1499999, 9.15, 3.149999
 process_material = SubResource("ParticleProcessMaterial_onmjo")
 draw_pass_1 = SubResource("QuadMesh_8wtrp")
 
-[node name="TorchFlame3" type="MeshInstance3D" parent="." unique_id=1477389918]
+[node name="TorchFlame3" type="MeshInstance3D" parent="." unique_id=829732251]
 transform = Transform3D(0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6, -1.3777277e-15, 2.24, -7.5)
 cast_shadow = 0
 mesh = SubResource("CylinderMesh_n3fqf")
 
-[node name="TorchFire3" type="GPUParticles3D" parent="." unique_id=1400889305]
+[node name="TorchFire3" type="GPUParticles3D" parent="." unique_id=1239595945]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.3777277e-15, 2.14, -7.5)
 cast_shadow = 0
 amount = 20
@@ -1607,7 +1609,7 @@ visibility_aabb = AABB(-0.98999995, -0.98999995, -0.98999995, 1.9799999, 1.97999
 process_material = SubResource("ParticleProcessMaterial_8py0b")
 draw_pass_1 = SubResource("QuadMesh_to6uc")
 
-[node name="TorchEmbers3" type="GPUParticles3D" parent="." unique_id=988941113]
+[node name="TorchEmbers3" type="GPUParticles3D" parent="." unique_id=1865672167]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.3777277e-15, 2.3, -7.5)
 cast_shadow = 0
 amount = 6
@@ -1617,12 +1619,12 @@ visibility_aabb = AABB(-1.5749999, -4.575, -1.5749999, 3.1499999, 9.15, 3.149999
 process_material = SubResource("ParticleProcessMaterial_aau45")
 draw_pass_1 = SubResource("QuadMesh_s5f77")
 
-[node name="TorchFlame4" type="MeshInstance3D" parent="." unique_id=1411136285]
+[node name="TorchFlame4" type="MeshInstance3D" parent="." unique_id=1805809219]
 transform = Transform3D(0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6, 2.769046, 2.24, -6.9701066)
 cast_shadow = 0
 mesh = SubResource("CylinderMesh_3miom")
 
-[node name="TorchFire4" type="GPUParticles3D" parent="." unique_id=761615792]
+[node name="TorchFire4" type="GPUParticles3D" parent="." unique_id=1066336730]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.769046, 2.14, -6.9701066)
 cast_shadow = 0
 amount = 20
@@ -1632,7 +1634,7 @@ visibility_aabb = AABB(-0.98999995, -0.98999995, -0.98999995, 1.9799999, 1.97999
 process_material = SubResource("ParticleProcessMaterial_58csh")
 draw_pass_1 = SubResource("QuadMesh_t7ntk")
 
-[node name="TorchEmbers4" type="GPUParticles3D" parent="." unique_id=235203164]
+[node name="TorchEmbers4" type="GPUParticles3D" parent="." unique_id=1585384544]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.769046, 2.3, -6.9701066)
 cast_shadow = 0
 amount = 6
@@ -1642,12 +1644,12 @@ visibility_aabb = AABB(-1.5749999, -4.575, -1.5749999, 3.1499999, 9.15, 3.149999
 process_material = SubResource("ParticleProcessMaterial_qekxs")
 draw_pass_1 = SubResource("QuadMesh_8ho1b")
 
-[node name="TorchFlame5" type="MeshInstance3D" parent="." unique_id=978110787]
+[node name="TorchFlame5" type="MeshInstance3D" parent="." unique_id=183857180]
 transform = Transform3D(0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6, 5.1468124, 2.24, -5.4553022)
 cast_shadow = 0
 mesh = SubResource("CylinderMesh_ggdrr")
 
-[node name="TorchFire5" type="GPUParticles3D" parent="." unique_id=1363760712]
+[node name="TorchFire5" type="GPUParticles3D" parent="." unique_id=218066568]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.1468124, 2.14, -5.4553022)
 cast_shadow = 0
 amount = 20
@@ -1657,7 +1659,7 @@ visibility_aabb = AABB(-0.98999995, -0.98999995, -0.98999995, 1.9799999, 1.97999
 process_material = SubResource("ParticleProcessMaterial_s5uor")
 draw_pass_1 = SubResource("QuadMesh_j8rbb")
 
-[node name="TorchEmbers5" type="GPUParticles3D" parent="." unique_id=703875349]
+[node name="TorchEmbers5" type="GPUParticles3D" parent="." unique_id=520684703]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.1468124, 2.3, -5.4553022)
 cast_shadow = 0
 amount = 6
@@ -1667,12 +1669,12 @@ visibility_aabb = AABB(-1.5749999, -4.575, -1.5749999, 3.1499999, 9.15, 3.149999
 process_material = SubResource("ParticleProcessMaterial_dbk7t")
 draw_pass_1 = SubResource("QuadMesh_nyh87")
 
-[node name="TorchFlame6" type="MeshInstance3D" parent="." unique_id=1655699832]
+[node name="TorchFlame6" type="MeshInstance3D" parent="." unique_id=1898121493]
 transform = Transform3D(0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6, 6.7973084, 2.24, -3.169637)
 cast_shadow = 0
 mesh = SubResource("CylinderMesh_26e3r")
 
-[node name="TorchFire6" type="GPUParticles3D" parent="." unique_id=275884291]
+[node name="TorchFire6" type="GPUParticles3D" parent="." unique_id=453606125]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.7973084, 2.14, -3.169637)
 cast_shadow = 0
 amount = 20
@@ -1682,7 +1684,7 @@ visibility_aabb = AABB(-0.98999995, -0.98999995, -0.98999995, 1.9799999, 1.97999
 process_material = SubResource("ParticleProcessMaterial_xrm4q")
 draw_pass_1 = SubResource("QuadMesh_6m8fd")
 
-[node name="TorchEmbers6" type="GPUParticles3D" parent="." unique_id=1914826915]
+[node name="TorchEmbers6" type="GPUParticles3D" parent="." unique_id=1412273619]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.7973084, 2.3, -3.169637)
 cast_shadow = 0
 amount = 6
@@ -1692,115 +1694,115 @@ visibility_aabb = AABB(-1.5749999, -4.575, -1.5749999, 3.1499999, 9.15, 3.149999
 process_material = SubResource("ParticleProcessMaterial_o6lsj")
 draw_pass_1 = SubResource("QuadMesh_jo6b3")
 
-[node name="TikiRoof" type="MeshInstance3D" parent="." unique_id=434444838]
+[node name="TikiRoof" type="MeshInstance3D" parent="." unique_id=963589646]
 transform = Transform3D(0.70710677, 0, 0.70710677, 0, 1, 0, -0.70710677, 0, 0.70710677, 10.5, 3.4, -6.5)
 mesh = SubResource("CylinderMesh_e5wow")
 
-[node name="Umbrella0" type="MeshInstance3D" parent="." unique_id=838531182]
+[node name="Umbrella0" type="MeshInstance3D" parent="." unique_id=1421951700]
 transform = Transform3D(0.9977855, 0.06651298, 0.00028476678, -0.06651298, 0.9977489, 0.008553149, 0.00028476678, -0.008553149, 0.9999634, -9.368304, 1.9755429, 3.4830647)
 mesh = SubResource("ArrayMesh_f1sph")
 
-[node name="Umbrella1" type="MeshInstance3D" parent="." unique_id=368124405]
+[node name="Umbrella1" type="MeshInstance3D" parent="." unique_id=1783907819]
 transform = Transform3D(0.9991314, 0.04165763, 0.0010434298, -0.04165763, 0.99787796, 0.050041787, 0.0010434298, -0.050041787, 0.9987465, -12.417518, 1.9757984, 5.900917)
 mesh = SubResource("ArrayMesh_jdc5t")
 
-[node name="Umbrella2" type="MeshInstance3D" parent="." unique_id=81962751]
+[node name="Umbrella2" type="MeshInstance3D" parent="." unique_id=1337340103]
 transform = Transform3D(0.9977688, 0.06676305, -0.00019401616, -0.06676305, 0.99775195, -0.0058055045, -0.00019401616, 0.0058055045, 0.99998313, 9.632191, 1.9755489, 4.511495)
 mesh = SubResource("ArrayMesh_y0p3y")
 
-[node name="Umbrella3" type="MeshInstance3D" parent="." unique_id=22676710]
+[node name="Umbrella3" type="MeshInstance3D" parent="." unique_id=2054795807]
 transform = Transform3D(0.999254, 0.038614806, -0.0006386227, -0.038614806, 0.9987073, -0.03305591, -0.0006386227, 0.03305591, 0.9994533, 12.076457, 1.9774405, 7.5654507)
 mesh = SubResource("ArrayMesh_p0txb")
 
-[node name="Umbrella4" type="MeshInstance3D" parent="." unique_id=561708194]
+[node name="Umbrella4" type="MeshInstance3D" parent="." unique_id=348160842]
 transform = Transform3D(0.99459594, -0.10381048, -0.0015010803, 0.10381048, 0.994179, 0.028835474, -0.0015010803, -0.028835474, 0.99958307, -4.705545, 1.9684745, -11.057095)
 mesh = SubResource("ArrayMesh_y4sbe")
 
-[node name="Umbrella5" type="MeshInstance3D" parent="." unique_id=2027026536]
+[node name="Umbrella5" type="MeshInstance3D" parent="." unique_id=1645375056]
 transform = Transform3D(0.9965209, -0.083243035, 0.0040860344, 0.083243035, 0.99172205, -0.09776509, 0.0040860344, 0.09776509, 0.9952011, 2.8351789, 1.9636097, -11.306425)
 mesh = SubResource("ArrayMesh_kgjme")
 
-[node name="Surfboard0" type="MeshInstance3D" parent="." unique_id=1368871765]
+[node name="Surfboard0" type="MeshInstance3D" parent="." unique_id=2117414905]
 transform = Transform3D(0.95872676, -0.009143417, 0.28418207, 0, 0.9994828, 0.032157864, -0.28432912, -0.030830605, 0.9582309, -7.5, 0, 7.5)
 mesh = SubResource("ArrayMesh_gyjmr")
 
-[node name="Surfboard1" type="MeshInstance3D" parent="." unique_id=1204191329]
+[node name="Surfboard1" type="MeshInstance3D" parent="." unique_id=118668660]
 transform = Transform3D(0.9607947, -0.0013071526, 0.27725774, 0, 0.9999889, 0.0047145234, -0.2772608, -0.004529689, 0.960784, -6.8, 0, 7.5)
 mesh = SubResource("ArrayMesh_7ay51")
 
-[node name="Surfboard2" type="MeshInstance3D" parent="." unique_id=1616609846]
+[node name="Surfboard2" type="MeshInstance3D" parent="." unique_id=1823725798]
 transform = Transform3D(0.95650476, 0.017967654, 0.29116288, 0, 0.99810135, -0.06159281, -0.29171675, 0.058913816, 0.95468867, 10.5, 0, -1.5)
 mesh = SubResource("ArrayMesh_4aq2b")
 
-[node name="Surfboard3" type="MeshInstance3D" parent="." unique_id=878549956]
+[node name="Surfboard3" type="MeshInstance3D" parent="." unique_id=1013710661]
 transform = Transform3D(0.99045527, 0.008687529, -0.13756043, 0, 0.9980117, 0.0630287, 0.13783449, -0.062427107, 0.98848593, 11.2, 0, -1.5)
 mesh = SubResource("ArrayMesh_dl632")
 
-[node name="Rock0" type="MeshInstance3D" parent="." unique_id=385724909]
+[node name="Rock0" type="MeshInstance3D" parent="." unique_id=1499086313]
 transform = Transform3D(-3.1055439, 0, 0.41447285, 0, 3.13308, 0, -0.41447285, 0, -3.1055439, -13.3417, -0.10272311, -10.180193)
 mesh = ExtResource("7_3g8q0")
 
-[node name="Rock1" type="MeshInstance3D" parent="." unique_id=1834254269]
+[node name="Rock1" type="MeshInstance3D" parent="." unique_id=1753802189]
 transform = Transform3D(-1.6966238, 0, 5.672955, 0, 5.921229, 0, -5.672955, 0, -1.6966238, 18.630424, -0.041239128, -11.033417)
 mesh = ExtResource("8_1i32m")
 
-[node name="Rock2" type="MeshInstance3D" parent="." unique_id=689452034]
+[node name="Rock2" type="MeshInstance3D" parent="." unique_id=156302965]
 transform = Transform3D(2.506056, 0, 5.301352, 0, 5.8638425, 0, -5.301352, 0, 2.506056, -9.237761, -0.13798289, -12.551087)
 mesh = ExtResource("7_3g8q0")
 
-[node name="Rock3" type="MeshInstance3D" parent="." unique_id=2074773023]
+[node name="Rock3" type="MeshInstance3D" parent="." unique_id=866474566]
 transform = Transform3D(-4.109636, 0, 8.494156, 0, 9.4360895, 0, -8.494156, 0, -4.109636, 13.293167, -0.06447862, -12.302968)
 mesh = ExtResource("8_1i32m")
 
-[node name="Rock4" type="MeshInstance3D" parent="." unique_id=1394624766]
+[node name="Rock4" type="MeshInstance3D" parent="." unique_id=706839256]
 transform = Transform3D(2.0734806, 0, 4.034839, 0, 4.5364356, 0, -4.034839, 0, 2.0734806, -16.740726, -0.21236439, -10.524545)
 mesh = ExtResource("7_3g8q0")
 
-[node name="Rock5" type="MeshInstance3D" parent="." unique_id=748164097]
+[node name="Rock5" type="MeshInstance3D" parent="." unique_id=652659125]
 transform = Transform3D(4.452268, 0, -8.353374, 0, 9.465809, 0, 8.353374, 0, 4.452268, 14.300747, -0.088940695, -12.292683)
 mesh = ExtResource("8_1i32m")
 
-[node name="Rock6" type="MeshInstance3D" parent="." unique_id=1407903204]
+[node name="Rock6" type="MeshInstance3D" parent="." unique_id=793366814]
 transform = Transform3D(-0.5511577, 0, 4.005213, 0, 4.0429573, 0, -4.005213, 0, -0.5511577, -10.738893, -0.12059867, -13.587466)
 mesh = ExtResource("7_3g8q0")
 
-[node name="Rock7" type="MeshInstance3D" parent="." unique_id=931301902]
+[node name="Rock7" type="MeshInstance3D" parent="." unique_id=1035815736]
 transform = Transform3D(2.037541, 0, 6.5059543, 0, 6.8175516, 0, -6.5059543, 0, 2.037541, 10.211586, -0.062519334, -10.993046)
 mesh = ExtResource("8_1i32m")
 
-[node name="Rock8" type="MeshInstance3D" parent="." unique_id=297309147]
+[node name="Rock8" type="MeshInstance3D" parent="." unique_id=598492811]
 transform = Transform3D(3.4482515, 0, -0.17477688, 0, 3.452678, 0, 0.17477688, 0, 3.4482515, -21.74704, -0.09480482, -11.572807)
 mesh = ExtResource("7_3g8q0")
 
-[node name="Rock9" type="MeshInstance3D" parent="." unique_id=660551086]
+[node name="Rock9" type="MeshInstance3D" parent="." unique_id=1257253391]
 transform = Transform3D(5.6779046, 0, 4.1409545, 0, 7.027525, 0, -4.1409545, 0, 5.6779046, 17.547152, -0.054036617, -12.011835)
 mesh = ExtResource("8_1i32m")
 
-[node name="Rock10" type="MeshInstance3D" parent="." unique_id=656658079]
+[node name="Rock10" type="MeshInstance3D" parent="." unique_id=1671987264]
 transform = Transform3D(2.543304, 0, 6.4329023, 0, 6.9174147, 0, -6.4329023, 0, 2.543304, -16.004292, -0.18017383, -14.454404)
 mesh = ExtResource("7_3g8q0")
 
-[node name="Rock11" type="MeshInstance3D" parent="." unique_id=1967968703]
+[node name="Rock11" type="MeshInstance3D" parent="." unique_id=1693300235]
 transform = Transform3D(-8.152218, 0, 4.158311, 0, 9.151514, 0, -4.158311, 0, -8.152218, 17.009188, -0.050095484, -11.433536)
 mesh = ExtResource("8_1i32m")
 
-[node name="Shell0" type="MeshInstance3D" parent="." unique_id=1371701479]
+[node name="Shell0" type="MeshInstance3D" parent="." unique_id=2021452493]
 transform = Transform3D(-0.9627016, 0.19999294, 0.1822316, 0.20339872, 0.979096, 0, -0.17842223, 0.037065674, -0.9832556, -4.088925, 0, -10.886945)
 mesh = ExtResource("9_i18ft")
 
-[node name="Shell1" type="MeshInstance3D" parent="." unique_id=629720845]
+[node name="Shell1" type="MeshInstance3D" parent="." unique_id=1442257181]
 transform = Transform3D(-0.96707124, 0.2441431, 0.071884006, 0.24477634, 0.9695796, 0, -0.06969726, 0.017595503, -0.997413, -1.1799216, 0, -11.283263)
 mesh = ExtResource("9_i18ft")
 
-[node name="Shell2" type="MeshInstance3D" parent="." unique_id=1189100674]
+[node name="Shell2" type="MeshInstance3D" parent="." unique_id=1852412807]
 transform = Transform3D(0.55322766, 0.00066677004, 0.8330298, -0.0012052354, 0.9999993, 0, -0.8330292, -0.0010039969, 0.5532281, -5.30986, 0, -10.544115)
 mesh = ExtResource("9_i18ft")
 
-[node name="Shell3" type="MeshInstance3D" parent="." unique_id=1655780967]
+[node name="Shell3" type="MeshInstance3D" parent="." unique_id=2067412896]
 transform = Transform3D(0.36441272, 0.08131234, 0.9276808, -0.21777704, 0.9759985, 0, -0.90541506, -0.20202757, 0.37337425, 5.960375, 0, -10.134437)
 mesh = ExtResource("9_i18ft")
 
-[node name="Crowd" type="MultiMeshInstance3D" parent="." unique_id=1244501690]
+[node name="Crowd" type="MultiMeshInstance3D" parent="." unique_id=76544637]
 script = ExtResource("10_sc6og")
 rows = 3
 tier_start = 8.6
@@ -1819,7 +1821,7 @@ people_kind = "pedestrian"
 people_sky_light = Color(0.75, 0.78, 0.85, 1)
 people_ground_light = Color(0.55, 0.45, 0.32, 1)
 
-[node name="SeaSpray" type="GPUParticles3D" parent="." unique_id=1912746242]
+[node name="SeaSpray" type="GPUParticles3D" parent="." unique_id=1051480224]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, -14)
 cast_shadow = 0
 amount = 36
@@ -1829,7 +1831,7 @@ visibility_aabb = AABB(-30, -3.4499998, -4.2, 60, 6.8999996, 8.4)
 process_material = SubResource("ParticleProcessMaterial_hkbrn")
 draw_pass_1 = SubResource("QuadMesh_1tdt6")
 
-[node name="Sound" type="Node" parent="." unique_id=1262097959]
+[node name="Sound" type="Node" parent="." unique_id=1137902828]
 script = ExtResource("11_2xwkf")
 loops = Array[AudioStream]([ExtResource("12_0xxfs"), ExtResource("13_4w0us")])
 loop_volumes = PackedFloat32Array(-9, -25)
@@ -1838,60 +1840,60 @@ sprinkle_volume = -15.0
 reaction = ExtResource("16_o6084")
 reaction_volume = -8.0
 
-[node name="Geometry" type="Node3D" parent="." unique_id=1826836384]
+[node name="Geometry" type="Node3D" parent="." unique_id=1549244316]
 
-[node name="Batch0" type="MeshInstance3D" parent="Geometry" unique_id=2090170053]
+[node name="Batch0" type="MeshInstance3D" parent="Geometry" unique_id=2033813511]
 mesh = SubResource("ArrayMesh_0uvgn")
 
-[node name="Batch1" type="MeshInstance3D" parent="Geometry" unique_id=855215729]
+[node name="Batch1" type="MeshInstance3D" parent="Geometry" unique_id=2046868663]
 mesh = SubResource("ArrayMesh_e5vxx")
 
-[node name="Batch2" type="MeshInstance3D" parent="Geometry" unique_id=86953061]
+[node name="Batch2" type="MeshInstance3D" parent="Geometry" unique_id=467306537]
 mesh = SubResource("ArrayMesh_x4tml")
 
-[node name="Batch3" type="MeshInstance3D" parent="Geometry" unique_id=1179011772]
+[node name="Batch3" type="MeshInstance3D" parent="Geometry" unique_id=1291683016]
 mesh = SubResource("ArrayMesh_1u0y7")
 
-[node name="Batch4" type="MeshInstance3D" parent="Geometry" unique_id=1542770192]
+[node name="Batch4" type="MeshInstance3D" parent="Geometry" unique_id=423449939]
 mesh = SubResource("ArrayMesh_gkcxt")
 
-[node name="Batch5" type="MeshInstance3D" parent="Geometry" unique_id=1501123517]
+[node name="Batch5" type="MeshInstance3D" parent="Geometry" unique_id=122691872]
 mesh = SubResource("ArrayMesh_oxd3k")
 
-[node name="Batch6" type="MeshInstance3D" parent="Geometry" unique_id=1309552639]
+[node name="Batch6" type="MeshInstance3D" parent="Geometry" unique_id=448043347]
 mesh = SubResource("ArrayMesh_xehg4")
 
-[node name="Batch7" type="MeshInstance3D" parent="Geometry" unique_id=555069215]
+[node name="Batch7" type="MeshInstance3D" parent="Geometry" unique_id=2111289403]
 mesh = SubResource("ArrayMesh_lbwu1")
 
-[node name="Batch8" type="MeshInstance3D" parent="Geometry" unique_id=1380693755]
+[node name="Batch8" type="MeshInstance3D" parent="Geometry" unique_id=667507880]
 mesh = SubResource("ArrayMesh_xao68")
 
-[node name="Batch9" type="MeshInstance3D" parent="Geometry" unique_id=448000645]
+[node name="Batch9" type="MeshInstance3D" parent="Geometry" unique_id=864443783]
 mesh = SubResource("ArrayMesh_5d1u2")
 
-[node name="Batch10" type="MeshInstance3D" parent="Geometry" unique_id=11370074]
+[node name="Batch10" type="MeshInstance3D" parent="Geometry" unique_id=398092817]
 mesh = SubResource("ArrayMesh_bfl1s")
 
-[node name="Batch11" type="MeshInstance3D" parent="Geometry" unique_id=1843977268]
+[node name="Batch11" type="MeshInstance3D" parent="Geometry" unique_id=1335480880]
 mesh = SubResource("ArrayMesh_u1hrr")
 
-[node name="Batch12" type="MeshInstance3D" parent="Geometry" unique_id=157810652]
+[node name="Batch12" type="MeshInstance3D" parent="Geometry" unique_id=1884870995]
 mesh = SubResource("ArrayMesh_acp5m")
 
-[node name="Batch13" type="MeshInstance3D" parent="Geometry" unique_id=1985691055]
+[node name="Batch13" type="MeshInstance3D" parent="Geometry" unique_id=86217958]
 mesh = SubResource("ArrayMesh_yctfh")
 
-[node name="PalmFronds" type="MeshInstance3D" parent="." unique_id=2022526934]
+[node name="PalmFronds" type="MeshInstance3D" parent="." unique_id=1622030300]
 mesh = SubResource("ArrayMesh_u3v0a")
 
-[node name="SandShadows" type="MeshInstance3D" parent="." unique_id=1182500283]
+[node name="SandShadows" type="MeshInstance3D" parent="." unique_id=1442038007]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.003, -2)
 cast_shadow = 0
 mesh = SubResource("PlaneMesh_ifery")
 
-[node name="P1Spawn" type="Marker3D" parent="." unique_id=266153729]
+[node name="P1Spawn" type="Marker3D" parent="." unique_id=958423926]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, 0)
 
-[node name="P2Spawn" type="Marker3D" parent="." unique_id=591712548]
+[node name="P2Spawn" type="Marker3D" parent="." unique_id=781468701]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 0)

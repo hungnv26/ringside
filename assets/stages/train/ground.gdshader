@@ -35,7 +35,11 @@ float sleeper(vec2 p, float center) {
 void fragment() {
 	vec2 p = vec2(world.x + scroll, world.z);
 	float track = max(bed(p.y, 0.0), bed(p.y, track2_z));
-	vec3 grass = texture(grass_albedo, p / 12.0).rgb * grass_tint.rgb;
+	// Two samples at different scales and angles, so the 12 m tile doesn't show its repeat
+	// (Phase 6). A 3-4-5 rotation and a 24 m tile: one wrap (2400 m) moves the second
+	// sample by whole tiles (60 and 80), so wrapping `scroll` still never shows a jump.
+	vec2 q = mat2(vec2(0.6, 0.8), vec2(-0.8, 0.6)) * p;
+	vec3 grass = mix(texture(grass_albedo, p / 12.0).rgb, texture(grass_albedo, q / 24.0).rgb, 0.45) * grass_tint.rgb;
 	// A patchwork of fields: 60 m along the line (40 per wrap, so it repeats seamlessly),
 	// 45 m deep, each a crop picked by a hash: golden wheat, green, ploughed earth or
 	// meadow, with crop rows across the line (they make the speed visible) and dark
@@ -46,7 +50,10 @@ void fragment() {
 	vec3 crop = h < 0.3 ? vec3(1.45, 1.15, 0.55) : (h < 0.6 ? vec3(0.8, 1.15, 0.6) : (h < 0.78 ? vec3(0.95, 0.68, 0.48) : vec3(1.0)));
 	float verge = 1.0 - smoothstep(7.0, 9.0, abs(p.y - track2_z * 0.5));
 	crop = mix(crop, vec3(1.0), verge);
-	float rows = 0.88 + 0.12 * sin(p.x * 4.2);
+	// Crop rows, faded out where a pixel covers more than half a row (far away), so they
+	// don't alias into stripes (Phase 6).
+	float row_fade = 1.0 - smoothstep(0.25, 0.6, fwidth(p.x) * 4.2 / 6.2832);
+	float rows = 1.0 - 0.12 * row_fade * (0.5 - 0.5 * sin(p.x * 4.2));
 	grass *= crop * mix(rows, 1.0, verge);
 	float edge_x = min(fract(p.x / 60.0), 1.0 - fract(p.x / 60.0)) * 60.0;
 	float edge_z = min(fract((p.y + 6.0) / 45.0), 1.0 - fract((p.y + 6.0) / 45.0)) * 45.0;

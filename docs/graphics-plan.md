@@ -438,3 +438,102 @@ neighbours), plus the old Phase 2 fighters.
 Flaky test found on the way: the Courtyard's "pigeons come back" check failed when the
 random jet flew over during its 22 s wait and scattered them again; the test now holds the
 jet off while it waits.
+
+### Phase 4: effects and motion (built 2026-10-31)
+
+- **Textures** (`tools/make_fx_art.py`, `assets/fx/`): a spark streak, a 16-frame impact
+  burst (hot core, uneven rays, a shock ring), a 16-frame smoke puff shaded from above,
+  and a footprint pressed into sand.
+- **Hits** (`scripts/fx/fight_fx.gd`): sparks are streaks on crossed quads stretched along
+  their flight and pulled into arcs; the impact burst is the flipbook, played over 0.2 s;
+  both scale with the move's damage (0.6 for a jab to 2.2), counters 1.25 times bigger.
+  Heavy hits and counters puff lit smoke.
+- **Impact frames** (`scripts/fx/screen_fx.gd`, `assets/fx/screen_fx.gdshader`, a
+  full-screen pass under the HUD that is hidden while idle): super finishers, K.O.s and
+  heavy counters get two frames of a hard two-tone frame and a heat-distortion shockwave;
+  other heavy hits and wall splats get the shockwave alone. Camera shake already scales
+  with the hit's hitstop.
+- **Supers**: the close-up is now a slow push-in through the freeze, everything but the
+  fighter darkens (a soft ellipse kept bright around them), and the finishing hit plays
+  in slow motion for a moment (not online).
+- **Dust and debris**: knockdowns and wall splats raise smoke-textured dust in the stage's
+  own colour (`Stage.dust_color`, set by each builder) and throw lit grit and pebbles. On
+  the Beach (`Stage.footprints`) the fighters leave footprints that fade over 12 s.
+- **K.O. replay** (`scripts/fx/ko_replay.gd`): the last 3.5 s of both skeletons are kept
+  in a ring buffer; after a K.O. and its fall, the moment from 1.4 s before the K.O. plays
+  at half speed, the camera orbiting low around it, letterboxed with a "REPLAY" tag, the
+  K.O. burst and impact frame firing again as it lands. Then the round card. K.O. rounds
+  hold `FightManager.KO_REPLAY_TICKS` (3.5 s) longer in every mode, part of the saved
+  state, so match timing, rollback and saved replays stay deterministic; no replay
+  shows online, in training, in replays or with the action camera off. The coach card
+  waits for the replay, and its screenshot moves with it.
+- The camera's Off mode also turns the screen effects off (the calmer setting).
+- `tools/render_fx_check.gd` fires each effect in a live CPU fight and saves frames:
+  `docs/look/phase4/`.
+- **Cost**: nothing measurable when idle (Ring 70 fps before and after in an A/B run).
+- **Not done**: no per-surface footprints on gravel (the Temple fights on stone).
+
+### Phase 5: HUD and presentation (built 2026-10-31)
+
+- **Typeface**: Barlow Condensed (SIL Open Font Licence, `assets/ui/fonts/` with its
+  licence) is the project UI theme (`assets/ui/theme.tres`, built by
+  `tools/build_ui_theme.gd`, `gui/theme/custom`): SemiBold for labels, Bold for buttons,
+  the system fonts as a fallback for ★ ◆ and arrows.
+- **One look** (`scripts/ui/hud_style.gd`): dark translucent panels with a thin warm edge,
+  gold as the one accent, shared by the fight HUD and the coach overlay.
+- **Health bars**: a lit gradient over a dark slab; fresh damage shows white for a moment
+  (the chip) before the red trail drains; below a quarter health the bar turns
+  red-orange.
+- **Portraits** (the MakeHuman renders, `CharacterData.portrait`) in framed squares at the
+  outer ends of the top row, P2's mirrored.
+- **Timer, pips, meters**: a framed timer in the accent; square pips, gold when won;
+  gradient super meters, gold when full, no longer pulsing (no moving lights on the HUD).
+- **Combo counter**: hits and the damage the combo has done, real numbers.
+- **Coach overlay**: corner talk on panels, chips as tags, a gold read badge, the round
+  card restyled to match.
+- **Round intro**: an opening crane shot of the stage with its name and line in the lower
+  third, then each fighter as before (`FightIntro.STAGE_SECONDS`).
+- Captures: `tools/render_hud_check.gd`, `tools/render_coach_overlay_check.gd`;
+  `docs/look/phase5/`.
+
+### Phase 6: polish loop (first pass, 2026-10-31)
+
+- **Stage review** against the Phase 0 stills: `docs/look/phase6_before_now.jpg` (every
+  stage, before and now, from the fight camera). Fixed from the review:
+  - Express: the crop rows aliased into stripes across the distant fields; they now fade
+    out where a pixel covers more than half a row, and a second, rotated grass sample (a
+    3-4-5 rotation, 24 m tile, so the 2400 m scenery wrap stays seamless) hides the
+    12 m tile's repeat.
+  - Courtyard: the dawn floor read black. Lighter tiles, a wider and stronger dawn fill,
+    more dawn skylight; the round-by-round sunrise is unchanged.
+  - Courtyard: the real neighbours logged an error (a MultiMesh colour flag set after its
+    instances existed); fixed.
+- **Thumbnails**: the stage-select thumbnails are re-rendered from the Phase 3 stages.
+  Portraits and super cut-ins were re-rendered from the MakeHuman fighters in Phase 2 and
+  are current.
+- **Credits**: the in-game credits roll now lists MakeHuman (fighters, crowds,
+  students), the Poly Haven props and plants by author, the cherry tree's source, the
+  fonts (Barlow Condensed, Yuji Syuku for the scroll), and the original effects and art;
+  `assets/CREDITS.md` has every file.
+- **Frame rate at High** (3200 × 1800 window, one run, the HUD showing, other apps open):
+
+  | Stage | fps |
+  |---|---|
+  | Beach | 80 |
+  | Market | 75 |
+  | Express | 72 |
+  | Courtyard | 70 |
+  | Ring | 68 |
+  | Dojo | 68 |
+  | Rooftop | 64 |
+  | Temple | 59 |
+
+  Runs drift by 2–3 fps over a long session (the Ring measured 70, then 68, then 67 within
+  the hour with nothing changed). The Temple sits at the 60 fps line: 60–61 without the
+  HUD, 59 with it; the Phase 5 HUD costs about 0.4 ms there, spread over its parts (no
+  single label, bar, portrait or the screen-effects layer accounts for it). Coarser
+  blossom and cheaper fallen petals were tried and made no difference, so they were left
+  as they are.
+- **Still open for later passes**: the Temple's margin; the Express fields remain a
+  tiled texture with crop patches, and its coaches and the Beach's tiki bar and tower are
+  the builders' shapes; the Courtyard's tenements are flat boxes; footprints only on sand.

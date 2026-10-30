@@ -12,9 +12,13 @@ signal main_menu_pressed
 
 const TRAIL_DELAY := 0.45
 const TRAIL_DRAIN_TIME := 0.35
-const PIP_SIZE := Vector2(22, 22)
-const PIP_OFF := Color(0.15, 0.15, 0.18)
-const PIP_ON := Color(1.0, 0.8, 0.15)
+const PIP_SIZE := Vector2(18, 18)
+const PIP_OFF := Color(0.1, 0.1, 0.12)
+const PIP_ON := HudStyle.ACCENT
+## Fresh damage shows white on the bar for a moment before the red trail takes over.
+const CHIP_SECONDS := 0.16
+const LOW_HEALTH := 0.25
+const PORTRAIT_SIZE := Vector2(104, 104)
 const LEVEL_NAMES := ["High", "Mid", "Low", "Overhead"]
 const METER_SIZE := Vector2(360, 18)
 const METER_COLOR := Color(0.25, 0.6, 1.0)
@@ -126,8 +130,8 @@ func setup(p1: Fighter, p2: Fighter, rounds_to_win: int, p2_tag: String = "CPU")
 	_bind_meter(p1, 0)
 	_bind_meter(p2, 1)
 	# A combo is shown on the attacker's side, so P2's hits taken appear under P1.
-	p2.combo_changed.connect(_on_combo_changed.bind(p1_combo))
-	p1.combo_changed.connect(_on_combo_changed.bind(p2_combo))
+	p2.combo_changed.connect(_on_combo_changed.bind(p1_combo, p2))
+	p1.combo_changed.connect(_on_combo_changed.bind(p2_combo, p1))
 	for pips in [p1_pips, p2_pips]:
 		for i in rounds_to_win:
 			pips.add_child(_make_pip())
@@ -137,6 +141,140 @@ func setup(p1: Fighter, p2: Fighter, rounds_to_win: int, p2_tag: String = "CPU")
 	move_list_label.text = _move_list_text(p1.data)
 	for label in [p1_combo, p2_combo, p1_note, p2_note, center_label, sub_label]:
 		label.text = ""
+	_style(p1, p2)
+
+
+# --- Look (Phase 5) ---------------------------------------------------------------
+
+## The HUD's look (HudStyle): gradient health bars over a dark slab, a white flash for
+## fresh damage before the red trail, the bar turning red-orange below a quarter health,
+## portraits beside the bars, a framed timer, styled pips and combo counter.
+func _style(p1: Fighter, p2: Fighter) -> void:
+	for side in 2:
+		var health: ProgressBar = p1_health if side == 0 else p2_health
+		var trail: ProgressBar = p1_trail if side == 0 else p2_trail
+		var back := HudStyle.panel(Vector2.ZERO, 2, 3, Color(0.04, 0.04, 0.05, 0.88))
+		back.border_color = Color(0.0, 0.0, 0.0, 0.95)
+		trail.add_theme_stylebox_override("background", back)
+		var red := StyleBoxFlat.new()
+		red.bg_color = HudStyle.TRAIL
+		trail.add_theme_stylebox_override("fill", red)
+		health.add_theme_stylebox_override("fill", HudStyle.bar_fill(HudStyle.HEALTH_TOP, HudStyle.HEALTH_BOTTOM))
+		# The white chip: the just-lost slice, between the trail and the health.
+		var chip := ProgressBar.new()
+		chip.name = "Chip"
+		chip.show_percentage = false
+		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		chip.fill_mode = health.fill_mode
+		chip.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		chip.offset_left = health.offset_left
+		chip.offset_top = health.offset_top
+		chip.offset_right = health.offset_right
+		chip.offset_bottom = health.offset_bottom
+		chip.add_theme_stylebox_override("background", StyleBoxEmpty.new())
+		var white := StyleBoxFlat.new()
+		white.bg_color = Color(1.0, 0.98, 0.94)
+		chip.add_theme_stylebox_override("fill", white)
+		chip.max_value = health.max_value
+		chip.value = health.value
+		chip.modulate.a = 0.0
+		health.get_parent().add_child(chip)
+		health.get_parent().move_child(chip, health.get_index())
+		_chips.append(chip)
+		var name_label: Label = p1_name if side == 0 else p2_name
+		name_label.add_theme_font_size_override("font_size", 30)
+		var combo: Label = p1_combo if side == 0 else p2_combo
+		combo.add_theme_color_override("font_color", HudStyle.ACCENT)
+		combo.add_theme_font_size_override("font_size", 50)
+		combo.add_theme_constant_override("line_spacing", -14)
+	_fighters = [p1, p2]
+	for fighter in [p1, p2]:
+		var side := fighters_side(fighter, p1)
+		_hp[side] = fighter.health
+		fighter.health_changed.connect(_on_health_look.bind(side))
+	_add_portraits(p1, p2)
+	var timer_panel := timer_label.get_parent() as Control
+	if timer_panel is PanelContainer:
+		var box := HudStyle.panel(Vector2(16, 0), 2, 4, Color(0.04, 0.045, 0.06, 0.9))
+		box.border_color = HudStyle.ACCENT.darkened(0.25)
+		timer_panel.add_theme_stylebox_override("panel", box)
+	timer_label.add_theme_font_size_override("font_size", 60)
+	for bar in _meters:
+		bar.add_theme_stylebox_override("fill", HudStyle.bar_fill(Color(0.42, 0.72, 1.0), Color(0.12, 0.36, 0.86)))
+
+
+static func fighters_side(fighter: Fighter, p1: Fighter) -> int:
+	return 0 if fighter == p1 else 1
+
+
+func _side_of(fighter: Fighter) -> int:
+	return _fighters.find(fighter)
+
+
+var _fighters: Array[Fighter] = []
+
+
+var _chips: Array[ProgressBar] = []
+
+
+## Health look: the white chip over the lost slice, then fade; red-orange when low.
+func _on_health_look(current: int, maximum: int, side: int) -> void:
+	var previous: int = _hp[side] if _hp[side] >= 0 else current
+	_health_before[side] = previous
+	_hp[side] = current
+	var health: ProgressBar = p1_health if side == 0 else p2_health
+	var low := current <= maximum * LOW_HEALTH
+	health.add_theme_stylebox_override("fill", HudStyle.bar_fill(
+		HudStyle.HEALTH_LOW_TOP if low else HudStyle.HEALTH_TOP, HudStyle.HEALTH_LOW_BOTTOM if low else HudStyle.HEALTH_BOTTOM))
+	if side >= _chips.size():
+		return
+	var chip := _chips[side]
+	chip.max_value = maximum
+	if chip.has_meta("tween"):
+		(chip.get_meta("tween") as Tween).kill()
+	if current >= previous: # healed, or a new round
+		chip.value = current
+		chip.modulate.a = 0.0
+		return
+	chip.value = maxf(chip.value, previous) if chip.modulate.a > 0.01 else float(previous)
+	chip.modulate.a = 1.0
+	var tween := create_tween()
+	tween.tween_interval(CHIP_SECONDS)
+	tween.tween_property(chip, "modulate:a", 0.0, 0.18)
+	tween.tween_callback(func() -> void: chip.value = current)
+	chip.set_meta("tween", tween)
+
+
+var _hp := [-1, -1] # last health seen per side
+var _health_before := [0, 0] # each side's health before its latest change
+
+
+## Portraits (CharacterData.portrait, rendered by tools/render_portraits.gd) in framed
+## squares at the outer ends of the top row, P2's mirrored to face P1.
+func _add_portraits(p1: Fighter, p2: Fighter) -> void:
+	var top := %Top as HBoxContainer
+	for side in 2:
+		var fighter: Fighter = p1 if side == 0 else p2
+		var texture: Texture2D = fighter.data.get("portrait")
+		if texture == null:
+			continue
+		var frame := PanelContainer.new()
+		frame.name = "P%dPortrait" % (side + 1)
+		var box := HudStyle.panel(Vector2(2, 2), 2, 4, Color(0.08, 0.085, 0.1, 0.92))
+		frame.add_theme_stylebox_override("panel", box)
+		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		frame.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		var face := TextureRect.new()
+		face.texture = texture
+		face.custom_minimum_size = PORTRAIT_SIZE
+		face.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		face.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		face.flip_h = side == 1
+		face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		frame.add_child(face)
+		top.add_child(frame)
+		top.move_child(frame, 0 if side == 0 else top.get_child_count() - 1)
+	top.add_theme_constant_override("separation", 18)
 
 
 # --- Announcements & timer -------------------------------------------------------
@@ -177,7 +315,9 @@ func set_round_wins(wins: Array[int]) -> void:
 			# P2's pips fill from the right edge inward.
 			var index := i if side == 0 else pips.get_child_count() - 1 - i
 			var lit := index < wins[side]
-			((pips.get_child(i) as Panel).get_theme_stylebox("panel") as StyleBoxFlat).bg_color = PIP_ON if lit else PIP_OFF
+			var style := (pips.get_child(i) as Panel).get_theme_stylebox("panel") as StyleBoxFlat
+			style.bg_color = PIP_ON if lit else PIP_OFF
+			style.border_color = HudStyle.ACCENT.lightened(0.35) if lit else HudStyle.PANEL_EDGE.lightened(0.15)
 
 
 ## Short callout ("COUNTER", "TECH") under a player's side that fades out.
@@ -421,7 +561,8 @@ func _bind_meter(fighter: Fighter, side: int) -> void:
 		bar.max_value = maximum
 		bar.value = current
 		var full := current >= maximum
-		(bar.get_theme_stylebox("fill") as StyleBoxFlat).bg_color = METER_FULL_COLOR if full else METER_COLOR
+		bar.add_theme_stylebox_override("fill", HudStyle.bar_fill(Color(1.0, 0.86, 0.4), Color(0.9, 0.6, 0.12)) if full
+			else HudStyle.bar_fill(Color(0.42, 0.72, 1.0), Color(0.12, 0.36, 0.86)))
 		var text := "SUPER  ★ READY" if full else "SUPER"
 		if has_focus:
 			text += "    FOCUS " + "◆".repeat(fighter.focus) + "◇".repeat(Fighter.MAX_FOCUS - fighter.focus)
@@ -434,10 +575,7 @@ func _bind_meter(fighter: Fighter, side: int) -> void:
 
 
 func _process(_delta: float) -> void:
-	# Full meters pulse.
-	var pulse := 0.75 + 0.25 * sin(Time.get_ticks_msec() * 0.008)
-	for bar in _meters:
-		bar.self_modulate = Color(pulse + 0.25, pulse + 0.25, pulse + 0.25) if bar.value >= bar.max_value else Color.WHITE
+	pass # (full meters used to pulse; the HUD has no moving lights, Phase 5)
 
 
 # --- Victory cinematic ------------------------------------------------------------
@@ -485,6 +623,35 @@ func _animate_cinematic(amount: float) -> void:
 	_cinematic_tween.tween_property(debug_label, "modulate:a", 0.0, 0.35)
 	_cinematic_tween.tween_property(_meter_root, "modulate:a", 0.0, 0.35)
 	_cinematic_tween.tween_property(_score_label, "modulate:a", 0.0, 0.35)
+
+
+## The K.O. replay (KOReplay): letterbox bars in, the fight HUD out, a small "REPLAY" tag
+## in the top bar. `on` false puts the HUD back.
+func show_replay(on: bool) -> void:
+	if _replay_label == null:
+		_replay_label = Label.new()
+		_replay_label.name = "ReplayLabel"
+		_replay_label.text = "REPLAY"
+		_replay_label.add_theme_font_size_override("font_size", 34)
+		_replay_label.add_theme_color_override("font_color", Color(0.92, 0.92, 0.9))
+		_replay_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+		_replay_label.position = Vector2(48, 22)
+		add_child(_replay_label)
+	_replay_label.visible = on
+	announce("")
+	if on:
+		_animate_cinematic(1.0)
+	else:
+		if _cinematic_tween:
+			_cinematic_tween.kill()
+		_set_letterbox(0.0)
+		%Top.modulate.a = 1.0
+		debug_label.modulate.a = 1.0
+		_meter_root.modulate.a = 1.0
+		_score_label.modulate.a = 1.0
+
+
+var _replay_label: Label
 
 
 ## 0..1: bars cover 11% of the screen height each at 1.
@@ -584,8 +751,21 @@ func _bind_health(fighter: Fighter, bar: ProgressBar, trail: ProgressBar) -> voi
 		_trail_tweens[trail] = tween)
 
 
-func _on_combo_changed(hits: int, label: Label) -> void:
-	label.text = "%d HITS" % hits if hits >= 2 else ""
+## The combo counter on the attacker's side: hits, and the damage the combo has done
+## (the defender's health when it started, less now).
+func _on_combo_changed(hits: int, label: Label, defender: Fighter) -> void:
+	if hits == 0:
+		_combo_start.erase(defender)
+	elif not _combo_start.has(defender): # the combo's first hit changed the health just before this
+		_combo_start[defender] = _health_before[_side_of(defender)] if _side_of(defender) >= 0 else defender.health
+	if hits < 2:
+		label.text = ""
+		return
+	var start: int = _combo_start.get(defender, defender.health)
+	label.text = "%d HITS\n%d DAMAGE" % [hits, maxi(start - defender.health, 0)]
+
+
+var _combo_start := {}
 
 
 func _make_pip() -> Panel:
@@ -594,9 +774,9 @@ func _make_pip() -> Panel:
 	pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var style := StyleBoxFlat.new()
 	style.bg_color = PIP_OFF
-	style.set_corner_radius_all(int(PIP_SIZE.x / 2))
+	style.set_corner_radius_all(3) # small squares, set on their corner by the row
 	style.set_border_width_all(2)
-	style.border_color = Color.BLACK
+	style.border_color = HudStyle.PANEL_EDGE.lightened(0.15)
 	pip.add_theme_stylebox_override("panel", style)
 	return pip
 

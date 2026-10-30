@@ -75,6 +75,17 @@ const MODE_SCALES := [0.0, 0.5, 1.0]
 ## small so the opponent, standing in front, doesn't block the shot.
 @export var super_front := 0.25
 
+@export_group("Super finisher slow motion")
+## A super's finishing hit plays in slow motion for a moment (real seconds).
+@export var finisher_time_scale := 0.35
+@export var finisher_slowmo_seconds := 0.45
+
+@export_group("K.O. replay")
+## Orbit radius, height and speed (degrees per real second) around the K.O.
+@export var replay_distance := 3.6
+@export var replay_height := 0.75
+@export var replay_orbit_speed := 9.0
+
 @export_group("KO slow motion")
 @export var ko_time_scale := 0.3
 @export var ko_slowmo_seconds := 0.6
@@ -136,6 +147,8 @@ func snap() -> void:
 	victory_target = null
 	intro_target = null
 	_super_time = 0.0
+	replay_center = Vector3.INF
+	stage_shot_time = -1.0
 	Engine.time_scale = normal_time_scale
 	var targets := _compute_targets(0.0)
 	_base_position = targets.position
@@ -163,6 +176,12 @@ func _process(scaled_delta: float) -> void:
 		return
 	if intro_target:
 		_process_intro(delta)
+		return
+	if stage_shot_time >= 0.0:
+		_process_stage_shot(delta)
+		return
+	if replay_center != Vector3.INF:
+		_process_replay(delta)
 		return
 	_update_intensity(delta)
 	var strength := _fit_strength(_strength)
@@ -201,8 +220,10 @@ func _super_targets() -> Dictionary:
 	var chest := _super_fighter.get_global_transform_interpolated().origin + Vector3.UP * 1.2
 	var side: Vector3 = manager.view_dir
 	var dir := (side * (1.0 - super_front) + _super_fighter.forward * super_front).normalized()
+	# A slow push-in through the freeze: from a step further out to the close-up.
+	var progress: float = smoothstep(0.0, 1.0, 1.0 - _super_time / maxf(super_seconds, 0.01))
 	return {
-		position = chest + dir * super_distance + Vector3.UP * 0.15,
+		position = chest + dir * lerpf(super_distance + 0.9, super_distance - 0.2, progress) + Vector3.UP * 0.15,
 		look = chest + _super_fighter.forward * 0.35,
 		fov = super_fov,
 	}
@@ -213,6 +234,7 @@ func _super_targets() -> Dictionary:
 ## Cuts to a 3/4 front shot of `fighter` that pushes in toward a close-up (FightIntro).
 ## snap() ends it.
 func start_intro(fighter: Fighter) -> void:
+	stage_shot_time = -1.0
 	intro_target = fighter
 	_intro_time = 0.0
 	var shot := _intro_shot(0.0)
@@ -246,6 +268,45 @@ func _intro_shot(time: float) -> Dictionary:
 		position = origin + dir * lerpf(3.0, 2.1, e) + Vector3.UP * lerpf(1.25, 1.5, e),
 		look = origin + Vector3.UP * lerpf(1.25, 1.45, e),
 		fov = lerpf(40.0, 33.0, e),
+	}
+
+
+# --- Stage shot (pre-fight intro) ----------------------------------------------------
+
+## The intro's opening shot (FightIntro): a crane sweep from high and wide on one side of
+## the stage down toward the fight camera's side. snap() ends it.
+var stage_shot_time := -1.0
+
+
+func start_stage_shot() -> void:
+	stage_shot_time = 0.0
+	var shot := _stage_shot(0.0)
+	_base_position = shot.position
+	_look_target = shot.look
+	_base_fov = shot.fov
+
+
+func _process_stage_shot(delta: float) -> void:
+	stage_shot_time += delta
+	var shot := _stage_shot(stage_shot_time)
+	_base_position = shot.position
+	_look_target = shot.look
+	fov = shot.fov
+	_apply_transform(0.0, 0.0)
+	if manager.stage:
+		manager.stage.update_camera_occlusion(global_position)
+
+
+func _stage_shot(time: float) -> Dictionary:
+	var e: float = smoothstep(0.0, 1.0, minf(time / FightIntro.STAGE_SECONDS, 1.0))
+	var side: Vector3 = manager.view_dir
+	var angle := deg_to_rad(lerpf(62.0, 18.0, e))
+	var dir := side.rotated(Vector3.UP, angle)
+	var center := Vector3(0.0, 0.0, 0.0)
+	return {
+		position = center + dir * lerpf(13.0, 8.5, e) + Vector3.UP * lerpf(6.5, 3.0, e),
+		look = center + Vector3.UP * lerpf(0.6, 1.1, e),
+		fov = lerpf(46.0, 42.0, e),
 	}
 
 
@@ -368,6 +429,49 @@ func _on_knocked_out(loser: Fighter) -> void:
 		Engine.time_scale = ko_time_scale * normal_time_scale
 		get_tree().create_timer(ko_slowmo_seconds, true, false, true).timeout.connect(
 			func() -> void: Engine.time_scale = normal_time_scale)
+
+
+## A super's finishing hit: a brief slow motion (not online, where both sides must keep
+## the same pace, and not with the action camera off).
+func finisher_slowmo() -> void:
+	if mode == Mode.OFF or manager.is_online() or manager.resimulating:
+		return
+	Engine.time_scale = finisher_time_scale * normal_time_scale
+	get_tree().create_timer(finisher_slowmo_seconds, true, false, true).timeout.connect(
+		func() -> void:
+			if replay_center == Vector3.INF:
+				Engine.time_scale = normal_time_scale)
+
+
+# --- K.O. replay -------------------------------------------------------------------
+
+## Where the K.O. replay orbits (KOReplay); INF when no replay is showing.
+var replay_center := Vector3.INF
+var _replay_angle := 0.0
+
+
+## Starts the replay shot: a low orbit around `center`, starting a quarter turn from the
+## fight camera's side so the replay reads as a new angle.
+func start_replay(center: Vector3) -> void:
+	replay_center = center
+	var side: Vector3 = manager.view_dir
+	_replay_angle = atan2(side.x, side.z) + deg_to_rad(60.0)
+	_trauma = 0.0
+	_fov_punch = 0.0
+
+
+func stop_replay() -> void:
+	replay_center = Vector3.INF
+	snap()
+
+
+func _process_replay(delta: float) -> void:
+	_replay_angle += deg_to_rad(replay_orbit_speed) * delta
+	var dir := Vector3(sin(_replay_angle), 0.0, cos(_replay_angle))
+	_base_position = replay_center + dir * replay_distance + Vector3.UP * replay_height
+	_look_target = replay_center + Vector3.UP * 0.75
+	fov = 38.0
+	_apply_transform(0.0, 0.0)
 
 
 ## Extra shake from effects (ground pounds, super finishers), scaled by the camera mode.
