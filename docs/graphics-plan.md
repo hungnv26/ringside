@@ -355,3 +355,18 @@ trees, buildings and ground.
 - **Cost**: 70 fps at High (68 before; the students are cheaper than the old figures).
 - Reference: `docs/look/phase3/dojo_before_after.jpg`, `dojo_fight_before_after.jpg`, and
   `dojo_kamiza.jpg`, `dojo_taiko.jpg`, `dojo_students.jpg`, `dojo_wide.jpg`.
+
+### Phase 3: the Market (built 2026-10-30)
+
+- **Locals**: eight standing MakeHuman people (`p1`–`p8`, mostly Filipino looks, casual
+  and work clothes) at both ends of the street. `build_crowd.py` takes `"pose":
+  "standing"` (Universal Animation Library idle and talking, cheering and clapping posed
+  on the standing idle) and per-person calm clips (`"clips"`: arms folded, on the phone).
+  `Crowd.people_kind = "pedestrian"` stands them on the street without seats.
+- **Stalls**: the banana-cue stall sells real fruit (Poly Haven bananas hanging from the
+  awning bar; apples, limes and pomegranates in plastic crates), monobloc chairs replace
+  the cylinder stools, and the sidewalk has crate stacks, water jugs, a bin, boxes and
+  sacks outside the bigasan.
+- **Cost**: 79 fps at High (82–86 before).
+- Reference: `docs/look/phase3/market_before_after.jpg`, `market_fight_before_after.jpg`,
+  `market_fruit.jpg`, `market_locals.jpg`, `market_wide.jpg`.

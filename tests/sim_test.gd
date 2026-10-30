@@ -1224,6 +1224,7 @@ func stage_tests() -> void:
 	_people_crowd_tests(ring_crowd)
 	_temple_tests()
 	_dojo_people_tests()
+	_market_tests()
 	# Download size: 3D textures must not be imported lossless (a 1K photo texture is 2-3 MB
 	# lossless, about 0.4 MB as lossy WebP). Godot only switches them automatically in the
 	# editor, so textures imported headless stay lossless unless their .import says otherwise.
@@ -1374,6 +1375,21 @@ func polish_tests() -> void:
 	wait_until(func() -> bool: return p1.projectile == null, 120)
 	check("FX: projectile impact burst + ring", fx.spawned >= before + 2, "%d effects" % (fx.spawned - before))
 	gs.stage_path = gs.DEFAULT_STAGE
+
+
+## The Market's locals are real people standing on the street (Crowd.people, kind
+## "pedestrian"), the fruit stall has real fruit, and the stalls have monobloc chairs.
+func _market_tests() -> void:
+	var market := (load("res://scenes/stages/market.tscn") as PackedScene).instantiate()
+	var crowd := market.get_node("Crowd") as Crowd
+	var fruit := 0
+	var chairs := 0
+	for n in market.get_children():
+		fruit += 1 if String(n.name).begins_with("Fruit") or String(n.name).begins_with("Bananas") else 0
+		chairs += 1 if String(n.name).begins_with("StallChair") else 0
+	check("Market: standing locals on the street, real fruit, monobloc chairs",
+		crowd.people and crowd.people_kind == "pedestrian" and is_zero_approx(crowd.floor_y) and fruit >= 30 and chairs == 12, "fruit %d, chairs %d" % [fruit, chairs])
+	market.free()
 
 
 ## The Dojo's students are real people (Crowd.people, kind "student": MakeHuman students in

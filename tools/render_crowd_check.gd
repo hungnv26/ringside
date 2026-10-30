@@ -67,7 +67,7 @@ func _initialize() -> void:
 		vp.add_child(mmi)
 		var bench := MeshInstance3D.new()
 		var box := BoxMesh.new()
-		var kneels: bool = info.get("kind", "spectator") == "student"
+		var kneels: bool = info.get("kind", "spectator") != "spectator" # students kneel, locals stand
 		box.size = Vector3(clips.size() * 0.9, 0.02 if kneels else 0.45, 0.5 if not kneels else 1.2) # students kneel on the floor
 		bench.mesh = box
 		bench.position = Vector3(x + (clips.size() - 1) * 0.45, box.size.y / 2.0, 0.1)

@@ -394,7 +394,8 @@ def seiza_clips(person, arm):
     return clips
 
 
-def bake_vat(person, arm, actions, stem, seiza=False):
+def bake_vat(person, arm, actions, stem, pose=None, picks=None):
+    seiza = pose == "seiza"
     bpy.context.view_layer.objects.active = arm
     bpy.ops.object.mode_set(mode="POSE")
     if seiza:
@@ -402,12 +403,17 @@ def bake_vat(person, arm, actions, stem, seiza=False):
             arm.animation_data.action = None
         clips = seiza_clips(person, arm)
     else:
-        idle = actions["Sitting_Idle"]
+        # Seated spectators, or standing locals (spec "pose": "standing"), whose calm clips
+        # can be picked per person (spec "clips": {"idle": ..., "talk": ...}).
+        standing = pose == "standing"
+        names = {"idle": "Idle" if standing else "Sitting_Idle", "talk": "Idle_Talking" if standing else "Sitting_Talking"}
+        names.update(picks or {})
+        idle = actions[names["idle"]]
         clips = {
             "idle": clip_frames(arm, person, idle),
-            "talk": clip_frames(arm, person, actions["Sitting_Talking"]),
-            "cheer": clip_frames(arm, person, idle, CHEER_SECONDS, cheer_pose),
-            "clap": clip_frames(arm, person, idle, CLAP_SECONDS, clap_pose),
+            "talk": clip_frames(arm, person, actions[names["talk"]]),
+            "cheer": clip_frames(arm, person, actions["Idle"] if standing else idle, CHEER_SECONDS, cheer_pose),
+            "clap": clip_frames(arm, person, actions["Idle"] if standing else idle, CLAP_SECONDS, clap_pose),
         }
     bpy.ops.object.mode_set(mode="OBJECT")
     width = len(person.data.vertices)
@@ -429,7 +435,8 @@ def bake_vat(person, arm, actions, stem, seiza=False):
         with open(os.path.join(OUT, f"{stem}_{suffix}.vat"), "wb") as f:
             f.write(px.astype("<f2").tobytes())
     log(stem, "VAT", width, "x", rows, {k: v[1] for k, v in table.items()})
-    return {"vertices": width, "rows": rows, "fps": FPS, "clips": table, "kind": "student" if seiza else "spectator"}
+    kind = {"seiza": "student", "standing": "pedestrian"}.get(pose, "spectator")
+    return {"vertices": width, "rows": rows, "fps": FPS, "clips": table, "kind": kind}
 
 
 def vat_uv(person):
@@ -469,7 +476,7 @@ def main():
         for target, stem in ((TARGET_TRIANGLES, spec["id"]), (LOD_TRIANGLES, spec["id"] + "_lod")):
             decimate(person, target)
             vat_uv(person)
-            info = bake_vat(person, arm, actions, stem, spec.get("pose") == "seiza")
+            info = bake_vat(person, arm, actions, stem, spec.get("pose"), spec.get("clips"))
             if stem == spec["id"]:
                 meta[spec["id"]] = info
             else:

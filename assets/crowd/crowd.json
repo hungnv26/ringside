@@ -526,5 +526,221 @@
   "lod": {
    "vertices": 551
   }
+ },
+ "p3": {
+  "vertices": 2002,
+  "rows": 111,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    37
+   ],
+   "talk": [
+    37,
+    44
+   ],
+   "cheer": [
+    81,
+    18
+   ],
+   "clap": [
+    99,
+    12
+   ]
+  },
+  "kind": "pedestrian",
+  "lod": {
+   "vertices": 1097
+  }
+ },
+ "p1": {
+  "vertices": 1361,
+  "rows": 111,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    37
+   ],
+   "talk": [
+    37,
+    44
+   ],
+   "cheer": [
+    81,
+    18
+   ],
+   "clap": [
+    99,
+    12
+   ]
+  },
+  "kind": "pedestrian",
+  "lod": {
+   "vertices": 566
+  }
+ },
+ "p2": {
+  "vertices": 1784,
+  "rows": 111,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    37
+   ],
+   "talk": [
+    37,
+    44
+   ],
+   "cheer": [
+    81,
+    18
+   ],
+   "clap": [
+    99,
+    12
+   ]
+  },
+  "kind": "pedestrian",
+  "lod": {
+   "vertices": 866
+  }
+ },
+ "p4": {
+  "vertices": 1597,
+  "rows": 111,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    37
+   ],
+   "talk": [
+    37,
+    44
+   ],
+   "cheer": [
+    81,
+    18
+   ],
+   "clap": [
+    99,
+    12
+   ]
+  },
+  "kind": "pedestrian",
+  "lod": {
+   "vertices": 717
+  }
+ },
+ "p5": {
+  "vertices": 1514,
+  "rows": 111,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    37
+   ],
+   "talk": [
+    37,
+    44
+   ],
+   "cheer": [
+    81,
+    18
+   ],
+   "clap": [
+    99,
+    12
+   ]
+  },
+  "kind": "pedestrian",
+  "lod": {
+   "vertices": 694
+  }
+ },
+ "p6": {
+  "vertices": 1359,
+  "rows": 111,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    37
+   ],
+   "talk": [
+    37,
+    44
+   ],
+   "cheer": [
+    81,
+    18
+   ],
+   "clap": [
+    99,
+    12
+   ]
+  },
+  "kind": "pedestrian",
+  "lod": {
+   "vertices": 557
+  }
+ },
+ "p7": {
+  "vertices": 1758,
+  "rows": 111,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    37
+   ],
+   "talk": [
+    37,
+    44
+   ],
+   "cheer": [
+    81,
+    18
+   ],
+   "clap": [
+    99,
+    12
+   ]
+  },
+  "kind": "pedestrian",
+  "lod": {
+   "vertices": 901
+  }
+ },
+ "p8": {
+  "vertices": 1411,
+  "rows": 111,
+  "fps": 15,
+  "clips": {
+   "idle": [
+    0,
+    37
+   ],
+   "talk": [
+    37,
+    44
+   ],
+   "cheer": [
+    81,
+    18
+   ],
+   "clap": [
+    99,
+    12
+   ]
+  },
+  "kind": "pedestrian",
+  "lod": {
+   "vertices": 595
+  }
  }
 }

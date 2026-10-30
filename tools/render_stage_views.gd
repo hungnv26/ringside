@@ -18,6 +18,11 @@ const VIEWS := {
 		"students": [Vector3(-2.5, 1.4, 0.5), Vector3(-7.2, 0.4, -1.0)],
 		"wide": [Vector3(0, 5.5, 9.0), Vector3(0, 0.5, -3.0)],
 	},
+	"market": {
+		"fruit": [Vector3(0.2, 1.6, -3.0), Vector3(0.2, 1.1, -7.5)],
+		"locals": [Vector3(4.0, 1.7, 1.5), Vector3(9.5, 1.0, -1.0)],
+		"wide": [Vector3(0, 5.0, 8.0), Vector3(0, 1.0, -5.0)],
+	},
 	"temple": {
 		"tree": [Vector3(-5.5, 1.8, -1.5), Vector3(-10.5, 2.6, -7.0)],
 		"gate": [Vector3(0, 2.2, 6.0), Vector3(0, 2.4, -10.5)],

@@ -83,6 +83,7 @@ func _initialize() -> void:
 	_build_jeepney(Transform3D(Basis(Vector3.UP, 0.05), Vector3(-15.5, 0, -3.6)), "DIVISORIA • STA. MESA", 1)
 	_build_poles_and_wires()
 	_build_banderitas()
+	_build_clutter()
 	_build_crowd()
 	_build_atmosphere()
 	_add(stage, StageFX.ambience([["res://assets/audio/ambience/market_chatter.ogg", -12.0], ["res://assets/audio/ambience/city_traffic.ogg", -25.0], ["res://assets/audio/ambience/fire_crackle.ogg", -19.0]], "res://assets/audio/ambience/crowd_cheer.ogg", -6.0), "Sound") # ambient loops (StageAmbience)
@@ -343,30 +344,104 @@ func _build_stalls() -> void:
 				var sparks := StageFX.embers(Vector3(0.5, 0.02, 0.15), 10, 1.4)
 				sparks.position = at + Vector3(0, 1.15, 0)
 				_add(stage, sparks, "GrillSparks%d" % i)
+			"fruit":
+				_fruit_stall(at, i)
 			_:
 				for f in 7:
 					var item: Material = _food[(f + i) % _food.size()]
 					var size := Vector3(0.18, 0.12, 0.18) if spec[2] != "eggs" else Vector3(0.1, 0.12, 0.1)
 					_batch(item, size, Transform3D(Basis(Vector3.UP, f * 0.6), at + Vector3(-0.8 + f * 0.27, 1.05, -0.05 + (f % 2) * 0.12)))
 				_batch(mat_metal, Vector3(0.35, 0.25, 0.35), Transform3D(Basis(), at + Vector3(0.75, 1.12, -0.2)))
-		# A plastic stool or two out front: a round seat on four splayed legs.
+		# A monobloc chair or two out front for the regulars (Poly Haven, CC0).
 		for k in 2:
-			var stool: Material = _tarps[(i + k + 3) % _tarps.size()]
-			var spot := at + Vector3(-0.6 + k * 1.1, 0.0, 0.75)
-			var seat := CylinderMesh.new()
-			seat.top_radius = 0.16
-			seat.bottom_radius = 0.15
-			seat.height = 0.04
-			seat.radial_segments = 12
-			_append(stool, seat, Transform3D(Basis(), spot + Vector3(0, 0.42, 0)))
-			for leg in 4:
-				var a := leg * PI / 2.0 + k * 0.4
-				_batch(stool, Vector3(0.035, 0.42, 0.035), Transform3D(Basis(Vector3(cos(a), 0, sin(a)).cross(Vector3.UP).normalized(), 0.12), spot + Vector3(cos(a) * 0.12, 0.21, sin(a) * 0.12)))
+			var chair := _scene(RING_PROPS + "plastic_monobloc_chair_01/plastic_monobloc_chair_01_1k.gltf")
+			chair.position = at + Vector3(-0.6 + k * 1.15, 0.0, 0.85)
+			chair.rotation.y = PI + _rng.randf_range(-0.6, 0.6)
+			_add(stage, chair, "StallChair%d_%d" % [i, k])
 	var flicker := Node.new()
 	flicker.set_script(load(FLICKER_SCRIPT))
 	_add(stage, flicker, "GrillFlicker")
 	flicker.set("lights", grill_lights)
 	flicker.set("amount", 0.2)
+
+
+const RING_PROPS := "res://assets/stages/ring/props/"
+const PROPS := "res://assets/stages/market/props/"
+var _prop_meshes := {}
+
+
+## The fruit stall: three crates of fruit on the counter (apples, limes, pomegranates) and
+## bunches of bananas hanging from the awning bar. Poly Haven food models (CC0).
+func _fruit_stall(at: Vector3, index: int) -> void:
+	var kinds := [["food_apple_01", "food_apple_01", 0.075], ["food_lime_01", "food_lime_01", 0.058], ["food_pomegranate_01", "food_pomegranate_01", 0.09]]
+	for c in 3:
+		var crate := _scene(RING_PROPS + "plastic_crate_02/plastic_crate_02_1k.gltf")
+		crate.position = at + Vector3(-0.68 + c * 0.68, 0.99, -0.05)
+		crate.rotation.y = PI / 2.0 + _rng.randf_range(-0.08, 0.08)
+		crate.scale = Vector3(0.9, 0.9, 0.9)
+		_add(stage, crate, "FruitCrate%d" % c)
+		var kind: Array = kinds[c]
+		var spacing: float = kind[2]
+		for row in 4:
+			for col in 3:
+				var fruit := MeshInstance3D.new()
+				fruit.mesh = _prop_mesh(kind[0], kind[1])
+				fruit.position = crate.position + Vector3(-0.16 + row * spacing * 1.05, 0.17 + _rng.randf_range(0.0, 0.03), -0.12 + col * spacing * 1.1)
+				fruit.rotation = Vector3(_rng.randf() * TAU, _rng.randf() * TAU, _rng.randf() * TAU) if c != 0 else Vector3(0, _rng.randf() * TAU, 0)
+				_add(stage, fruit, "Fruit%d_%d_%d" % [c, row, col])
+	for b in 4: # bananas hanging from the front bar of the awning
+		var bunch := MeshInstance3D.new()
+		bunch.mesh = _prop_mesh("bananas", "bananas_bunch")
+		bunch.position = at + Vector3(-0.9 + b * 0.6, 1.9, 0.62)
+		bunch.rotation = Vector3(PI / 2.0 + _rng.randf_range(-0.2, 0.2), _rng.randf() * TAU, 0)
+		bunch.scale = Vector3.ONE * 1.6
+		_add(stage, bunch, "Bananas%d" % b)
+
+
+## Clutter: stacks of crates by the poles, a bin, boxes and water jugs, rice sacks.
+func _build_clutter() -> void:
+	var spots := [Vector3(-9.2, SIDEWALK_TOP, CURB_Z - 0.35), Vector3(1.9, SIDEWALK_TOP, CURB_Z - 0.4), Vector3(7.4, SIDEWALK_TOP, CURB_Z - 0.35)]
+	for i in spots.size():
+		var at: Vector3 = spots[i]
+		for k in 3:
+			var crate := _scene(RING_PROPS + "plastic_crate_02/plastic_crate_02_1k.gltf")
+			crate.position = at + Vector3(_rng.randf_range(-0.04, 0.04), k * 0.25, 0)
+			crate.rotation.y = _rng.randf_range(-0.2, 0.2)
+			_add(stage, crate, "CrateStack%d_%d" % [i, k])
+		var jug := _scene(RING_PROPS + "plastic_bottle_gallon/plastic_bottle_gallon_1k.gltf")
+		jug.position = at + Vector3(0.45, 0, 0.1)
+		_add(stage, jug, "Jug%d" % i)
+	var bin := _scene(RING_PROPS + "metal_trash_can/metal_trash_can_1k.gltf")
+	bin.position = Vector3(5.4, SIDEWALK_TOP + 0.07, CURB_Z - 0.4)
+	_add(stage, bin, "Bin")
+	for k in 3:
+		var box := _scene(RING_PROPS + "cardboard_box_01/cardboard_box_01_1k.gltf")
+		box.position = Vector3(-5.2 + k * 0.1, SIDEWALK_TOP + 0.18 + k * 0.34, CURB_Z - 0.5)
+		box.rotation.y = _rng.randf_range(-0.3, 0.3)
+		_add(stage, box, "Box%d" % k)
+	# Rice sacks outside the bigasan, stacked two high.
+	for k in 6:
+		var sack := MeshInstance3D.new()
+		sack.mesh = _prop_mesh("cement_bag", "cement_bag")
+		sack.position = Vector3(-1.2 + (k % 3) * 0.5, SIDEWALK_TOP + (k / 3) * 0.17, FRONT_Z + 0.55)
+		sack.rotation.y = PI / 2.0 + _rng.randf_range(-0.15, 0.15)
+		_add(stage, sack, "RiceSack%d" % k)
+
+
+func _scene(path: String) -> Node3D:
+	return (load(path) as PackedScene).instantiate()
+
+
+## One mesh of a Poly Haven model, saved on its own (sources can hold several).
+func _prop_mesh(source: String, variant: String) -> Mesh:
+	var path := PROPS + "%s/%s.res" % [source, variant]
+	if not _prop_meshes.has(path):
+		var scene: Node = _scene(PROPS + "%s/%s_1k.gltf" % [source, source])
+		var node: MeshInstance3D = scene.find_child(variant, true, false)
+		ResourceSaver.save(node.mesh, path, ResourceSaver.FLAG_COMPRESS)
+		scene.free()
+		_prop_meshes[path] = load(path)
+	return _prop_meshes[path]
 
 
 # --- Jeepneys --------------------------------------------------------------------
@@ -480,7 +555,7 @@ func _wire(a: Vector3, b: Vector3, sag: float, material: Material = null, thickn
 
 # --- Crowd, atmosphere, shadows ----------------------------------------------------
 
-## Locals watching from both ends of the street.
+## Locals watching from both ends of the street: real people standing (Crowd.people).
 func _build_crowd() -> void:
 	var crowd := MultiMeshInstance3D.new()
 	crowd.set_script(load(CROWD_SCRIPT))
@@ -489,15 +564,19 @@ func _build_crowd() -> void:
 	crowd.set("tier_depth", 0.8)
 	crowd.set("tier_rise", 0.0)
 	crowd.set("row_width", 10.0)
-	crowd.set("seat_spacing", 0.7)
-	crowd.set("floor_y", -0.15)
+	crowd.set("seat_spacing", 0.85)
+	crowd.set("floor_y", 0.0) # feet on the street
 	crowd.set("empty_seat_chance", 0.35)
 	crowd.set("crowd_seed", 1898) # Philippine independence
 	crowd.set("sides", PackedInt32Array([1, 3]))
-	crowd.set("palette", PackedColorArray([Color(0.9, 0.9, 0.88), Color(0.85, 0.2, 0.2), Color(0.15, 0.3, 0.7),
-		Color(0.95, 0.75, 0.15), Color(0.2, 0.2, 0.22), Color(0.3, 0.6, 0.35), Color(0.6, 0.4, 0.7)]))
-	crowd.set("sway", 0.025)
-	crowd.set("jump", 0.18)
+	# Standing locals (MakeHuman people, tools/mpfb/build_crowd.py): chatting, arms folded,
+	# on the phone; they cheer and clap with the fight (StageAmbience).
+	crowd.set("people", true)
+	crowd.set("people_kind", "pedestrian")
+	crowd.set("aisle_every", 0)
+	crowd.set("people_sky_light", Color(0.5, 0.44, 0.46)) # dusk
+	crowd.set("people_ground_light", Color(0.18, 0.15, 0.14))
+	crowd.set("people_ring_light", Color(0.3, 0.22, 0.15)) # a little of the stalls' warm light
 	_add(stage, crowd, "Crowd")
 
 
