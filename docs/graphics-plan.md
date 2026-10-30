@@ -424,3 +424,17 @@ trees, buildings and ground.
 - **Not done**: the fields are still the tiled aerial texture; the coaches are the builder's
   shapes.
 - Reference: `docs/look/phase3/train_before_after.jpg`, `train_fight_before_after.jpg`.
+
+### Phase 3 summary (2026-10-31)
+
+All eight stages went through the recipe (`docs/look/phase3/all_stages.jpg`). Frame rates at
+High in one run on the M1 Pro (3200 x 1800 window): Ring 73, Dojo 73, Rooftop 68, Temple 62,
+Beach 85, Market 79, Express 76, Courtyard 74. Every stage stays above 60.
+
+People: 40 MakeHuman people in three kinds (`crowd.json` "kind"): 12 seated spectators
+(Ring), 8 kneeling students (Dojo), 8 standing locals (Market, Beach, Rooftop, Courtyard
+neighbours), plus the old Phase 2 fighters.
+
+Flaky test found on the way: the Courtyard's "pigeons come back" check failed when the
+random jet flew over during its 22 s wait and scattered them again; the test now holds the
+jet off while it waits.

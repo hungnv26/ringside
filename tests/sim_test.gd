@@ -2295,6 +2295,7 @@ func courtyard_tests() -> void:
 		m.super_flash.emit(p1, p1.data.moves[0])
 	check("Courtyard: a super scatters the pigeons and billows the laundry, but not in rollback",
 		quiet and life.perched_pigeons() < perched / 2 and life.gust > 0.5, "%d -> %d" % [perched, life.perched_pigeons()])
+	life._next_jet = life._time + 1000.0 # a jet flying over would scatter them again (it's random)
 	tick.call(22.0)
 	check("Courtyard: the pigeons come back to their perches", life.perched_pigeons() == perched)
 	p2.knocked_out.emit(p2)
