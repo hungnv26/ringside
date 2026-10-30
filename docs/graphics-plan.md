@@ -495,3 +495,45 @@ jet off while it waits.
   third, then each fighter as before (`FightIntro.STAGE_SECONDS`).
 - Captures: `tools/render_hud_check.gd`, `tools/render_coach_overlay_check.gd`;
   `docs/look/phase5/`.
+
+### Phase 6: polish loop (first pass, 2026-10-31)
+
+- **Stage review** against the Phase 0 stills: `docs/look/phase6_before_now.jpg` (every
+  stage, before and now, from the fight camera). Fixed from the review:
+  - Express: the crop rows aliased into stripes across the distant fields; they now fade
+    out where a pixel covers more than half a row, and a second, rotated grass sample (a
+    3-4-5 rotation, 24 m tile, so the 2400 m scenery wrap stays seamless) hides the
+    12 m tile's repeat.
+  - Courtyard: the dawn floor read black. Lighter tiles, a wider and stronger dawn fill,
+    more dawn skylight; the round-by-round sunrise is unchanged.
+  - Courtyard: the real neighbours logged an error (a MultiMesh colour flag set after its
+    instances existed); fixed.
+- **Thumbnails**: the stage-select thumbnails are re-rendered from the Phase 3 stages.
+  Portraits and super cut-ins were re-rendered from the MakeHuman fighters in Phase 2 and
+  are current.
+- **Credits**: the in-game credits roll now lists MakeHuman (fighters, crowds,
+  students), the Poly Haven props and plants by author, the cherry tree's source, the
+  fonts (Barlow Condensed, Yuji Syuku for the scroll), and the original effects and art;
+  `assets/CREDITS.md` has every file.
+- **Frame rate at High** (3200 × 1800 window, one run, the HUD showing, other apps open):
+
+  | Stage | fps |
+  |---|---|
+  | Beach | 80 |
+  | Market | 75 |
+  | Express | 72 |
+  | Courtyard | 70 |
+  | Ring | 68 |
+  | Dojo | 68 |
+  | Rooftop | 64 |
+  | Temple | 59 |
+
+  Runs drift by 2–3 fps over a long session (the Ring measured 70, then 68, then 67 within
+  the hour with nothing changed). The Temple sits at the 60 fps line: 60–61 without the
+  HUD, 59 with it; the Phase 5 HUD costs about 0.4 ms there, spread over its parts (no
+  single label, bar, portrait or the screen-effects layer accounts for it). Coarser
+  blossom and cheaper fallen petals were tried and made no difference, so they were left
+  as they are.
+- **Still open for later passes**: the Temple's margin; the Express fields remain a
+  tiled texture with crop patches, and its coaches and the Beach's tiki bar and tower are
+  the builders' shapes; the Courtyard's tenements are flat boxes; footprints only on sand.

@@ -139,7 +139,7 @@ func _initialize() -> void:
 
 
 func _make_materials() -> void:
-	mat_tiles = _textured(TEX, "dirty_tiles", Color(1.0, 0.92, 0.88), 0.3)
+	mat_tiles = _textured(TEX, "dirty_tiles", Color(1.45, 1.36, 1.3), 0.3) # lighter: the dawn floor read black (Phase 6)
 	mat_concrete = _textured(TEX, "concrete_wall_006", Color(0.78, 0.76, 0.72), 0.35)
 	mat_shutter = _textured(MARKET_TEX, "painted_metal_shutter", Color(0.45, 0.7, 0.55), 0.5)
 	mat_iron = _textured(MARKET_TEX, "rusty_corrugated_iron", Color(0.85, 0.8, 0.75), 0.5)
@@ -243,7 +243,7 @@ func _build_lights() -> void:
 	fill.transform = Transform3D(Basis.looking_at(Vector3(0, 1.0, 0) - fill_at), fill_at)
 	fill.light_energy = 2.8
 	fill.spot_range = 15.0
-	fill.spot_angle = 36.0
+	fill.spot_angle = 52.0 # the whole fight floor (Phase 6: the dawn floor read black)
 	fill.light_color = Color(0.72, 0.78, 1.0)
 	fill.light_volumetric_fog_energy = 0.0
 	_add(lights, fill, "FrontFill")

@@ -477,7 +477,7 @@ _surfaces = [{
 }]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_qghpu"]
-albedo_color = Color(1, 0.92, 0.88, 1)
+albedo_color = Color(1.45, 1.36, 1.3, 1)
 albedo_texture = ExtResource("8_dwabg")
 roughness_texture = ExtResource("10_abvgu")
 normal_enabled = true
@@ -1942,19 +1942,19 @@ disable_receive_shadows = true
 material = SubResource("StandardMaterial3D_51vde")
 size = Vector2(20, 22)
 
-[node name="Courtyard" type="Node3D" unique_id=1673986226]
+[node name="Courtyard" type="Node3D" unique_id=2027749231]
 script = ExtResource("1_5y58p")
 music = &"courtyard"
 dust_color = Color(0.7, 0.62, 0.56, 1)
 rope_line = 50.0
 side_lines = PackedFloat32Array(6.2, 14.2, 7.9, 7.9)
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=468334252]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1689759233]
 environment = SubResource("Environment_bsg7m")
 
-[node name="Lights" type="Node3D" parent="." unique_id=1522101227]
+[node name="Lights" type="Node3D" parent="." unique_id=1539529093]
 
-[node name="Sun" type="DirectionalLight3D" parent="Lights" unique_id=1138860104]
+[node name="Sun" type="DirectionalLight3D" parent="Lights" unique_id=990704066]
 transform = Transform3D(-0.9061831, -0.02126261, -0.4223506, 0, 0.99873513, -0.050279833, 0.42288545, -0.045562737, -0.905037, 0, 20, 0)
 light_color = Color(1, 0.6, 0.35, 1)
 light_energy = 0.0
@@ -1962,32 +1962,32 @@ light_volumetric_fog_energy = 1.4
 shadow_enabled = true
 directional_shadow_max_distance = 45.0
 
-[node name="GateLamp" type="OmniLight3D" parent="Lights" unique_id=42004170]
+[node name="GateLamp" type="OmniLight3D" parent="Lights" unique_id=523958983]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.4, 2.55, -6.55)
 light_color = Color(1, 0.76, 0.48, 1)
 light_energy = 2.2
 light_volumetric_fog_energy = 0.8
 omni_range = 7.0
 
-[node name="FrontFill" type="SpotLight3D" parent="Lights" unique_id=1205889214]
+[node name="FrontFill" type="SpotLight3D" parent="Lights" unique_id=1024734759]
 transform = Transform3D(0.9701425, 0.10585122, -0.21821788, 0, 0.89973533, 0.43643576, 0.24253562, -0.42340487, 0.8728715, -2, 5, 8)
 light_color = Color(0.72, 0.78, 1, 1)
 light_energy = 2.8
 light_volumetric_fog_energy = 0.0
 spot_range = 15.0
-spot_angle = 36.0
+spot_angle = 52.0
 
-[node name="KitchenLight" type="OmniLight3D" parent="Lights" unique_id=451082046]
+[node name="KitchenLight" type="OmniLight3D" parent="Lights" unique_id=33000399]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.7, 1.7, -3.6)
 light_color = Color(1, 0.76, 0.48, 1)
 light_energy = 1.3
 
-[node name="ShopLight" type="OmniLight3D" parent="Lights" unique_id=153706867]
+[node name="ShopLight" type="OmniLight3D" parent="Lights" unique_id=668921998]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.7, 1.6, -3.4)
 light_color = Color(1, 0.92, 0.8, 1)
 light_energy = 0.0
 
-[node name="Fortune0" type="Label3D" parent="." unique_id=317879639 groups=["ring_side_0"]]
+[node name="Fortune0" type="Label3D" parent="." unique_id=1126614079 groups=["ring_side_0"]]
 transform = Transform3D(-1, 8.742278e-08, 0, -8.742278e-08, -1, 0, 0, 0, 1, 0.425, 1.75, -6.96)
 pixel_size = 0.0018
 double_sided = false
@@ -1996,7 +1996,7 @@ text = "福"
 font_size = 120
 outline_size = 0
 
-[node name="Fortune2" type="Label3D" parent="." unique_id=538676106 groups=["ring_side_0"]]
+[node name="Fortune2" type="Label3D" parent="." unique_id=1011369596 groups=["ring_side_0"]]
 transform = Transform3D(-1, 8.742278e-08, 0, -8.742278e-08, -1, 0, 0, 0, 1, 2.375, 1.75, -6.96)
 pixel_size = 0.0018
 double_sided = false
@@ -2005,7 +2005,7 @@ text = "福"
 font_size = 120
 outline_size = 0
 
-[node name="Couplet0" type="Label3D" parent="." unique_id=883734345 groups=["ring_side_0"]]
+[node name="Couplet0" type="Label3D" parent="." unique_id=1542742585 groups=["ring_side_0"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.05, 1.45, -6.985)
 pixel_size = 0.0045
 double_sided = false
@@ -2018,7 +2018,7 @@ font_size = 64
 outline_size = 0
 line_spacing = -6.0
 
-[node name="Couplet1" type="Label3D" parent="." unique_id=1177436200 groups=["ring_side_0"]]
+[node name="Couplet1" type="Label3D" parent="." unique_id=795986220 groups=["ring_side_0"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.85, 1.45, -6.985)
 pixel_size = 0.0045
 double_sided = false
@@ -2031,7 +2031,7 @@ font_size = 64
 outline_size = 0
 line_spacing = -6.0
 
-[node name="ShedSteam" type="GPUParticles3D" parent="." unique_id=698029205 groups=["ring_side_0"]]
+[node name="ShedSteam" type="GPUParticles3D" parent="." unique_id=780839948 groups=["ring_side_0"]]
 transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, 5.99428, 4.6044946, -10.6)
 cast_shadow = 0
 amount = 36
@@ -2041,7 +2041,7 @@ visibility_aabb = AABB(-0.90000004, -1.8000001, -0.90000004, 1.8000001, 3.600000
 process_material = SubResource("ParticleProcessMaterial_1tkam")
 draw_pass_1 = SubResource("QuadMesh_2tpj1")
 
-[node name="ShrineTitle" type="Label3D" parent="." unique_id=46294259 groups=["ring_side_0"]]
+[node name="ShrineTitle" type="Label3D" parent="." unique_id=370289432 groups=["ring_side_0"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.47, -6.68)
 pixel_size = 0.0022
 double_sided = false
@@ -2050,7 +2050,7 @@ text = "土地"
 font_size = 70
 outline_size = 0
 
-[node name="IncenseSmoke" type="GPUParticles3D" parent="." unique_id=1297738081 groups=["ring_side_0"]]
+[node name="IncenseSmoke" type="GPUParticles3D" parent="." unique_id=1527885222 groups=["ring_side_0"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.34, -6.6)
 cast_shadow = 0
 amount = 24
@@ -2060,18 +2060,18 @@ visibility_aabb = AABB(-0.90000004, -1.8000001, -0.90000004, 1.8000001, 3.600000
 process_material = SubResource("ParticleProcessMaterial_1dsra")
 draw_pass_1 = SubResource("QuadMesh_stiqq")
 
-[node name="ShrineCandle" type="OmniLight3D" parent="." unique_id=1497663084]
+[node name="ShrineCandle" type="OmniLight3D" parent="." unique_id=493373181]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.35, -6.42)
 light_color = Color(1, 0.45, 0.2, 1)
 light_energy = 0.9
 omni_range = 2.2
 
-[node name="CandleFlicker" type="Node" parent="." unique_id=2075874405]
+[node name="CandleFlicker" type="Node" parent="." unique_id=1775897973]
 script = ExtResource("2_uwnyu")
 lights = Array[NodePath]([NodePath("../ShrineCandle")])
 amount = 0.3
 
-[node name="TeaHouseSign" type="Label3D" parent="." unique_id=159225710 groups=["ring_side_2"]]
+[node name="TeaHouseSign" type="Label3D" parent="." unique_id=296646106 groups=["ring_side_2"]]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -9.37, 2.75, -3.1)
 pixel_size = 0.0035
 double_sided = false
@@ -2080,7 +2080,7 @@ text = "茶樓  TEA HOUSE"
 font_size = 90
 outline_size = 0
 
-[node name="KitchenSteam" type="GPUParticles3D" parent="." unique_id=1594321043 groups=["ring_side_2"]]
+[node name="KitchenSteam" type="GPUParticles3D" parent="." unique_id=1693023815 groups=["ring_side_2"]]
 transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, -9.2, 2.5, -4.6)
 cast_shadow = 0
 amount = 30
@@ -2090,7 +2090,7 @@ visibility_aabb = AABB(-0.90000004, -1.8000001, -0.90000004, 1.8000001, 3.600000
 process_material = SubResource("ParticleProcessMaterial_iyhwt")
 draw_pass_1 = SubResource("QuadMesh_hdn3l")
 
-[node name="BoneSetter0" type="Label3D" parent="." unique_id=1846275701 groups=["ring_side_2"]]
+[node name="BoneSetter0" type="Label3D" parent="." unique_id=852886572 groups=["ring_side_2"]]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -8.685, 4.85, 1.4)
 pixel_size = 0.0055
 double_sided = false
@@ -2103,7 +2103,7 @@ font_size = 60
 outline_size = 0
 line_spacing = -4.0
 
-[node name="BoneSetter2" type="Label3D" parent="." unique_id=923601571 groups=["ring_side_2"]]
+[node name="BoneSetter2" type="Label3D" parent="." unique_id=82885847 groups=["ring_side_2"]]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -8.615, 4.85, 1.4)
 pixel_size = 0.0055
 double_sided = false
@@ -2116,12 +2116,12 @@ font_size = 60
 outline_size = 0
 line_spacing = -4.0
 
-[node name="Shutter" type="MeshInstance3D" parent="." unique_id=1751292553 groups=["ring_side_3"]]
+[node name="Shutter" type="MeshInstance3D" parent="." unique_id=211699780 groups=["ring_side_3"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.43, 2.6, -3.4)
 material_override = SubResource("StandardMaterial3D_8sbup")
 mesh = SubResource("ArrayMesh_71hwx")
 
-[node name="StoreSign" type="Label3D" parent="." unique_id=769012257 groups=["ring_side_3"]]
+[node name="StoreSign" type="Label3D" parent="." unique_id=1814799099 groups=["ring_side_3"]]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 9.37, 3.2, -3.4)
 pixel_size = 0.0035
 double_sided = false
@@ -2130,7 +2130,7 @@ text = "士多  STORE"
 font_size = 80
 outline_size = 0
 
-[node name="MahjongNeon" type="Label3D" parent="." unique_id=1771434910 groups=["ring_side_3"]]
+[node name="MahjongNeon" type="Label3D" parent="." unique_id=1979395030 groups=["ring_side_3"]]
 transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 9.25, 4.45, 3.4)
 pixel_size = 0.004
 double_sided = false
@@ -2140,7 +2140,7 @@ text = "麻雀"
 font_size = 200
 outline_size = 14
 
-[node name="HerbalTeaSign" type="Label3D" parent="." unique_id=641580810 groups=["ring_side_1"]]
+[node name="HerbalTeaSign" type="Label3D" parent="." unique_id=2146510785 groups=["ring_side_1"]]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -1.5, 2.85, 14.89)
 pixel_size = 0.0035
 double_sided = false
@@ -2149,115 +2149,115 @@ text = "涼茶  HERBAL TEA"
 font_size = 80
 outline_size = 0
 
-[node name="Succulent0" type="MeshInstance3D" parent="." unique_id=540409294 groups=["ring_side_3"]]
+[node name="Succulent0" type="MeshInstance3D" parent="." unique_id=987766581 groups=["ring_side_3"]]
 transform = Transform3D(-0.79811317, 0, -0.054912914, 0, 0.8, 0, 0.054912914, 0, -0.79811317, 7.15, 0.74, -3.32)
 cast_shadow = 0
 mesh = ExtResource("6_e8xem")
 
-[node name="Succulent1" type="MeshInstance3D" parent="." unique_id=83565096 groups=["ring_side_3"]]
+[node name="Succulent1" type="MeshInstance3D" parent="." unique_id=1321412902 groups=["ring_side_3"]]
 transform = Transform3D(-0.29034433, 0, -0.745453, 0, 0.8, 0, 0.745453, 0, -0.29034433, 6.65, 0.74, -3.32)
 cast_shadow = 0
 mesh = ExtResource("6_e8xem")
 
-[node name="Planter0" type="MeshInstance3D" parent="." unique_id=1213468001 groups=["ring_side_0"]]
+[node name="Planter0" type="MeshInstance3D" parent="." unique_id=296543299 groups=["ring_side_0"]]
 transform = Transform3D(0.13945763, 0, 0.9311512, 0, 0.9415365, 0, -0.9311512, 0, 0.13945763, 3.6, 0.28, -6.6)
 cast_shadow = 0
 mesh = ExtResource("7_0bimc")
 
-[node name="Planter1" type="MeshInstance3D" parent="." unique_id=894176430 groups=["ring_side_0"]]
+[node name="Planter1" type="MeshInstance3D" parent="." unique_id=1832105936 groups=["ring_side_0"]]
 transform = Transform3D(0.83274263, 0, -0.06361829, 0, 0.8351692, 0, 0.06361829, 0, 0.83274263, 4.5, 0.28, -6.6)
 cast_shadow = 0
 mesh = ExtResource("7_0bimc")
 
-[node name="Planter2" type="MeshInstance3D" parent="." unique_id=1676455162 groups=["ring_side_0"]]
+[node name="Planter2" type="MeshInstance3D" parent="." unique_id=1595882425 groups=["ring_side_0"]]
 transform = Transform3D(0.112737834, 0, 0.9419316, 0, 0.9486543, 0, -0.9419316, 0, 0.112737834, 5.4, 0.28, -6.6)
 cast_shadow = 0
 mesh = ExtResource("7_0bimc")
 
-[node name="Planter3" type="MeshInstance3D" parent="." unique_id=228678277 groups=["ring_side_0"]]
+[node name="Planter3" type="MeshInstance3D" parent="." unique_id=127252609 groups=["ring_side_0"]]
 transform = Transform3D(0.8046607, 0, -0.18181983, 0, 0.8249468, 0, 0.18181983, 0, 0.8046607, 6.3, 0.28, -6.6)
 cast_shadow = 0
 mesh = ExtResource("7_0bimc")
 
-[node name="Planter4" type="MeshInstance3D" parent="." unique_id=1816933737 groups=["ring_side_0"]]
+[node name="Planter4" type="MeshInstance3D" parent="." unique_id=2008939125 groups=["ring_side_0"]]
 transform = Transform3D(0.78547174, 0, -0.49771407, 0, 0.9298845, 0, 0.49771407, 0, 0.78547174, 7.2, 0.28, -6.6)
 cast_shadow = 0
 mesh = ExtResource("7_0bimc")
 
-[node name="Planter5" type="MeshInstance3D" parent="." unique_id=1108348843 groups=["ring_side_0"]]
+[node name="Planter5" type="MeshInstance3D" parent="." unique_id=308563118 groups=["ring_side_0"]]
 transform = Transform3D(-0.0659418, 0, -0.8822616, 0, 0.8847224, 0, 0.8822616, 0, -0.0659418, 8.1, 0.28, -6.6)
 cast_shadow = 0
 mesh = ExtResource("7_0bimc")
 
-[node name="PottedPlant0" type="MeshInstance3D" parent="." unique_id=1071795302 groups=["ring_side_0"]]
+[node name="PottedPlant0" type="MeshInstance3D" parent="." unique_id=1162616171 groups=["ring_side_0"]]
 transform = Transform3D(2.0276, 0, -0.22458383, 0, 2.04, 0, 0.22458383, 0, 2.0276, -3.3, 0.456, -6.55)
 cast_shadow = 0
 mesh = ExtResource("7_0bimc")
 
-[node name="PottedPlant1" type="MeshInstance3D" parent="." unique_id=1825718755 groups=["ring_side_0"]]
+[node name="PottedPlant1" type="MeshInstance3D" parent="." unique_id=1821709383 groups=["ring_side_0"]]
 transform = Transform3D(-2.4050424, 0, 1.2705004, 0, 2.72, 0, -1.2705004, 0, -2.4050424, -8.6, 0.608, -6.5)
 cast_shadow = 0
 mesh = ExtResource("7_0bimc")
 
-[node name="WallPot0" type="MeshInstance3D" parent="." unique_id=1620345442 groups=["ring_side_0"]]
+[node name="WallPot0" type="MeshInstance3D" parent="." unique_id=613097671 groups=["ring_side_0"]]
 transform = Transform3D(0.36977246, 0, 0.9291223, 0, 1, 0, -0.9291223, 0, 0.36977246, 4, 2.48, -7.15)
 cast_shadow = 0
 mesh = ExtResource("6_e8xem")
 
-[node name="WallPot1" type="MeshInstance3D" parent="." unique_id=1943341267 groups=["ring_side_0"]]
+[node name="WallPot1" type="MeshInstance3D" parent="." unique_id=736603750 groups=["ring_side_0"]]
 transform = Transform3D(0.38236725, 0, -0.92401046, 0, 1, 0, 0.92401046, 0, 0.38236725, 5.3, 2.48, -7.15)
 cast_shadow = 0
 mesh = ExtResource("6_e8xem")
 
-[node name="WallPot2" type="MeshInstance3D" parent="." unique_id=1315709406 groups=["ring_side_0"]]
+[node name="WallPot2" type="MeshInstance3D" parent="." unique_id=890494186 groups=["ring_side_0"]]
 transform = Transform3D(-0.96549255, 0, -0.26043078, 0, 1, 0, 0.26043078, 0, -0.96549255, 6.6, 2.48, -7.15)
 cast_shadow = 0
 mesh = ExtResource("6_e8xem")
 
-[node name="WallPot3" type="MeshInstance3D" parent="." unique_id=1580093099 groups=["ring_side_0"]]
+[node name="WallPot3" type="MeshInstance3D" parent="." unique_id=1167475357 groups=["ring_side_0"]]
 transform = Transform3D(-0.20326968, 0, -0.9791228, 0, 1, 0, 0.9791228, 0, -0.20326968, 7.9, 2.48, -7.15)
 cast_shadow = 0
 mesh = ExtResource("6_e8xem")
 
-[node name="Lantern0" type="Node3D" parent="." unique_id=1158761830 groups=["ring_side_0"]]
+[node name="Lantern0" type="Node3D" parent="." unique_id=1128346084 groups=["ring_side_0"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.20000005, 3.4232233, -6.75)
 
-[node name="Body" type="MeshInstance3D" parent="Lantern0" unique_id=478895179]
+[node name="Body" type="MeshInstance3D" parent="Lantern0" unique_id=38008055]
 material_override = SubResource("StandardMaterial3D_pvkea")
 mesh = SubResource("ArrayMesh_63s0k")
 
-[node name="Lantern1" type="Node3D" parent="." unique_id=1624704323 groups=["ring_side_0"]]
+[node name="Lantern1" type="Node3D" parent="." unique_id=158885976 groups=["ring_side_0"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.4000001, 3.35, -6.75)
 
-[node name="Body" type="MeshInstance3D" parent="Lantern1" unique_id=1905500772]
+[node name="Body" type="MeshInstance3D" parent="Lantern1" unique_id=68613488]
 material_override = SubResource("StandardMaterial3D_blueo")
 mesh = SubResource("ArrayMesh_iq7bm")
 
-[node name="Lantern2" type="Node3D" parent="." unique_id=563518688 groups=["ring_side_0"]]
+[node name="Lantern2" type="Node3D" parent="." unique_id=1995856601 groups=["ring_side_0"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.6000001, 3.4232233, -6.75)
 
-[node name="Body" type="MeshInstance3D" parent="Lantern2" unique_id=1755999863]
+[node name="Body" type="MeshInstance3D" parent="Lantern2" unique_id=1998707347]
 material_override = SubResource("StandardMaterial3D_0s1c5")
 mesh = SubResource("ArrayMesh_dlks4")
 
-[node name="Hills" type="MeshInstance3D" parent="." unique_id=540052378]
+[node name="Hills" type="MeshInstance3D" parent="." unique_id=1309053805]
 material_override = SubResource("StandardMaterial3D_0sbao")
 cast_shadow = 0
 mesh = SubResource("ArrayMesh_ng2wl")
 
-[node name="Cat" type="MeshInstance3D" parent="." unique_id=1127926538]
+[node name="Cat" type="MeshInstance3D" parent="." unique_id=1595633261]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 6.2, 2.48, -7.15)
 material_override = SubResource("StandardMaterial3D_10rmx")
 mesh = SubResource("ArrayMesh_2s4f0")
 
-[node name="Jet" type="Node3D" parent="." unique_id=269821523]
+[node name="Jet" type="Node3D" parent="." unique_id=589269084]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2000, 60, -260)
 visible = false
 
-[node name="Hull" type="MeshInstance3D" parent="Jet" unique_id=1731394313]
+[node name="Hull" type="MeshInstance3D" parent="Jet" unique_id=260171109]
 mesh = SubResource("ArrayMesh_ya1p0")
 
-[node name="LandingLight" type="SpotLight3D" parent="Jet" unique_id=2027441935]
+[node name="LandingLight" type="SpotLight3D" parent="Jet" unique_id=928309784]
 transform = Transform3D(0, 0.5144958, -0.8574929, 0, 0.8574929, 0.5144958, 1, 0, 0, 14, -1.8, 0)
 light_color = Color(1, 0.96, 0.88, 1)
 light_energy = 60.0
@@ -2266,326 +2266,326 @@ spot_range = 160.0
 spot_attenuation = 0.4
 spot_angle = 18.0
 
-[node name="Light2" type="MeshInstance3D" parent="Jet" unique_id=1641547579]
+[node name="Light2" type="MeshInstance3D" parent="Jet" unique_id=902923653]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, -1.5, 0)
 material_override = SubResource("StandardMaterial3D_rgnsm")
 cast_shadow = 0
 mesh = SubResource("SphereMesh_ehxru")
 
-[node name="Light3" type="MeshInstance3D" parent="Jet" unique_id=671121614]
+[node name="Light3" type="MeshInstance3D" parent="Jet" unique_id=869242878]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, -0.8, -16.5)
 material_override = SubResource("StandardMaterial3D_r63l6")
 cast_shadow = 0
 mesh = SubResource("SphereMesh_ox1hr")
 
-[node name="Light4" type="MeshInstance3D" parent="Jet" unique_id=1206227162]
+[node name="Light4" type="MeshInstance3D" parent="Jet" unique_id=1556327513]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, -0.8, 16.5)
 material_override = SubResource("StandardMaterial3D_wqhsp")
 cast_shadow = 0
 mesh = SubResource("SphereMesh_p3wn5")
 
-[node name="SunBlocker" type="MeshInstance3D" parent="." unique_id=174268402]
+[node name="SunBlocker" type="MeshInstance3D" parent="." unique_id=2026024030]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6, 26)
 cast_shadow = 3
 mesh = SubResource("BoxMesh_pm8m2")
 
-[node name="Geometry" type="Node3D" parent="." unique_id=1061278065]
+[node name="Geometry" type="Node3D" parent="." unique_id=1413159430]
 
-[node name="Batch0" type="MeshInstance3D" parent="Geometry" unique_id=309762424]
+[node name="Batch0" type="MeshInstance3D" parent="Geometry" unique_id=835763714]
 mesh = SubResource("ArrayMesh_lj8fs")
 
-[node name="Batch1" type="MeshInstance3D" parent="Geometry" unique_id=648816037]
+[node name="Batch1" type="MeshInstance3D" parent="Geometry" unique_id=334826235]
 mesh = SubResource("ArrayMesh_jpqao")
 
-[node name="Batch2" type="MeshInstance3D" parent="Geometry" unique_id=1481846763]
+[node name="Batch2" type="MeshInstance3D" parent="Geometry" unique_id=72810809]
 mesh = SubResource("ArrayMesh_xpnp7")
 
-[node name="Batch3" type="MeshInstance3D" parent="Geometry" unique_id=1374403878]
+[node name="Batch3" type="MeshInstance3D" parent="Geometry" unique_id=1811394263]
 mesh = SubResource("ArrayMesh_ugtoq")
 
-[node name="Side0" type="Node3D" parent="." unique_id=1353581582 groups=["ring_side_0"]]
+[node name="Side0" type="Node3D" parent="." unique_id=132375803 groups=["ring_side_0"]]
 
-[node name="Batch0" type="MeshInstance3D" parent="Side0" unique_id=134152501]
+[node name="Batch0" type="MeshInstance3D" parent="Side0" unique_id=228682172]
 mesh = SubResource("ArrayMesh_3w0hi")
 
-[node name="Batch1" type="MeshInstance3D" parent="Side0" unique_id=396963405]
+[node name="Batch1" type="MeshInstance3D" parent="Side0" unique_id=392048358]
 mesh = SubResource("ArrayMesh_xwiff")
 
-[node name="Batch2" type="MeshInstance3D" parent="Side0" unique_id=219984071]
+[node name="Batch2" type="MeshInstance3D" parent="Side0" unique_id=28393459]
 mesh = SubResource("ArrayMesh_cnyad")
 
-[node name="Batch3" type="MeshInstance3D" parent="Side0" unique_id=1029345118]
+[node name="Batch3" type="MeshInstance3D" parent="Side0" unique_id=1319447882]
 mesh = SubResource("ArrayMesh_ij8xo")
 
-[node name="Batch4" type="MeshInstance3D" parent="Side0" unique_id=1423477715]
+[node name="Batch4" type="MeshInstance3D" parent="Side0" unique_id=1566185906]
 mesh = SubResource("ArrayMesh_phkup")
 
-[node name="Batch5" type="MeshInstance3D" parent="Side0" unique_id=1048581584]
+[node name="Batch5" type="MeshInstance3D" parent="Side0" unique_id=1667530618]
 mesh = SubResource("ArrayMesh_kbhsh")
 
-[node name="Batch6" type="MeshInstance3D" parent="Side0" unique_id=722174262]
+[node name="Batch6" type="MeshInstance3D" parent="Side0" unique_id=21024025]
 mesh = SubResource("ArrayMesh_ola3i")
 
-[node name="Batch7" type="MeshInstance3D" parent="Side0" unique_id=1559658431]
+[node name="Batch7" type="MeshInstance3D" parent="Side0" unique_id=2054881648]
 mesh = SubResource("ArrayMesh_vg3uu")
 
-[node name="Batch8" type="MeshInstance3D" parent="Side0" unique_id=1311983012]
+[node name="Batch8" type="MeshInstance3D" parent="Side0" unique_id=1418953102]
 mesh = SubResource("ArrayMesh_cw7hw")
 
-[node name="Batch9" type="MeshInstance3D" parent="Side0" unique_id=783188420]
+[node name="Batch9" type="MeshInstance3D" parent="Side0" unique_id=933242757]
 mesh = SubResource("ArrayMesh_hkvvw")
 
-[node name="Batch10" type="MeshInstance3D" parent="Side0" unique_id=1297325120]
+[node name="Batch10" type="MeshInstance3D" parent="Side0" unique_id=983602418]
 mesh = SubResource("ArrayMesh_j2c0u")
 
-[node name="Batch11" type="MeshInstance3D" parent="Side0" unique_id=1658570701]
+[node name="Batch11" type="MeshInstance3D" parent="Side0" unique_id=1222440598]
 mesh = SubResource("ArrayMesh_cs8hx")
 
-[node name="Batch12" type="MeshInstance3D" parent="Side0" unique_id=1245610462]
+[node name="Batch12" type="MeshInstance3D" parent="Side0" unique_id=1964489837]
 mesh = SubResource("ArrayMesh_lap11")
 
-[node name="Batch13" type="MeshInstance3D" parent="Side0" unique_id=299168992]
+[node name="Batch13" type="MeshInstance3D" parent="Side0" unique_id=313231053]
 mesh = SubResource("ArrayMesh_07rdd")
 
-[node name="Batch14" type="MeshInstance3D" parent="Side0" unique_id=1742367693]
+[node name="Batch14" type="MeshInstance3D" parent="Side0" unique_id=793901280]
 mesh = SubResource("ArrayMesh_m7qd3")
 
-[node name="Batch15" type="MeshInstance3D" parent="Side0" unique_id=1431519808]
+[node name="Batch15" type="MeshInstance3D" parent="Side0" unique_id=1955217611]
 mesh = SubResource("ArrayMesh_mlmfh")
 
-[node name="Batch16" type="MeshInstance3D" parent="Side0" unique_id=1641900406]
+[node name="Batch16" type="MeshInstance3D" parent="Side0" unique_id=1784681475]
 mesh = SubResource("ArrayMesh_nko82")
 
-[node name="Batch17" type="MeshInstance3D" parent="Side0" unique_id=2076626835]
+[node name="Batch17" type="MeshInstance3D" parent="Side0" unique_id=196515769]
 mesh = SubResource("ArrayMesh_h7gxn")
 
-[node name="Batch18" type="MeshInstance3D" parent="Side0" unique_id=948819166]
+[node name="Batch18" type="MeshInstance3D" parent="Side0" unique_id=338172945]
 mesh = SubResource("ArrayMesh_otdey")
 
-[node name="Batch19" type="MeshInstance3D" parent="Side0" unique_id=1338692179]
+[node name="Batch19" type="MeshInstance3D" parent="Side0" unique_id=1432394553]
 mesh = SubResource("ArrayMesh_uy7xx")
 
-[node name="Batch20" type="MeshInstance3D" parent="Side0" unique_id=1845794435]
+[node name="Batch20" type="MeshInstance3D" parent="Side0" unique_id=202878831]
 mesh = SubResource("ArrayMesh_f2lbx")
 
-[node name="Batch21" type="MeshInstance3D" parent="Side0" unique_id=673568175]
+[node name="Batch21" type="MeshInstance3D" parent="Side0" unique_id=61555137]
 mesh = SubResource("ArrayMesh_nmg61")
 
-[node name="Batch22" type="MeshInstance3D" parent="Side0" unique_id=2096155591]
+[node name="Batch22" type="MeshInstance3D" parent="Side0" unique_id=1869585037]
 mesh = SubResource("ArrayMesh_ivqwu")
 
-[node name="Batch23" type="MeshInstance3D" parent="Side0" unique_id=1836596797]
+[node name="Batch23" type="MeshInstance3D" parent="Side0" unique_id=595833758]
 mesh = SubResource("ArrayMesh_flpub")
 
-[node name="Side2" type="Node3D" parent="." unique_id=1058873087 groups=["ring_side_2"]]
+[node name="Side2" type="Node3D" parent="." unique_id=778655877 groups=["ring_side_2"]]
 
-[node name="Batch0" type="MeshInstance3D" parent="Side2" unique_id=1619151802]
+[node name="Batch0" type="MeshInstance3D" parent="Side2" unique_id=770234687]
 mesh = SubResource("ArrayMesh_6c2fv")
 
-[node name="Batch1" type="MeshInstance3D" parent="Side2" unique_id=1109050590]
+[node name="Batch1" type="MeshInstance3D" parent="Side2" unique_id=968528787]
 mesh = SubResource("ArrayMesh_pknhg")
 
-[node name="Batch2" type="MeshInstance3D" parent="Side2" unique_id=1959599986]
+[node name="Batch2" type="MeshInstance3D" parent="Side2" unique_id=1129400387]
 mesh = SubResource("ArrayMesh_o47p1")
 
-[node name="Batch3" type="MeshInstance3D" parent="Side2" unique_id=1054118916]
+[node name="Batch3" type="MeshInstance3D" parent="Side2" unique_id=1054623600]
 mesh = SubResource("ArrayMesh_c7bm0")
 
-[node name="Batch4" type="MeshInstance3D" parent="Side2" unique_id=101857612]
+[node name="Batch4" type="MeshInstance3D" parent="Side2" unique_id=1552891068]
 mesh = SubResource("ArrayMesh_17dan")
 
-[node name="Batch5" type="MeshInstance3D" parent="Side2" unique_id=698384695]
+[node name="Batch5" type="MeshInstance3D" parent="Side2" unique_id=1178955331]
 mesh = SubResource("ArrayMesh_u54wv")
 
-[node name="Batch6" type="MeshInstance3D" parent="Side2" unique_id=2075745170]
+[node name="Batch6" type="MeshInstance3D" parent="Side2" unique_id=673691657]
 mesh = SubResource("ArrayMesh_joha5")
 
-[node name="Batch7" type="MeshInstance3D" parent="Side2" unique_id=1419506589]
+[node name="Batch7" type="MeshInstance3D" parent="Side2" unique_id=1047213329]
 mesh = SubResource("ArrayMesh_epb42")
 
-[node name="Batch8" type="MeshInstance3D" parent="Side2" unique_id=1314904055]
+[node name="Batch8" type="MeshInstance3D" parent="Side2" unique_id=1558259597]
 mesh = SubResource("ArrayMesh_kcva2")
 
-[node name="Batch9" type="MeshInstance3D" parent="Side2" unique_id=1990323448]
+[node name="Batch9" type="MeshInstance3D" parent="Side2" unique_id=1546185103]
 mesh = SubResource("ArrayMesh_jtsc4")
 
-[node name="Batch10" type="MeshInstance3D" parent="Side2" unique_id=119000471]
+[node name="Batch10" type="MeshInstance3D" parent="Side2" unique_id=1968664704]
 mesh = SubResource("ArrayMesh_1n2ei")
 
-[node name="Batch11" type="MeshInstance3D" parent="Side2" unique_id=771690489]
+[node name="Batch11" type="MeshInstance3D" parent="Side2" unique_id=242564923]
 mesh = SubResource("ArrayMesh_wklw3")
 
-[node name="Batch12" type="MeshInstance3D" parent="Side2" unique_id=30841775]
+[node name="Batch12" type="MeshInstance3D" parent="Side2" unique_id=1351149194]
 mesh = SubResource("ArrayMesh_hty1u")
 
-[node name="Batch13" type="MeshInstance3D" parent="Side2" unique_id=1282648473]
+[node name="Batch13" type="MeshInstance3D" parent="Side2" unique_id=981030818]
 mesh = SubResource("ArrayMesh_7jvat")
 
-[node name="Batch14" type="MeshInstance3D" parent="Side2" unique_id=830425842]
+[node name="Batch14" type="MeshInstance3D" parent="Side2" unique_id=1420642910]
 mesh = SubResource("ArrayMesh_h7j75")
 
-[node name="Batch15" type="MeshInstance3D" parent="Side2" unique_id=543377054]
+[node name="Batch15" type="MeshInstance3D" parent="Side2" unique_id=855824128]
 mesh = SubResource("ArrayMesh_qq15h")
 
-[node name="Batch16" type="MeshInstance3D" parent="Side2" unique_id=170611864]
+[node name="Batch16" type="MeshInstance3D" parent="Side2" unique_id=1984749349]
 mesh = SubResource("ArrayMesh_85u3s")
 
-[node name="Batch17" type="MeshInstance3D" parent="Side2" unique_id=237260913]
+[node name="Batch17" type="MeshInstance3D" parent="Side2" unique_id=2074123375]
 mesh = SubResource("ArrayMesh_jx77k")
 
-[node name="Batch18" type="MeshInstance3D" parent="Side2" unique_id=1178840398]
+[node name="Batch18" type="MeshInstance3D" parent="Side2" unique_id=338121572]
 mesh = SubResource("ArrayMesh_6y70k")
 
-[node name="Batch19" type="MeshInstance3D" parent="Side2" unique_id=954080727]
+[node name="Batch19" type="MeshInstance3D" parent="Side2" unique_id=21137233]
 mesh = SubResource("ArrayMesh_2i2bm")
 
-[node name="Batch20" type="MeshInstance3D" parent="Side2" unique_id=160805833]
+[node name="Batch20" type="MeshInstance3D" parent="Side2" unique_id=834171023]
 mesh = SubResource("ArrayMesh_5ef0g")
 
-[node name="Batch21" type="MeshInstance3D" parent="Side2" unique_id=894648037]
+[node name="Batch21" type="MeshInstance3D" parent="Side2" unique_id=1153410024]
 mesh = SubResource("ArrayMesh_y77qb")
 
-[node name="Batch22" type="MeshInstance3D" parent="Side2" unique_id=2017643482]
+[node name="Batch22" type="MeshInstance3D" parent="Side2" unique_id=1463991933]
 mesh = SubResource("ArrayMesh_mhuub")
 
-[node name="Batch23" type="MeshInstance3D" parent="Side2" unique_id=2128628398]
+[node name="Batch23" type="MeshInstance3D" parent="Side2" unique_id=635943098]
 mesh = SubResource("ArrayMesh_enypt")
 
-[node name="Batch24" type="MeshInstance3D" parent="Side2" unique_id=2109791385]
+[node name="Batch24" type="MeshInstance3D" parent="Side2" unique_id=1780738749]
 mesh = SubResource("ArrayMesh_uoanp")
 
-[node name="Side3" type="Node3D" parent="." unique_id=930790682 groups=["ring_side_3"]]
+[node name="Side3" type="Node3D" parent="." unique_id=1111433371 groups=["ring_side_3"]]
 
-[node name="Batch0" type="MeshInstance3D" parent="Side3" unique_id=965161345]
+[node name="Batch0" type="MeshInstance3D" parent="Side3" unique_id=644954154]
 mesh = SubResource("ArrayMesh_6i4e1")
 
-[node name="Batch1" type="MeshInstance3D" parent="Side3" unique_id=682327463]
+[node name="Batch1" type="MeshInstance3D" parent="Side3" unique_id=1735013810]
 mesh = SubResource("ArrayMesh_im3pa")
 
-[node name="Batch2" type="MeshInstance3D" parent="Side3" unique_id=354226832]
+[node name="Batch2" type="MeshInstance3D" parent="Side3" unique_id=1998954730]
 mesh = SubResource("ArrayMesh_1blvp")
 
-[node name="Batch3" type="MeshInstance3D" parent="Side3" unique_id=1602930500]
+[node name="Batch3" type="MeshInstance3D" parent="Side3" unique_id=1560334033]
 mesh = SubResource("ArrayMesh_vtqi2")
 
-[node name="Batch4" type="MeshInstance3D" parent="Side3" unique_id=1595841999]
+[node name="Batch4" type="MeshInstance3D" parent="Side3" unique_id=43368647]
 mesh = SubResource("ArrayMesh_utt85")
 
-[node name="Batch5" type="MeshInstance3D" parent="Side3" unique_id=1496497508]
+[node name="Batch5" type="MeshInstance3D" parent="Side3" unique_id=1229593696]
 mesh = SubResource("ArrayMesh_s1cus")
 
-[node name="Batch6" type="MeshInstance3D" parent="Side3" unique_id=1790676285]
+[node name="Batch6" type="MeshInstance3D" parent="Side3" unique_id=1242359080]
 mesh = SubResource("ArrayMesh_xdfjc")
 
-[node name="Batch7" type="MeshInstance3D" parent="Side3" unique_id=1862068094]
+[node name="Batch7" type="MeshInstance3D" parent="Side3" unique_id=1754701875]
 mesh = SubResource("ArrayMesh_ygbnt")
 
-[node name="Batch8" type="MeshInstance3D" parent="Side3" unique_id=1867656322]
+[node name="Batch8" type="MeshInstance3D" parent="Side3" unique_id=1173543894]
 mesh = SubResource("ArrayMesh_cl41v")
 
-[node name="Batch9" type="MeshInstance3D" parent="Side3" unique_id=1624993969]
+[node name="Batch9" type="MeshInstance3D" parent="Side3" unique_id=1061647596]
 mesh = SubResource("ArrayMesh_0npm2")
 
-[node name="Batch10" type="MeshInstance3D" parent="Side3" unique_id=694540554]
+[node name="Batch10" type="MeshInstance3D" parent="Side3" unique_id=952764625]
 mesh = SubResource("ArrayMesh_8huom")
 
-[node name="Batch11" type="MeshInstance3D" parent="Side3" unique_id=1101966733]
+[node name="Batch11" type="MeshInstance3D" parent="Side3" unique_id=1160207064]
 mesh = SubResource("ArrayMesh_rwpms")
 
-[node name="Batch12" type="MeshInstance3D" parent="Side3" unique_id=2090677883]
+[node name="Batch12" type="MeshInstance3D" parent="Side3" unique_id=977457024]
 mesh = SubResource("ArrayMesh_00nlk")
 
-[node name="Batch13" type="MeshInstance3D" parent="Side3" unique_id=1790662061]
+[node name="Batch13" type="MeshInstance3D" parent="Side3" unique_id=1553081481]
 mesh = SubResource("ArrayMesh_mrw0e")
 
-[node name="Batch14" type="MeshInstance3D" parent="Side3" unique_id=1166415272]
+[node name="Batch14" type="MeshInstance3D" parent="Side3" unique_id=746941829]
 mesh = SubResource("ArrayMesh_burdb")
 
-[node name="Batch15" type="MeshInstance3D" parent="Side3" unique_id=1721708213]
+[node name="Batch15" type="MeshInstance3D" parent="Side3" unique_id=179713750]
 mesh = SubResource("ArrayMesh_kpikt")
 
-[node name="Batch16" type="MeshInstance3D" parent="Side3" unique_id=883297320]
+[node name="Batch16" type="MeshInstance3D" parent="Side3" unique_id=1217434997]
 mesh = SubResource("ArrayMesh_tr1l6")
 
-[node name="Batch17" type="MeshInstance3D" parent="Side3" unique_id=1848516537]
+[node name="Batch17" type="MeshInstance3D" parent="Side3" unique_id=1125715998]
 mesh = SubResource("ArrayMesh_jp4vs")
 
-[node name="Batch18" type="MeshInstance3D" parent="Side3" unique_id=1696401105]
+[node name="Batch18" type="MeshInstance3D" parent="Side3" unique_id=590308634]
 mesh = SubResource("ArrayMesh_o8qfn")
 
-[node name="Batch19" type="MeshInstance3D" parent="Side3" unique_id=2059915645]
+[node name="Batch19" type="MeshInstance3D" parent="Side3" unique_id=2096695246]
 mesh = SubResource("ArrayMesh_yqt5x")
 
-[node name="Batch20" type="MeshInstance3D" parent="Side3" unique_id=213451092]
+[node name="Batch20" type="MeshInstance3D" parent="Side3" unique_id=691003823]
 mesh = SubResource("ArrayMesh_xwrvm")
 
-[node name="Batch21" type="MeshInstance3D" parent="Side3" unique_id=445051296]
+[node name="Batch21" type="MeshInstance3D" parent="Side3" unique_id=892312476]
 mesh = SubResource("ArrayMesh_3l2hr")
 
-[node name="Side1" type="Node3D" parent="." unique_id=1773300721 groups=["ring_side_1"]]
+[node name="Side1" type="Node3D" parent="." unique_id=47666664 groups=["ring_side_1"]]
 
-[node name="Batch0" type="MeshInstance3D" parent="Side1" unique_id=1590764583]
+[node name="Batch0" type="MeshInstance3D" parent="Side1" unique_id=579397712]
 cast_shadow = 0
 mesh = SubResource("ArrayMesh_omkfe")
 
-[node name="Batch1" type="MeshInstance3D" parent="Side1" unique_id=1942192365]
+[node name="Batch1" type="MeshInstance3D" parent="Side1" unique_id=1062922572]
 cast_shadow = 0
 mesh = SubResource("ArrayMesh_ymu81")
 
-[node name="Batch2" type="MeshInstance3D" parent="Side1" unique_id=1560048488]
+[node name="Batch2" type="MeshInstance3D" parent="Side1" unique_id=389265217]
 cast_shadow = 0
 mesh = SubResource("ArrayMesh_667sc")
 
-[node name="Batch3" type="MeshInstance3D" parent="Side1" unique_id=151982687]
+[node name="Batch3" type="MeshInstance3D" parent="Side1" unique_id=1979812504]
 cast_shadow = 0
 mesh = SubResource("ArrayMesh_51wnf")
 
-[node name="Batch4" type="MeshInstance3D" parent="Side1" unique_id=191609709]
+[node name="Batch4" type="MeshInstance3D" parent="Side1" unique_id=1688425949]
 cast_shadow = 0
 mesh = SubResource("ArrayMesh_bwgkq")
 
-[node name="Batch5" type="MeshInstance3D" parent="Side1" unique_id=866840290]
+[node name="Batch5" type="MeshInstance3D" parent="Side1" unique_id=164018714]
 cast_shadow = 0
 mesh = SubResource("ArrayMesh_geeim")
 
-[node name="Batch6" type="MeshInstance3D" parent="Side1" unique_id=1127252181]
+[node name="Batch6" type="MeshInstance3D" parent="Side1" unique_id=614199785]
 cast_shadow = 0
 mesh = SubResource("ArrayMesh_rho6l")
 
-[node name="Batch7" type="MeshInstance3D" parent="Side1" unique_id=1372519911]
+[node name="Batch7" type="MeshInstance3D" parent="Side1" unique_id=1896470946]
 cast_shadow = 0
 mesh = SubResource("ArrayMesh_0lu82")
 
-[node name="Skyline" type="MeshInstance3D" parent="." unique_id=1419307434]
+[node name="Skyline" type="MeshInstance3D" parent="." unique_id=1696835803]
 material_override = SubResource("ShaderMaterial_7ypp5")
 cast_shadow = 0
 mesh = SubResource("ArrayMesh_0wffo")
 
-[node name="LaundrySide2" type="MeshInstance3D" parent="." unique_id=1719018550 groups=["ring_side_2"]]
+[node name="LaundrySide2" type="MeshInstance3D" parent="." unique_id=573920532 groups=["ring_side_2"]]
 material_override = SubResource("ShaderMaterial_8yy6o")
 mesh = SubResource("ArrayMesh_5mbuv")
 
-[node name="LaundrySide3" type="MeshInstance3D" parent="." unique_id=879752469 groups=["ring_side_3"]]
+[node name="LaundrySide3" type="MeshInstance3D" parent="." unique_id=48651779 groups=["ring_side_3"]]
 material_override = SubResource("ShaderMaterial_8yy6o")
 mesh = SubResource("ArrayMesh_1yska")
 
-[node name="Laundry" type="MeshInstance3D" parent="." unique_id=1646180308]
+[node name="Laundry" type="MeshInstance3D" parent="." unique_id=1223213328]
 material_override = SubResource("ShaderMaterial_8yy6o")
 mesh = SubResource("ArrayMesh_vygtr")
 
-[node name="FloorShadows" type="MeshInstance3D" parent="." unique_id=1574339282]
+[node name="FloorShadows" type="MeshInstance3D" parent="." unique_id=1146182426]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.003, 3)
 cast_shadow = 0
 mesh = SubResource("PlaneMesh_kfkaf")
 
-[node name="Sound" type="Node" parent="." unique_id=1865406999]
+[node name="Sound" type="Node" parent="." unique_id=1321309546]
 script = ExtResource("26_k06s0")
 loops = Array[AudioStream]([ExtResource("27_k7q1t"), ExtResource("28_ekmt8"), ExtResource("29_24hul")])
 loop_volumes = PackedFloat32Array(-15, -25, -29)
 reaction = ExtResource("30_dqq2m")
 reaction_volume = -15.0
 
-[node name="Life" type="Node" parent="." unique_id=748835585]
+[node name="Life" type="Node" parent="." unique_id=126535517]
 script = ExtResource("31_ekgic")
 window_material = SubResource("StandardMaterial3D_u20fv")
 lamp_material = SubResource("StandardMaterial3D_he4b4")
@@ -2603,8 +2603,8 @@ steam = Array[NodePath]([NodePath("../ShedSteam"), NodePath("../KitchenSteam")])
 lanterns = Array[NodePath]([NodePath("../Lantern0"), NodePath("../Lantern1"), NodePath("../Lantern2")])
 cat_escape = Vector3(11, 2.48, -7.15)
 
-[node name="P1Spawn" type="Marker3D" parent="." unique_id=279968669]
+[node name="P1Spawn" type="Marker3D" parent="." unique_id=1477865501]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, 0)
 
-[node name="P2Spawn" type="Marker3D" parent="." unique_id=766594246]
+[node name="P2Spawn" type="Marker3D" parent="." unique_id=744573571]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 0)
