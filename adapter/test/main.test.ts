@@ -4,7 +4,8 @@ import { mkdtempSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BattleLog, battleId } from "../src/log.ts";
-import { clientFor, parseCli } from "../src/main.ts";
+import { clientFor, parseCli, reflexClientFor } from "../src/main.ts";
+import { FakeJevClient, JevClient } from "../src/jev.ts";
 import { FakeModelClient } from "../src/fake.ts";
 import { ProviderClient } from "../src/models.ts";
 import { hello } from "./helpers.ts";
@@ -30,6 +31,35 @@ test("the CLI parses sides, stage and numbers, with fake defaults", () => {
   assert.deepEqual(d.sides, { p1: { fighter: "jin", spec: "fake:coach" }, p2: { fighter: "kenji", spec: "fake:coach" } });
   assert.throws(() => parseCli(["--p1", "jin"]), /fighter=provider:model/);
   assert.throws(() => parseCli(["--effort", "max"]), /effort/);
+});
+
+test("the CLI knows the reflexes: the +jev suffix, jev:jev alone, the rate and thresholds, a slower brain by default", () => {
+  const a = parseCli(["--p1", "jin=anthropic:claude-opus-5-5+jev", "--p2", "kenji=jev:jev"]);
+  assert.equal(a.sides.p1.spec, "anthropic:claude-opus-5-5+jev");
+  assert.equal(a.sides.p2.spec, "jev:jev");
+  assert.equal(a.cadence, 6000, "a brain with reflexes turns every 6 s unless told otherwise");
+  assert.equal(a.reflexRate, 4);
+  assert.equal(a.readThreshold, 0.6);
+  assert.equal(a.gateThreshold, 0.7);
+  assert.equal(parseCli(["--p1", "jin=fake:coach+jev", "--cadence", "3000"]).cadence, 3000);
+  assert.equal(parseCli(["--p1", "jin=jev:fake"]).cadence, 2000, "reflexes alone: the cadence is nobody's");
+  const b = parseCli(["--reflex-rate", "2", "--read-threshold", "0.75", "--gate-threshold", "0.5"]);
+  assert.equal(b.reflexRate, 2);
+  assert.equal(b.readThreshold, 0.75);
+  assert.equal(b.gateThreshold, 0.5);
+  assert.throws(() => parseCli(["--reflex-rate", "3"]), /--reflex-rate/);
+  assert.throws(() => parseCli(["--read-threshold", "0.1"]), /--read-threshold/);
+  assert.throws(() => parseCli(["--p1", "jin=fake:coach+turbo"]), /\+jev/);
+});
+
+test("reflexClientFor shares one Jev client and one fake", () => {
+  const cache = new Map();
+  const a = reflexClientFor("jev:fake", cache);
+  const b = reflexClientFor("jev:jev", cache);
+  const c = reflexClientFor("jev:typesafe-jev-1.13.0", cache);
+  assert.ok(a instanceof FakeJevClient);
+  assert.ok(b instanceof JevClient);
+  assert.equal(b, c);
 });
 
 test("clientFor shares one provider client and one fake", () => {

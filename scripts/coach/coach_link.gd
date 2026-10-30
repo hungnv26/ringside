@@ -27,6 +27,8 @@ const BADGE_SECONDS := 2.5
 const MAX_CHIPS := 4
 ## Words a read may use besides a move input, and how a move matches them.
 const READ_WORDS := ["jump", "throw", "super", "fireball", "low", "overhead", "sweep", "reversal", "uppercut"]
+## Put before a chip for a plan change the side's reflexes made (a `plan` frame with source "reflex").
+const REFLEX_MARK := "⚡ "
 
 var manager: Node
 var controllers: Array[CoachController] = []
@@ -214,7 +216,9 @@ func _handle(msg: Dictionary) -> void:
 				return
 			var before: Dictionary = controllers[side].plan.duplicate(true)
 			var errors := controllers[side].apply_plan(msg.get("plan", {}) if msg.get("plan") is Dictionary else {}, str(msg.get("plan_id", "")))
-			_show_chips(side, plan_chips(before, controllers[side].plan))
+			# The side's reflexes (Jev, docs/jev-plan.md) mark their nudges with a bolt.
+			var prefix := REFLEX_MARK if str(msg.get("source", "")) == "reflex" else ""
+			_show_chips(side, plan_chips(before, controllers[side].plan, prefix))
 			_applied(side, msg, errors)
 		"queue":
 			if side < 0:
@@ -448,8 +452,9 @@ func _resolve_read(side: int, right: bool, actual: String) -> void:
 	_event("read", {side = SIDES[side], what = str(prediction.get("what", "")), right = right, actual = actual})
 
 
-## Chips for what a plan frame changed: "block ↑ 0.95", "range → close", "throw ↑ 2".
-static func plan_chips(before: Dictionary, after: Dictionary) -> Array[String]:
+## Chips for what a plan frame changed: "block ↑ 0.95", "range → close", "throw ↑ 2";
+## `prefix` goes before each (REFLEX_MARK for the reflexes' nudges).
+static func plan_chips(before: Dictionary, after: Dictionary, prefix := "") -> Array[String]:
 	var chips: Array[String] = []
 	for key in after:
 		if key == "options":
@@ -460,16 +465,16 @@ static func plan_chips(before: Dictionary, after: Dictionary) -> Array[String]:
 			continue
 		if now is float or now is int:
 			var arrow := "→" if was == null else ("↑" if float(now) > float(was) else "↓")
-			chips.append("%s %s %s" % [key, arrow, _num(now)])
+			chips.append("%s%s %s %s" % [prefix, key, arrow, _num(now)])
 		else:
-			chips.append("%s → %s" % [key, str(now)])
+			chips.append("%s%s → %s" % [prefix, key, str(now)])
 	var options_before: Dictionary = before.get("options", {})
 	for option in after.get("options", {}):
 		var now := float(after.options[option])
 		var was := float(options_before.get(option, 1.0))
 		if is_equal_approx(now, was):
 			continue
-		chips.append("%s %s %s" % [option, "↑" if now > was else "↓", _num(now)])
+		chips.append("%s%s %s %s" % [prefix, option, "↑" if now > was else "↓", _num(now)])
 	return chips.slice(0, MAX_CHIPS)
 
 

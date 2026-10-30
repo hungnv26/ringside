@@ -6,7 +6,9 @@ and changes its fighter's game plan every couple of seconds (range, aggression, 
 and punish, which moves to go for), the way Outpost War's sides are commanded by models.
 Two ways to play, picked per match: the **coach** adjusts its fighter's plan every couple
 of seconds; the **self-coding fighter** writes a rule set before the match and rewrites it
-after every round from what actually landed, with no model calls during a round. (A third,
+after every round from what actually landed, with no model calls during a round. Either corner
+can also have **reflexes**: Jev, a decision model, ticks four times a second nudging the plan,
+making reads and waking the brain when something changes (`model+jev`, or `jev:jev` alone). (A third,
 the beat fighter that paused the game every second for both models, was tried and removed:
 a fight that stops every few seconds is dull to watch.)
 Working name. Plan and protocol: [docs/ringside-plan.md](docs/ringside-plan.md).
@@ -76,7 +78,9 @@ cd adapter && npm test && npm run typecheck                # the adapter and the
   the self-coding rules engine.
 - `scripts/coach/coach_link.gd`: the WebSocket link to the adapter; observation frames and events.
 - `GameState.Mode.COACH`, `-- --coach=...` on the command line, both sides coached in `FightManager`.
-- `adapter/`: the coaches, the model calls (Anthropic, OpenAI, OpenRouter, Ollama, a fake), logs.
+- `adapter/`: the coaches, the model calls (Anthropic, OpenAI, OpenRouter, Ollama, a fake), logs;
+  `adapter/src/reflex.ts` + `jev.ts`: a corner's reflexes, Jev (TypeSafe AI's decision model)
+  ticking four times a second beside or instead of the brain ([docs/jev-plan.md](docs/jev-plan.md)).
 - `adapter/src/setup.ts` + `adapter/setup/index.html`: the setup page, results and Elo.
 - `adapter/src/tournament.ts`: round-robin tournaments, fixtures and standings.
 

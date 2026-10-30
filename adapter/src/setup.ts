@@ -9,7 +9,9 @@ import { createReadStream, existsSync, readdirSync, readFileSync, statSync } fro
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { keyStatus, listModels, modelPrices, PROVIDERS, REPO_ROOT, saveKey, splitSpec, type Effort } from "./models.ts";
+import { JEV_MODEL } from "./jev.ts";
+import { keyStatus, listModels, modelPrices, PROVIDERS, REFLEX_PROVIDER, REPO_ROOT, saveKey, splitSpec, type Effort } from "./models.ts";
+import { DEFAULT_GATE_THRESHOLD, DEFAULT_READ_THRESHOLD, parseSpec, REFLEX_RATES } from "./reflex.ts";
 import { MAX_ENTRANTS, ROTATE, TournamentRunner, type Entrant, type TournamentRequest } from "./tournament.ts";
 import type { Mode } from "./types.ts";
 
@@ -74,6 +76,8 @@ export interface BattleSummary {
   wins: number[] | null;
   reason: string | null;
   coaches: Record<string, { turns: number; tokens: number; usd: number; avgSeconds: number | null; errors: number }>;
+  /** Sides with reflexes (Jev): ticks, cost, reads. */
+  reflexes: Record<string, { ticks: number; usd: number; reads: { made: number; right: number }; nudges: number }>;
   video: boolean;
 }
 
@@ -81,7 +85,9 @@ export function summarize(battle: any, id: string): BattleSummary | null {
   if (!battle || typeof battle !== "object" || !battle.sides) return null;
   const coaches: BattleSummary["coaches"] = {};
   for (const [side, c] of Object.entries((battle.coaches ?? {}) as Record<string, any>)) coaches[side] = { turns: Number(c.turns ?? 0), tokens: Number(c.tokens ?? 0), usd: Number(c.usd ?? 0), avgSeconds: c.avgSeconds ?? null, errors: Number(c.errors ?? 0) };
-  return { id, at: String(battle.at ?? ""), stage: String(battle.stage ?? ""), seed: battle.seed ?? null, sides: battle.sides, mode: String(battle.settings?.mode ?? "coach"), winner: battle.result?.winner ?? null, wins: battle.result?.wins ?? null, reason: battle.result?.reason ?? null, coaches, video: false };
+  const reflexes: BattleSummary["reflexes"] = {};
+  for (const [side, r] of Object.entries((battle.reflexes ?? {}) as Record<string, any>)) reflexes[side] = { ticks: Number(r.ticks ?? 0), usd: Number(r.usd ?? 0), reads: { made: Number(r.reads?.made ?? 0), right: Number(r.reads?.right ?? 0) }, nudges: Number(r.nudges ?? 0) };
+  return { id, at: String(battle.at ?? ""), stage: String(battle.stage ?? ""), seed: battle.seed ?? null, sides: battle.sides, mode: String(battle.settings?.mode ?? "coach"), winner: battle.result?.winner ?? null, wins: battle.result?.wins ?? null, reason: battle.result?.reason ?? null, coaches, reflexes, video: false };
 }
 
 /** Every finished battle under battle-logs, newest first. */
@@ -132,8 +138,8 @@ export function elo(battles: BattleSummary[]): EloRow[] {
       else if (s === 0) r.losses++;
       else r.draws++;
     }
-    a.usd += b.coaches.p1?.usd ?? 0;
-    c.usd += b.coaches.p2?.usd ?? 0;
+    a.usd += (b.coaches.p1?.usd ?? 0) + (b.reflexes?.p1?.usd ?? 0);
+    c.usd += (b.coaches.p2?.usd ?? 0) + (b.reflexes?.p2?.usd ?? 0);
   }
   return [...table.values()].sort((x, y) => y.rating - x.rating).map((r) => ({ ...r, rating: Math.round(r.rating), usd: Math.round(r.usd * 1000) / 1000 }));
 }
@@ -153,6 +159,9 @@ export interface MatchRequest {
   mode?: Mode;
   window?: string;
   graphics?: string;
+  reflexRate?: number;
+  readThreshold?: number;
+  gateThreshold?: number;
 }
 
 /** One corner of a request: a known fighter and a provider:model spec. */
@@ -161,8 +170,18 @@ function validateEntrant(raw: any, name: string, fighters: Fighter[]): Entrant {
   const fighter = String(s.fighter ?? "");
   const spec = String(s.spec ?? "").trim();
   if (!fighters.some((f) => f.id === fighter)) throw new Error(`${name}: unknown fighter "${fighter}"`);
-  const { provider, model } = splitSpec(spec);
-  if (!(PROVIDERS.includes(provider) || provider === "fake") || !model || /\s/.test(spec)) throw new Error(`${name}: the model must be provider:model (anthropic, openai, openrouter, ollama or fake)`);
+  // provider:model, with +jev for reflexes beside the brain, or jev:jev for reflexes alone (docs/jev-plan.md).
+  let parts: { brain: string | null; reflex: string | null };
+  try {
+    parts = parseSpec(spec);
+  } catch (e) {
+    throw new Error(`${name}: ${e instanceof Error ? e.message : e}`);
+  }
+  if (parts.brain) {
+    const { provider, model } = splitSpec(parts.brain);
+    if (!(PROVIDERS.includes(provider) || provider === "fake") || !model) throw new Error(`${name}: the model must be provider:model (anthropic, openai, openrouter, ollama or fake), with +jev for reflexes, or jev:jev`);
+  }
+  if (/\s/.test(spec) || !spec) throw new Error(`${name}: the model must be provider:model`);
   return { fighter, spec };
 }
 
@@ -183,7 +202,9 @@ function validateSettings(raw: any) {
   const graphics = String(raw?.graphics ?? "high");
   if (!GRAPHICS.includes(graphics)) throw new Error(`graphics must be one of ${GRAPHICS.join(", ")}`);
   const seed = raw?.seed === undefined || raw?.seed === null || raw?.seed === "" ? null : Math.floor(num("seed", 0, 0, 2 ** 31 - 1));
-  return { seed, cap: num("cap", 1, 0, 50), cadence: Math.floor(num("cadence", 2000, 500, 30000)), effort, capture: !!raw?.capture, record: !!raw?.record, mode, window, graphics };
+  const reflexRate = num("reflexRate", 4, 2, 4);
+  if (!(REFLEX_RATES as readonly number[]).includes(reflexRate)) throw new Error(`reflexRate must be one of ${REFLEX_RATES.join(", ")}`);
+  return { seed, cap: num("cap", 1, 0, 50), cadence: Math.floor(num("cadence", 2000, 500, 30000)), effort, capture: !!raw?.capture, record: !!raw?.record, mode, window, graphics, reflexRate, readThreshold: num("readThreshold", DEFAULT_READ_THRESHOLD, 0.3, 0.95), gateThreshold: num("gateThreshold", DEFAULT_GATE_THRESHOLD, 0.3, 0.95) };
 }
 
 export function validateMatch(raw: any, fighters: Fighter[], stageIds: string[]): MatchRequest {
@@ -213,14 +234,18 @@ export function validateTournament(raw: any, fighters: Fighter[], stageIds: stri
   return { name, entrants, legs, stage, ...validateSettings(raw) };
 }
 
-export function matchArgs(m: MatchRequest, logDir: string, captureDir: string): string[] {
+export function matchArgs(m: MatchRequest, logDir: string, captureDir: string, linkPort?: number): string[] {
   const args = ["--p1", `${m.p1.fighter}=${m.p1.spec}`, "--p2", `${m.p2.fighter}=${m.p2.spec}`, "--stage", m.stage, "--cap", String(m.cap ?? 1), "--cadence", String(m.cadence ?? 2000), "--effort", m.effort ?? "low", "--log", logDir, "--quit"];
+  if (linkPort) args.push("--port", String(linkPort));
   if (m.seed != null) args.push("--seed", String(m.seed));
   if (m.capture) args.push("--capture", captureDir);
   if (m.record) args.push("--record", join(logDir, "match.mp4"));
   if (m.mode && m.mode !== "coach") args.push("--mode", m.mode);
   if (m.window) args.push("--window", m.window);
   if (m.graphics) args.push("--graphics", m.graphics);
+  if (m.reflexRate) args.push("--reflex-rate", String(m.reflexRate));
+  if (m.readThreshold != null) args.push("--read-threshold", String(m.readThreshold));
+  if (m.gateThreshold != null) args.push("--gate-threshold", String(m.gateThreshold));
   return args;
 }
 
@@ -234,11 +259,14 @@ export class Runner extends EventEmitter<{ exit: [{ id: string; dir: string; exi
   current: { id: string; dir: string; request: MatchRequest; startedAt: string; exit: number | null; console: string[] } | null = null;
   readonly command: string[]; // how the adapter is run (tests swap in a stub)
   readonly logRoot: string;
+  /** The game link's port for the matches this runner starts (--link-port; 0 = the adapter's default). */
+  readonly linkPort: number;
 
-  constructor(command = [process.execPath, join(HERE, "main.ts")], logRoot = LOG_ROOT) {
+  constructor(command = [process.execPath, join(HERE, "main.ts")], logRoot = LOG_ROOT, linkPort = 0) {
     super();
     this.command = command;
     this.logRoot = logRoot;
+    this.linkPort = linkPort;
   }
 
   get running(): boolean {
@@ -249,7 +277,7 @@ export class Runner extends EventEmitter<{ exit: [{ id: string; dir: string; exi
     if (this.running) throw new Error("a match is already running");
     const id = matchId(request);
     const dir = join(this.logRoot, id);
-    const args = matchArgs(request, dir, join(dir, "captures"));
+    const args = matchArgs(request, dir, join(dir, "captures"), this.linkPort);
     const [cmd, ...pre] = this.command;
     const child = spawn(cmd, [...pre, ...args], { cwd: dirname(HERE), stdio: ["ignore", "pipe", "pipe"], env: process.env });
     const current = { id, dir, request, startedAt: new Date().toISOString(), exit: null as number | null, console: [] as string[] };
@@ -348,8 +376,9 @@ export function createSetupServer(runner = new Runner(), root = REPO_ROOT, fetch
         return json(res, 200, {
           roster: roster(root),
           stages: stages(root),
-          providers: ["fake", ...PROVIDERS],
+          providers: ["fake", ...PROVIDERS, REFLEX_PROVIDER],
           keys: keyStatus(),
+          reflex: { rates: REFLEX_RATES, readThreshold: DEFAULT_READ_THRESHOLD, gateThreshold: DEFAULT_GATE_THRESHOLD, model: JEV_MODEL },
           priced: Object.keys(prices),
           efforts: EFFORTS,
           windows: WINDOWS,
@@ -361,7 +390,7 @@ export function createSetupServer(runner = new Runner(), root = REPO_ROOT, fetch
             { id: "coach", name: "Coach", blurb: "the model adjusts its fighter's plan every couple of seconds" },
             { id: "script", name: "Self-coding", blurb: "the model writes rules before the match and rewrites them after every round; no calls during a round" },
           ],
-          defaults: { p1: { fighter: "jin", spec: "anthropic:claude-haiku-5-5" }, p2: { fighter: "kenji", spec: "openai:gpt-5.4-mini" }, stage: "rooftop", cap: 1, cadence: 2000, effort: "low", window: "1080p", graphics: "high" },
+          defaults: { p1: { fighter: "jin", spec: "anthropic:claude-haiku-5-5" }, p2: { fighter: "kenji", spec: "openai:gpt-5.4-mini" }, stage: "rooftop", cap: 1, cadence: 2000, effort: "low", window: "1080p", graphics: "high", reflexRate: 4, readThreshold: DEFAULT_READ_THRESHOLD, gateThreshold: DEFAULT_GATE_THRESHOLD },
           tournament: { maxEntrants: MAX_ENTRANTS, rotate: ROTATE },
           running: runner.running,
         });
@@ -408,7 +437,7 @@ export function createSetupServer(runner = new Runner(), root = REPO_ROOT, fetch
       if (url.pathname === "/api/log") {
         const id = url.searchParams.get("id") ?? "";
         const file = url.searchParams.get("file") ?? "";
-        if (!/^[\w-]+$/.test(id) || !/^(p1|p2)\.(md|jsonl)$|^battle\.json$|^live\.json$/.test(file)) return json(res, 400, { error: "bad log path" });
+        if (!/^[\w-]+$/.test(id) || !/^(p1|p2)\.(md|jsonl|reflex\.jsonl)$|^battle\.json$|^live\.json$/.test(file)) return json(res, 400, { error: "bad log path" });
         const path = join(runner.logRoot, id, file);
         if (!existsSync(path)) return json(res, 404, { error: "no such log" });
         res.writeHead(200, { "content-type": file.endsWith(".json") ? "application/json; charset=utf-8" : "text/plain; charset=utf-8", "content-length": statSync(path).size });
@@ -445,6 +474,8 @@ export function createSetupServer(runner = new Runner(), root = REPO_ROOT, fetch
 if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
   const i = process.argv.indexOf("--port");
   const port = i > 0 && process.argv[i + 1] ? Number(process.argv[i + 1]) : Number(process.env.PORT) || DEFAULT_PORT;
-  const server = createSetupServer();
+  const l = process.argv.indexOf("--link-port");
+  const linkPort = l > 0 && process.argv[l + 1] ? Number(process.argv[l + 1]) : Number(process.env.RINGSIDE_LINK_PORT) || 0;
+  const server = createSetupServer(new Runner(undefined, undefined, linkPort));
   server.listen(port, "127.0.0.1", () => console.log(`Ringside setup: http://127.0.0.1:${port}`));
 }

@@ -3,7 +3,8 @@ import { test } from "node:test";
 import { Coach } from "../src/coach.ts";
 import { FakeModelClient } from "../src/fake.ts";
 import { buildScriptTurnMessage, SCRIPT_TOOLS, summaryText, validateRules } from "../src/prompt.ts";
-import { FakeLink, hello, state as makeState, settle } from "./helpers.ts";
+import type { ChatBody, ChatResult, ModelClient } from "../src/types.ts";
+import { FakeClock, FakeLink, hello, state as makeState, settle } from "./helpers.ts";
 
 test("validateRules keeps good rules, clamps weights and drops bad conditions", () => {
   const { rules, problems } = validateRules([
@@ -56,4 +57,30 @@ test("script mode: a policy before the match and after each round, none during i
   assert.equal(c.turns, 2);
   assert.equal(link.sent.filter((f) => f.type === "policy").length, 2);
   c.stop();
+});
+
+test("self-coding mode with reflexes: set_policy carries orders, the round-end prompt carries the reflex record", async () => {
+  const link = new FakeLink();
+  const clock = new FakeClock();
+  const prompts: string[] = [];
+  const client: ModelClient = {
+    chat: async (spec: string, body: ChatBody): Promise<ChatResult> => {
+      prompts.push(String(body.messages[1].content));
+      const r = await new FakeModelClient().chat(spec, body);
+      const policy = r.message.tool_calls!.find((c) => c.function.name === "set_policy")!;
+      policy.function.arguments = JSON.stringify({ ...JSON.parse(policy.function.arguments!), orders: "Expect the fireball from far." });
+      return r;
+    },
+  };
+  let record: string | null = "Your reflexes since your last turn: 40 ticks; reads 2/3; gates window open 1×; no plan nudge.";
+  const c = new Coach("p1", "fake:coach", client, link, hello, null, { mode: "script", now: clock.now, setTimer: clock.setTimer, clearTimer: clock.clearTimer, reflexes: true, extraContext: () => record });
+  await settle();
+  assert.equal(c.orders, "Expect the fireball from far.");
+  assert.match(String((await (async () => prompts[0])())), /Your reflexes since your last turn: 40 ticks[^\n]*\nWrite the behaviour for the next round with set_policy\.$/);
+  record = null;
+  link.feedEvent("round_end", { winner: "p2", reason: "time", round: 1, summary: {} });
+  await settle();
+  assert.equal(c.turns, 2);
+  assert.ok(!prompts[1].includes("Your reflexes"), "no record, no line");
+  assert.match(prompts[1], /Write the behaviour for the next round with set_policy\.$/);
 });

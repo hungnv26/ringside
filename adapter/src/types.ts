@@ -111,6 +111,8 @@ export interface PlanFrame {
   side: Side;
   plan_id: string;
   plan: Plan;
+  /** "reflex" when the side's reflexes (Jev) sent it; the HUD marks the chips. */
+  source?: "reflex";
 }
 export interface QueueFrame {
   type: "queue";
@@ -163,6 +165,7 @@ export interface PredictFrame {
   side: Side;
   plan_id: string;
   what: string;
+  source?: "reflex";
 }
 export type AdapterFrame = PlanFrame | QueueFrame | SayFrame | EndFrame | ModelsFrame | ThinkingFrame | ModeFrame | PolicyFrame | TalkFrame | PredictFrame;
 

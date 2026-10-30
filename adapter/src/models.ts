@@ -207,6 +207,9 @@ export function splitSpec(spec: string): { provider: string; model: string } {
 }
 
 export const PROVIDERS = ["anthropic", "openai", "openrouter", "ollama"];
+/** The reflexes' provider (jev.ts): a key like the others, one model, no chat. */
+export const REFLEX_PROVIDER = "jev";
+export const KEYED_PROVIDERS = [...PROVIDERS, REFLEX_PROVIDER];
 
 export class ProviderClient implements ModelClient {
   readonly effort: Effort;
@@ -274,7 +277,7 @@ export class ProviderClient implements ModelClient {
 /** Where each provider's key comes from (never the key itself). */
 export function keyStatus(): Record<string, { saved: boolean; source: string; hint: string }> {
   return Object.fromEntries(
-    PROVIDERS.map((p) => {
+    KEYED_PROVIDERS.map((p) => {
       const { key, source } = providerKey(p);
       return [p, { saved: !!key, source: source.startsWith(REPO_ROOT) ? source.slice(REPO_ROOT.length + 1) : source, hint: key ? `…${key.slice(-4)}` : "" }];
     }),
@@ -283,7 +286,7 @@ export function keyStatus(): Record<string, { saved: boolean; source: string; hi
 
 /** Saves a provider key to infra/keys/<provider>.key (mode 600). */
 export function saveKey(provider: string, key: string): string {
-  if (!PROVIDERS.includes(provider) || provider === "ollama") throw new Error(`no key is kept for ${provider}`);
+  if (!KEYED_PROVIDERS.includes(provider) || provider === "ollama") throw new Error(`no key is kept for ${provider}`);
   const trimmed = key.trim();
   if (!/^[\x21-\x7e]{8,400}$/.test(trimmed)) throw new Error("that does not look like an API key");
   const dir = join(REPO_ROOT, "infra", "keys");
@@ -317,6 +320,8 @@ export async function listModels(provider: string, fetchFn: typeof fetch = fetch
   } else if (provider === "ollama") {
     const r = await get((process.env.OLLAMA_URL ?? "http://127.0.0.1:11434") + "/api/tags");
     ids = (r.models ?? []).map((m: any) => String(m.name));
+  } else if (provider === REFLEX_PROVIDER) {
+    ids = ["jev", "fake"]; // the current Jev (jev.ts JEV_MODEL), or the fake for a free match
   } else throw new Error(`unknown provider ${provider}`);
   return [...new Set(ids)].sort();
 }

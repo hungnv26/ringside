@@ -154,6 +154,8 @@ func _initialize() -> void:
 	var chips := CoachLink.plan_chips({aggression = 0.5, range = "mid", options = {throw = 1.0}}, {aggression = 0.9, range = "close", block = 0.95, options = {throw = 2.0, poke = 1.0}})
 	check("plan chips name what changed with arrows", ", ".join(chips) == "aggression ↑ 0.9, range → close, block → 0.95, throw ↑ 2", ", ".join(chips))
 	check("plan chips are capped", CoachLink.plan_chips({}, {aggression = 0.1, block = 0.2, punish = 0.3, anti_air = 0.4, pressure = 0.5}).size() == CoachLink.MAX_CHIPS)
+	var reflex_chips := CoachLink.plan_chips({block = 0.5}, {block = 0.75, range = "close"}, CoachLink.REFLEX_MARK)
+	check("the reflexes' nudges carry the bolt", ", ".join(reflex_chips) == "⚡ block ↑ 0.75, ⚡ range → close", ", ".join(reflex_chips))
 	check("a queued super is called out", CoachLink.queue_chip(["block 12", "236236K"]) == "SUPER QUEUED · block 12 › 236236K" and CoachLink.queue_chip(["2HK"]) == "QUEUE · 2HK")
 	var sent_before := link.sent.size()
 	link._handle({type = "talk", side = "p1", text = "They keep whiffing; blocking more."})

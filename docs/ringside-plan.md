@@ -105,8 +105,9 @@ Game → adapter:
 
 Adapter → game:
 
-- `plan` `{type, side, plan_id, plan: Plan}` where every field is optional and unspecified
-  fields keep their current value:
+- `plan` `{type, side, plan_id, plan: Plan, source?}` where every field is optional and unspecified
+  fields keep their current value (`source: "reflex"` when the side's reflexes sent it, see
+  docs/jev-plan.md; the HUD puts a bolt before those chips):
   `Plan = {aggression: 0..1, range: close|mid|far|number (metres), block: 0..1, punish: 0..1,
   anti_air: 0..1, reaction: fast|normal|slow, pressure: 0..1, options: {poke, string, rush,
   dash, jump, throw, grab, fireball, ground_special, sidestep, wait, retreat, approach,
@@ -124,7 +125,7 @@ Adapter → game:
 - `policy` `{type, side, plan_id, plan?, rules?}`: self-coding mode; answered with `applied`.
 - `talk` `{type, side, text}`: the coach's corner talk (the first line of its reply, up to 140
   characters), shown under the caption at its corner for seven seconds.
-- `predict` `{type, side, plan_id, what}`: a read on the opponent: one of their move inputs or
+- `predict` `{type, side, plan_id, what, source?}`: a read on the opponent: one of their move inputs or
   jump, throw, super, fireball, low, overhead, sweep, reversal, uppercut. One read per side at a
   time; a new one replaces the old, which counts as a miss. Answered with `applied`.
 

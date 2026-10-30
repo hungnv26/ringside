@@ -5,6 +5,7 @@ import type { Effort } from "./models.ts";
 export const MAX_CAPTION = 60;
 export const MAX_TALK = 140;
 export const MAX_READ = 24;
+export const MAX_ORDERS = 140;
 /** What a read may name besides one of the opponent's move inputs (the game checks the same list). */
 export const READ_WORDS = ["jump", "throw", "super", "fireball", "low", "overhead", "sweep", "reversal", "uppercut"] as const;
 
@@ -14,6 +15,16 @@ export const PREDICT_TOOL: NonNullable<ChatBody["tools"]>[number] = {
     name: "predict",
     description: `A read: what the opponent does within the next 6 seconds. One of their move inputs (623P, 2HK...) or ${READ_WORDS.join(", ")}. One read at a time; a new one replaces the old, which then counts as a miss. A correct read shows CALLED IT on screen and counts for you; call it only when you see a pattern.`,
     parameters: { type: "object", properties: { what: { type: "string", maxLength: MAX_READ } }, required: ["what"] },
+  },
+};
+
+/** Standing orders for the side's reflexes (docs/jev-plan.md): offered only when it has them. */
+export const ORDERS_TOOL: NonNullable<ChatBody["tools"]>[number] = {
+  type: "function",
+  function: {
+    name: "orders",
+    description: `One line of standing orders for your reflexes, at most ${MAX_ORDERS} characters: what to watch for, what to favour, what to leave alone. They read it on every tick until you replace it.`,
+    parameters: { type: "object", properties: { text: { type: "string", maxLength: MAX_ORDERS } }, required: ["text"] },
   },
 };
 
@@ -69,10 +80,15 @@ export function movesText(f: FighterInfo): string {
   return f.moves.map((mv) => `- ${mv.input}: ${mv.name}, ${mv.level}, ${mv.startup}f startup, ${mv.damage} damage${mv.notes ? `, ${mv.notes}` : ""}`).join("\n");
 }
 
-export function buildSystemPrompt(side: Side, hello: Hello, _effort: Effort = "low"): string {
+/** The paragraph a brain with reflexes reads (coach and self-coding modes). */
+export function reflexesText(): string {
+  return `Your fighter also has reflexes: a fast decision model (Jev) that ticks four times a second. It nudges the plan knobs one step at a time within a quarter of your settings (never in the 2 s after you set them), changes range, reaction or the favoured option when three ticks agree, makes a read when it is confident, and wakes you when the plan is failing, a punish or super window opens, or the opponent's pattern changes. It writes nothing and queues nothing: combos, captions and the thinking are yours. Your set_plan is its baseline; give it one line of standing orders with the orders tool (what to watch for, what to favour) and it reads them on every tick.`;
+}
+
+export function buildSystemPrompt(side: Side, hello: Hello, _effort: Effort = "low", reflexes = false): string {
   const me = hello[side];
   const them = hello[other(side)];
-  return `You are the ringside coach of ${me.name} in a one-on-one 3D fighting game (best of ${hello.rounds_to_win * 2 - 1} rounds of ${hello.round_seconds} seconds, ${me.max_health} health). Your fighter fights by itself at 60 frames a second; you cannot press buttons. Every couple of seconds you see the fight and adjust the game plan with the tools: set_plan (tendencies: aggression, range, block, punish, anti_air, reaction, pressure, option weights), queue (specific moves to do next), say (a short caption) and predict (a read on what the opponent does next). Start every reply with one line of corner talk, under ${MAX_TALK} characters: what you see and what you are changing. It is shown on screen under your fighter's name, so write it for the crowd. Then the tools, and nothing else.
+  return `You are the ringside coach of ${me.name} in a one-on-one 3D fighting game (best of ${hello.rounds_to_win * 2 - 1} rounds of ${hello.round_seconds} seconds, ${me.max_health} health). Your fighter fights by itself at 60 frames a second; you cannot press buttons. Every couple of seconds you see the fight and adjust the game plan with the tools: set_plan (tendencies: aggression, range, block, punish, anti_air, reaction, pressure, option weights), queue (specific moves to do next), say (a short caption)${reflexes ? ", orders (standing orders for your reflexes)" : ""} and predict (a read on what the opponent does next).${reflexes ? `\n\n${reflexesText()}\n\n` : " "}Start every reply with one line of corner talk, under ${MAX_TALK} characters: what you see and what you are changing. It is shown on screen under your fighter's name, so write it for the crowd. Then the tools, and nothing else.
 
 Your fighter, ${me.name}${me.archetype ? ` (${me.archetype})` : ""}:
 ${movesText(me)}
@@ -206,6 +222,12 @@ export function validateSay(raw: unknown): string {
 }
 
 /** The read's word: a move input or one of READ_WORDS; "" when there is nothing usable. */
+/** One line of standing orders for the reflexes; "" when there is nothing usable. */
+export function validateOrders(raw: unknown): string {
+  const t = raw && typeof raw === "object" ? String((raw as Record<string, unknown>).text ?? "") : String(raw ?? "");
+  return t.replace(/\s+/g, " ").trim().slice(0, MAX_ORDERS);
+}
+
 export function validatePredict(raw: unknown): string {
   const t = raw && typeof raw === "object" ? String((raw as Record<string, unknown>).what ?? "") : String(raw ?? "");
   return t.replace(/[^\w.]/g, "").slice(0, MAX_READ);
@@ -240,6 +262,7 @@ export const POLICY_TOOL: NonNullable<ChatBody["tools"]>[number] = {
       type: "object",
       properties: {
         plan: TOOLS[0].function.parameters,
+        orders: { type: "string", maxLength: MAX_ORDERS, description: "When the fighter has reflexes (the prompt says so): one line of standing orders they read on every tick." },
         rules: {
           type: "array",
           maxItems: 12,
@@ -273,10 +296,10 @@ export const POLICY_TOOL: NonNullable<ChatBody["tools"]>[number] = {
 
 export const SCRIPT_TOOLS: NonNullable<ChatBody["tools"]> = [POLICY_TOOL, TOOLS[2]];
 
-export function buildScriptSystemPrompt(side: Side, hello: Hello): string {
+export function buildScriptSystemPrompt(side: Side, hello: Hello, reflexes = false): string {
   const me = hello[side];
   const them = hello[other(side)];
-  return `You program ${me.name}, a fighter in a one-on-one 3D fighting game (best of ${hello.rounds_to_win * 2 - 1} rounds of ${hello.round_seconds} seconds, ${me.max_health} health). You cannot act during a round: before the match and after every round you write the fighter's behaviour with set_policy (a plan of tendencies plus rules: when the fight looks like this, do these moves), and the fighter runs it alone at 60 frames a second. After each round you see what happened: every attack by both sides with how often it hit, was blocked or whiffed, throws, knockdowns, health left. Rewrite the rules to beat what the opponent actually did. Give set_policy once per turn, optionally say once; nothing else.
+  return `You program ${me.name}, a fighter in a one-on-one 3D fighting game (best of ${hello.rounds_to_win * 2 - 1} rounds of ${hello.round_seconds} seconds, ${me.max_health} health). You cannot act during a round: before the match and after every round you write the fighter's behaviour with set_policy (a plan of tendencies plus rules: when the fight looks like this, do these moves), and the fighter runs it alone at 60 frames a second. After each round you see what happened: every attack by both sides with how often it hit, was blocked or whiffed, throws, knockdowns, health left. Rewrite the rules to beat what the opponent actually did. Give set_policy once per turn, optionally say once; nothing else.${reflexes ? `\n\nYour fighter also has reflexes: a fast decision model (Jev) that ticks four times a second during the round and makes reads when it is confident; it does not touch the plan or the rules in this mode. After each round you see what its reads and gates said. Give it one line of standing orders in set_policy's orders field (what to watch for) and it reads them on every tick.` : ""}
 
 Your fighter, ${me.name}${me.archetype ? ` (${me.archetype})` : ""}:
 ${movesText(me)}

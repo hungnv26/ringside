@@ -14,7 +14,9 @@ npm run setup        # http://127.0.0.1:8798 (--port N, or $PORT)
 `POST /api/key`, `POST /api/match`, `POST /api/stop`, `/api/status`, `/api/results`,
 `/api/log?id=&file=`, `/api/captures?id=`). It starts a match by spawning `main.ts` with
 `--log battle-logs/<id> --quit`, and reads that folder's `live.json`, which `main.ts` rewrites
-every second and on every event. Bound to 127.0.0.1 only.
+every second and on every event. Bound to 127.0.0.1 only. `--link-port N` (or
+`$RINGSIDE_LINK_PORT`) sets the game link's port for the matches it starts, so a second setup
+server (another checkout) can play matches beside the first.
 
 Tournaments (`src/tournament.ts`): `POST /api/tournament` with `{name, entrants: [{fighter,
 spec}], legs: 1|2, stage: <id>|"rotate", ...the match settings}` schedules a round robin and
@@ -25,6 +27,35 @@ carries `tournament` while one runs, and `POST /api/match` is refused meanwhile.
 tournament is saved as `battle-logs/tournaments/<id>.json`; one the server was restarted
 under is left as it was (its unplayed fixtures are not resumed). A match that exits without a
 `battle.json` is marked failed and the tournament goes on.
+
+## Reflexes (Jev)
+
+A corner may have *reflexes* beside its brain, or instead of one (docs/jev-plan.md): Jev,
+TypeSafe AI's decision model, ticks on every state frame (four a second) with one call that
+scores the five plan knobs, picks range, reaction and a favoured option, makes a read, and
+answers three gates (the plan is failing, a punish or super window is open, the opponent's
+pattern changed). From the answers `src/reflex.ts` nudges the plan one step (0.25) at a time
+within a quarter of the brain's setting (never in the 2 s after the brain set it), changes
+the choices when three ticks agree, sends a `predict` when the read's probability reaches the
+read threshold, and wakes the brain (`Coach.turn("reflex:<gates>")`) when a gate reaches the
+gate threshold, at most once every 4 s per gate. It writes nothing and queues nothing. A
+corner with no brain captions its own changes. In self-coding mode the reflexes only read and
+record the gates; the brain sees the record after each round.
+
+Specs: `provider:model+jev` is a brain with reflexes, `jev:jev` reflexes alone,
+`jev:<model-id>` a specific Jev; `+fake` and `jev:fake` use the deterministic fake, and a fake
+brain's `+jev` is faked too (a free match stays free). A brain with reflexes gets the `orders`
+tool (one line of standing orders the reflexes read on every tick) and, in every prompt, a line
+on what its reflexes did since its last turn; `set_policy` takes `orders` too. The brain's
+cadence defaults to 6 s when it has reflexes.
+
+Jev is served through DigitalOcean's inference API (`infra/keys/jev.key`: a DigitalOcean model
+access key; `$JEV_URL` to point elsewhere, TypeSafe's endpoint takes the same body). It is not
+OpenAI-compatible, so `src/jev.ts` has its own client, the question set and the state block
+(about 1.3K tokens a tick; input $0.042 per million, output free: a three-round match at 4 Hz
+costs about eight cents). `node src/probe.ts` replays the logged turns of past matches through
+Jev and scores its reads against what the opponent then did (precision per threshold, latency,
+gate rates): run it before trusting the reflexes on a new fighter or version.
 
 ## What a coach can do
 
@@ -64,13 +95,17 @@ the log folder, sends `end` to the game and exits 0. Ctrl-C ends the game too.
 | `--window 720p\|900p\|1080p\|1440p\|fullscreen` | `1080p` | The game window for this match, in screen points (3840×2160 pixels for 1080p on a 2× Retina screen); the 3D is drawn at the window's own resolution; a size that does not fit the screen falls back to the largest that does |
 | `--graphics high\|showcase` | `high` | Picture quality: High draws the 3D at 1080p and upscales it (MetalFX on a Mac) with ambient occlusion, indirect light and reflections, 74–92 fps on an M1 Pro; Showcase draws at the window's full resolution and adds global illumination, about 20–27 fps live, meant for `--record` |
 | `--mode coach\|script` | `coach` | coach: a turn every cadence; script: the self-coding fighter (a policy of rules before the match and after each round) |
+| `--reflex-rate 2\|4` | `4` | Reflex ticks a second for a corner with Jev (4 is every state frame) |
+| `--read-threshold P` | `0.6` | A reflex read is sent when Jev's probability reaches P |
+| `--gate-threshold P` | `0.7` | A gate wakes the brain when its probability reaches P (once every 4 s per gate) |
 | `--record FILE.mp4` | | Record the match: Godot's movie writer at a fixed 60 fps, then ffmpeg encodes the .mp4 after the game closes (needs `ffmpeg` on the PATH) |
 | `--capture DIR` | | The game saves a screenshot every 10 s of the fight and one of the result to DIR |
 
 Models: `anthropic:<model>` (Messages API, prompt caching, `output_config.effort`),
 `openai:<model>` (Responses API for `o*`, `gpt-5*`, `gpt-6*`; chat completions otherwise),
 `openrouter:<vendor/model>`, `ollama:<model>` (local, `$OLLAMA_URL`, no thinking), `fake:coach`
-(deterministic, for tests and smoke runs).
+(deterministic, for tests and smoke runs); `+jev` on any of them for reflexes, `jev:jev` for
+reflexes alone (see above).
 
 ## Keys
 
@@ -94,12 +129,17 @@ same table as Outpost War's).
   round_start, knockdown, health_swing), the prompt the model read, its reply and tool calls,
   the game's answers, answer time, tokens, cost.
 - `p1.jsonl`, `p2.jsonl`: the same turns, one JSON line each.
+- `p1.reflex.jsonl`, `p2.reflex.jsonl` (corners with reflexes): one line per tick: the knobs,
+  choices and gate probabilities Jev answered, what was sent, which gates fired, time, tokens,
+  cost. `battle.json` carries `reflexes` per side (ticks, nudges, reads, gates, cost) beside
+  `coaches`; the results page and the Elo table count a corner's reflexes with its brain.
 
 ## Checks
 
 ```bash
-npm test            # 48 tests: prompt text, plan validation, the fake, the link over a socket, coach cadence/cap/errors, logs, CLI, the setup API, modes, tournaments, corner talk and reads
+npm test            # 70 tests: prompt text, plan validation, the fake, the link over a socket, coach cadence/cap/errors, logs, CLI, the setup API, modes, tournaments, corner talk and reads, Jev's questions and fake, the reflex loop
 npm run typecheck
+node src/probe.ts   # Jev on the logged turns (the fake without a key); --root for another battle-logs folder
 ```
 
 ## Layout
@@ -111,6 +151,9 @@ src/models.ts  provider calls (ported from Outpost War's gateway), keys, prices,
 src/fake.ts    the fake model
 src/prompt.ts  system prompt, turn message, tools, plan validation
 src/coach.ts   one side's coach: cadence, triggers, tool calls to frames, budget
+src/jev.ts     Jev: the client, the question set, the state block, the answers, the fake
+src/reflex.ts  one side's reflexes: ticks on state frames, nudges, reads, gates, captions
+src/probe.ts   Jev on the logged turns of past matches: read precision, latency, gate rates
 src/log.ts     battle logs
 src/main.ts    CLI, game launch, status, result
 src/setup.ts   the setup page's server: roster, keys, models, the match runner, results, Elo

@@ -1,5 +1,6 @@
 // Battle logs: battle-logs/<id>/battle.json (setup, result, totals), <side>.md (readable: the
-// system prompt once, then every turn), <side>.jsonl (one line per turn, for tools).
+// system prompt once, then every turn), <side>.jsonl (one line per turn, for tools),
+// <side>.reflex.jsonl (one line per reflex tick when the side has reflexes).
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { REPO_ROOT } from "./models.ts";
@@ -16,6 +17,19 @@ export interface TurnLog {
   reply: { content: string | null; tool_calls: { name: string; arguments: string }[] };
   results: string[];
   finish?: string;
+  error?: string;
+}
+
+export interface ReflexTickLog {
+  tick: number;
+  at: string;
+  seconds: number;
+  tokens: number;
+  usd: number | null;
+  /** The knobs (0..1), choices and gate probabilities of this tick. */
+  last: Record<string, string | number>;
+  sent: string[];
+  gates: string[];
   error?: string;
 }
 
@@ -71,6 +85,11 @@ export class BattleLog {
     ].join("\n");
     appendFileSync(join(this.dir, `${side}.md`), md + "\n");
     appendFileSync(join(this.dir, `${side}.jsonl`), JSON.stringify(t) + "\n");
+  }
+
+  /** One reflex tick (reflex.ts): what Jev answered and what was sent. */
+  reflex(side: Side, t: ReflexTickLog): void {
+    appendFileSync(join(this.dir, `${side}.reflex.jsonl`), JSON.stringify(t) + "\n");
   }
 
   battle(data: Record<string, unknown>): void {

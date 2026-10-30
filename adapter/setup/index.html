@@ -100,6 +100,7 @@ video { width: 100%; max-width: 720px; border-radius: 6px; border: 1px solid var
         <label>Fighter <select id="p1-fighter"></select></label>
         <label>Provider <select id="p1-provider"></select></label>
         <label>Model <input id="p1-model" list="p1-models" placeholder="model id" autocomplete="off"><datalist id="p1-models"></datalist></label>
+        <label class="check" id="p1-reflex-row"><input type="checkbox" id="p1-reflex"> Reflexes: Jev <span class="note">(a decision model ticking four times a second; this model becomes the brain)</span></label>
         <div class="msg" id="p1-msg"></div>
       </div>
       <div class="side" data-side="p2">
@@ -107,10 +108,11 @@ video { width: 100%; max-width: 720px; border-radius: 6px; border: 1px solid var
         <label>Fighter <select id="p2-fighter"></select></label>
         <label>Provider <select id="p2-provider"></select></label>
         <label>Model <input id="p2-model" list="p2-models" placeholder="model id" autocomplete="off"><datalist id="p2-models"></datalist></label>
+        <label class="check" id="p2-reflex-row"><input type="checkbox" id="p2-reflex"> Reflexes: Jev <span class="note">(a decision model ticking four times a second; this model becomes the brain)</span></label>
         <div class="msg" id="p2-msg"></div>
       </div>
     </div>
-    <div class="note">Models are listed from each provider with its saved key (OpenRouter: tool-capable models only; Ollama: what is pulled locally). <code>fake</code> is a scripted coach for a free test match.</div>
+    <div class="note">Models are listed from each provider with its saved key (OpenRouter: tool-capable models only; Ollama: what is pulled locally). <code>fake</code> is a scripted coach for a free test match. <code>jev</code> alone is reflexes with no brain (Jev nudges the plan and makes reads; captions are templated); with a fake coach the reflexes are faked too.</div>
   </section>
 
   <section class="step">
@@ -138,6 +140,15 @@ video { width: 100%; max-width: 720px; border-radius: 6px; border: 1px solid var
       <label>Game window <select id="window"></select></label>
       <label>Picture quality <select id="graphics"></select></label>
     </div>
+    <details>
+      <summary class="note">Reflexes (corners with Jev)</summary>
+      <div class="row" style="margin-top:10px">
+        <label>Reflex ticks a second <select id="reflex-rate"></select></label>
+        <label>Read threshold <input id="read-threshold" type="number" min="0.3" max="0.95" step="0.05"></label>
+        <label>Gate threshold <input id="gate-threshold" type="number" min="0.3" max="0.95" step="0.05"></label>
+      </div>
+      <div class="note">A read is sent when Jev's probability reaches the read threshold; a gate (the plan is failing, a punish window is open, the opponent's pattern changed) wakes the brain when it reaches the gate threshold, at most once every 4 s per gate. With reflexes beside a brain, "Turn every" is the brain's cadence; 6000 ms suits it, the gates wake it sooner.</div>
+    </details>
     <label class="check"><input type="checkbox" id="capture"> Save a screenshot every 10 s of the fight</label>
     <label class="check"><input type="checkbox" id="record"> Record the match to video (every frame rendered at 60 fps, then encoded with ffmpeg; the game runs slower on a slow machine)</label>
     <div class="buttons">
@@ -185,8 +196,8 @@ video { width: 100%; max-width: 720px; border-radius: 6px; border: 1px solid var
         <div><div class="name p2" id="name-p2">—</div><div class="bar p2"><i id="hp-p2" style="width:0%"></i></div><div class="bar meter p2"><i id="meter-p2" style="width:0%"></i></div><div class="pips" id="pips-p2" style="text-align:right"></div></div>
       </div>
       <div class="coaches">
-        <div class="coach" data-side="p1"><div class="model" id="coach-model-p1">—</div><div class="caption" id="coach-caption-p1"></div><div class="talk" id="coach-talk-p1"></div><div class="stats" id="coach-stats-p1"></div><div class="plan" id="coach-plan-p1"></div></div>
-        <div class="coach" data-side="p2"><div class="model" id="coach-model-p2">—</div><div class="caption" id="coach-caption-p2"></div><div class="talk" id="coach-talk-p2"></div><div class="stats" id="coach-stats-p2"></div><div class="plan" id="coach-plan-p2"></div></div>
+        <div class="coach" data-side="p1"><div class="model" id="coach-model-p1">—</div><div class="caption" id="coach-caption-p1"></div><div class="talk" id="coach-talk-p1"></div><div class="stats" id="coach-stats-p1"></div><div class="stats" id="coach-reflex-p1"></div><div class="plan" id="coach-plan-p1"></div></div>
+        <div class="coach" data-side="p2"><div class="model" id="coach-model-p2">—</div><div class="caption" id="coach-caption-p2"></div><div class="talk" id="coach-talk-p2"></div><div class="stats" id="coach-stats-p2"></div><div class="stats" id="coach-reflex-p2"></div><div class="plan" id="coach-plan-p2"></div></div>
       </div>
       <div class="result" id="result" hidden></div>
       <div class="events" id="events"></div>
@@ -224,13 +235,24 @@ function fill(select, options, value) {
   select.innerHTML = options.map((o) => `<option value="${esc(o.value)}">${esc(o.label)}</option>`).join("");
   if (value !== undefined) select.value = value;
 }
+// provider:model, "+jev" for reflexes beside the brain, "jev:jev" for reflexes alone.
 function spec(side) {
-  return `${$(side + "-provider").value}:${$(side + "-model").value.trim()}`;
+  const provider = $(side + "-provider").value;
+  const model = $(side + "-model").value.trim();
+  if (provider === "jev") return `jev:${model || "jev"}`;
+  return `${provider}:${model}${$(side + "-reflex").checked ? "+jev" : ""}`;
 }
 function setSpec(side, s) {
-  const i = s.indexOf(":");
-  $(side + "-provider").value = s.slice(0, i);
-  $(side + "-model").value = s.slice(i + 1);
+  const plus = s.indexOf("+");
+  const base = plus > 0 ? s.slice(0, plus) : s;
+  const i = base.indexOf(":");
+  $(side + "-provider").value = base.slice(0, i);
+  $(side + "-model").value = base.slice(i + 1);
+  $(side + "-reflex").checked = plus > 0;
+  reflexRow(side);
+}
+function reflexRow(side) {
+  $(side + "-reflex-row").hidden = $(side + "-provider").value === "jev";
 }
 async function loadModels(side, refresh) {
   const provider = $(side + "-provider").value;
@@ -241,11 +263,12 @@ async function loadModels(side, refresh) {
     const { models } = await api(`/api/models?provider=${encodeURIComponent(provider)}${refresh ? "&refresh=1" : ""}`);
     $(side + "-models").innerHTML = models.map((m) => `<option value="${esc(m)}">`).join("");
     if (provider === "fake") $(side + "-model").value = "coach";
+    else if (provider === "jev") { if (!models.includes($(side + "-model").value)) $(side + "-model").value = "jev"; }
     else if (!models.includes($(side + "-model").value)) {
       const priced = (setup.priced || []).filter((p) => p.startsWith(provider + ":")).map((p) => p.slice(provider.length + 1)).find((m) => models.includes(m));
       if (priced) $(side + "-model").value = priced;
     }
-    msg.textContent = provider === "fake" ? "" : `${models.length} models`;
+    msg.textContent = provider === "fake" ? "" : provider === "jev" ? `reflexes only: ${setup.reflex ? setup.reflex.model : "Jev"} through DigitalOcean (key "jev"), or fake` : `${models.length} models`;
   } catch (e) {
     msg.className = "msg err";
     msg.textContent = e.message;
@@ -270,9 +293,13 @@ async function init() {
     fill($(side + "-fighter"), fighters, last[side].fighter);
     fill($(side + "-provider"), providers);
     setSpec(side, last[side].spec);
-    $(side + "-provider").addEventListener("change", () => loadModels(side));
+    $(side + "-provider").addEventListener("change", () => { reflexRow(side); loadModels(side); });
     loadModels(side);
   }
+  const rates = (setup.reflex && setup.reflex.rates) || [2, 4];
+  fill($("reflex-rate"), rates.map((r) => ({ value: String(r), label: `${r} (${r === 4 ? "every state frame" : "every other frame"})` })), String(last.reflexRate || setup.defaults.reflexRate || 4));
+  $("read-threshold").value = last.readThreshold ?? setup.defaults.readThreshold ?? 0.6;
+  $("gate-threshold").value = last.gateThreshold ?? setup.defaults.gateThreshold ?? 0.7;
   fill($("stage"), setup.stages.map((s) => ({ value: s.id, label: s.name })), last.stage);
   fill($("effort"), setup.efforts.map((e) => ({ value: e, label: e })), last.effort);
   fill($("window"), setup.windows.map((w) => ({ value: w, label: w === "fullscreen" ? "fullscreen (borderless)" : w })), last.window || setup.defaults.window || "1080p");
@@ -341,6 +368,7 @@ $("t-start").addEventListener("click", async () => {
   const request = {
     name: $("t-name").value, entrants, legs: $("t-legs").value, stage: $("t-stage").value,
     seed: $("seed").value, cap: $("cap").value, cadence: $("cadence").value, effort: $("effort").value, capture: $("capture").checked, record: $("record").checked, mode: $("mode").value, window: $("window").value, graphics: $("graphics").value,
+    reflexRate: $("reflex-rate").value, readThreshold: $("read-threshold").value, gateThreshold: $("gate-threshold").value,
   };
   try {
     const r = await api("/api/tournament", request);
@@ -409,6 +437,7 @@ $("start").addEventListener("click", async () => {
     p1: { fighter: $("p1-fighter").value, spec: spec("p1") },
     p2: { fighter: $("p2-fighter").value, spec: spec("p2") },
     stage: $("stage").value, seed: $("seed").value, cap: $("cap").value, cadence: $("cadence").value, effort: $("effort").value, capture: $("capture").checked, record: $("record").checked, mode: $("mode").value, window: $("window").value, graphics: $("graphics").value,
+    reflexRate: $("reflex-rate").value, readThreshold: $("read-threshold").value, gateThreshold: $("gate-threshold").value,
   };
   try {
     const r = await api("/api/match", request);
@@ -479,7 +508,15 @@ function render(s) {
   for (const side of SIDES) {
     $("name-" + side).textContent = `${live.hello[side].name}`;
     const c = live.coaches?.[side];
+    const r = live.reflexes?.[side];
     $("coach-model-" + side).textContent = live.sides?.[side]?.model ?? "";
+    $("coach-reflex-" + side).textContent = r ? `reflexes ${r.status} · ${r.ticks} ticks · ${r.avgMs != null ? r.avgMs.toFixed(0) : "—"} ms · ${r.nudges} nudges · reads ${r.reads.right}/${r.reads.made} · gates ${r.gates.plan_failing}/${r.gates.window_open}/${r.gates.pattern_changed} · ${usd(r.usd)}${r.lastRead ? ` · expecting ${r.lastRead}` : ""}${r.errors ? ` · ${r.errors} errors` : ""}` : "";
+    if (!c && r) {
+      $("coach-caption-" + side).textContent = r.lastCaption ? `“${r.lastCaption}”` : "";
+      $("coach-talk-" + side).textContent = "";
+      $("coach-stats-" + side).textContent = "no brain: reflexes only";
+      $("coach-plan-" + side).textContent = r.last ? Object.entries(r.last).filter(([k]) => !["plan_failing", "window_open", "pattern_changed", "read"].includes(k)).map(([k, v]) => `${k} ${v}`).join(" · ") : "";
+    }
     if (c) {
       $("coach-caption-" + side).textContent = c.lastCaption ? `“${c.lastCaption}”` : "";
       $("coach-talk-" + side).textContent = c.lastTalk ? `Corner talk: ${c.lastTalk}` : "";
@@ -524,6 +561,7 @@ function eventText(e) {
     case "super": return `${who(e.side)} uses ${esc(e.name || "the super")}`;
     case "round_end": return `Round over: ${e.winner ? who(e.winner) + " wins it" : "draw"} (${esc(e.reason)})`;
     case "match_end": return `Match over: ${e.winner ? who(e.winner) + " wins" : "draw"}`;
+    case "read": return `${who(e.side)}'s corner read ${esc(e.what)}: ${e.right ? `CALLED IT (${esc(e.actual || "")})` : e.actual === "replaced" ? "replaced" : "missed"}`;
     default: return esc(e.event);
   }
 }
@@ -536,8 +574,9 @@ async function refreshResults() {
   const { battles, elo } = await api("/api/results");
   $("results").querySelector("tbody").innerHTML = battles.map((b) => {
     const side = (s) => `${esc(b.sides[s]?.fighter)} · <span class="key-hint">${esc(b.sides[s]?.model)}</span>`;
-    const cost = (b.coaches.p1?.usd ?? 0) + (b.coaches.p2?.usd ?? 0);
-    const logs = ["p1.md", "p2.md", "battle.json"].map((f) => `<a href="/api/log?id=${esc(b.id)}&file=${f}" target="_blank">${f}</a>`).join(" ") + (b.video ? ` <a href="/api/video/${esc(b.id)}.mp4" target="_blank">video</a>` : "");
+    const cost = (b.coaches.p1?.usd ?? 0) + (b.coaches.p2?.usd ?? 0) + (b.reflexes?.p1?.usd ?? 0) + (b.reflexes?.p2?.usd ?? 0);
+    const files = ["p1.md", "p2.md", "battle.json", ...Object.keys(b.reflexes || {}).map((s) => `${s}.reflex.jsonl`)];
+    const logs = files.map((f) => `<a href="/api/log?id=${esc(b.id)}&file=${f}" target="_blank">${f}</a>`).join(" ") + (b.video ? ` <a href="/api/video/${esc(b.id)}.mp4" target="_blank">video</a>` : "");
     return `<tr><td>${esc(b.at.replace("T", " ").slice(0, 16))}</td><td>${side("p1")}</td><td>${side("p2")}</td><td>${esc(b.stage)}</td><td>${esc(b.mode === "script" ? "self-coding" : b.mode === "beat" ? "beat (removed)" : "coach")}</td><td>${b.winner ? esc(b.sides[b.winner]?.fighter) + " (" + (b.winner === "p1" ? "corner 1" : "corner 2") + ")" : "draw"}</td><td class="num">${(b.wins || []).join("–")}</td><td class="num">${usd(cost)}</td><td>${logs}</td></tr>`;
   }).join("") || `<tr><td colspan="9" class="note">No matches yet.</td></tr>`;
   $("elo").querySelector("tbody").innerHTML = elo.map((r) => `<tr><td><span class="key-hint">${esc(r.model)}</span></td><td class="num">${r.rating}</td><td class="num">${r.wins}</td><td class="num">${r.losses}</td><td class="num">${r.draws}</td><td class="num">${usd(r.usd)}</td></tr>`).join("") || `<tr><td colspan="6" class="note">No ratings yet.</td></tr>`;

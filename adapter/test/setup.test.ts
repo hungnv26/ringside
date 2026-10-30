@@ -33,6 +33,7 @@ test("roster and stages come from the game's files", () => {
 const battle = (at: string, p1: string, p2: string, winner: string | null, usd1 = 0.01, usd2 = 0.02): BattleSummary => ({
   id: at, at, stage: "ring", seed: 1, sides: { p1: { fighter: "jin", model: p1 }, p2: { fighter: "kenji", model: p2 } }, winner, wins: winner === "p1" ? [2, 0] : winner === "p2" ? [0, 2] : [1, 1], reason: winner ? "rounds" : "draw", video: false, mode: "coach",
   coaches: { p1: { turns: 10, tokens: 100, usd: usd1, avgSeconds: 2, errors: 0 }, p2: { turns: 10, tokens: 100, usd: usd2, avgSeconds: 2, errors: 0 } },
+  reflexes: {},
 });
 
 test("elo: a win moves 16 points at equal rating, draws count half, sorted by rating", () => {
@@ -91,6 +92,28 @@ test("validateMatch accepts a good request and fills defaults", () => {
   assert.equal(recorded[recorded.indexOf("--record") + 1], "/logs/x/match.mp4");
 });
 
+test("validateMatch and matchArgs carry the reflexes: +jev specs, jev alone, the rate and thresholds", () => {
+  const m = validateMatch({ p1: { fighter: "jin", spec: "anthropic:claude-opus-5-5+jev" }, p2: { fighter: "kenji", spec: "jev:jev" }, stage: "ring", reflexRate: "2", readThreshold: "0.7" }, fighters, ["ring"]);
+  assert.equal(m.p1.spec, "anthropic:claude-opus-5-5+jev");
+  assert.equal(m.p2.spec, "jev:jev");
+  assert.equal(m.reflexRate, 2);
+  assert.equal(m.readThreshold, 0.7);
+  assert.equal(m.gateThreshold, 0.7);
+  const args = matchArgs(m, "/logs/x", "/logs/x/captures");
+  assert.ok(args.includes("--reflex-rate") && args[args.indexOf("--reflex-rate") + 1] === "2");
+  assert.equal(args[args.indexOf("--read-threshold") + 1], "0.7");
+  assert.equal(args[args.indexOf("--gate-threshold") + 1], "0.7");
+  assert.throws(() => validateMatch({ p1: { fighter: "jin", spec: "fake:coach+turbo" }, p2: { fighter: "kenji", spec: "fake:coach" }, stage: "ring" }, fighters, ["ring"]), /\+jev/);
+  assert.throws(() => validateMatch({ p1: { fighter: "jin", spec: "fake:coach" }, p2: { fighter: "kenji", spec: "fake:coach" }, stage: "ring", reflexRate: 3 }, fighters, ["ring"]), /reflexRate/);
+  // Costs: a corner's reflexes count with its brain in the results and the Elo table.
+  const s = summarize({ at: "2026-10-31T00:00:00Z", stage: "ring", sides: { p1: { fighter: "jin", model: "fake:coach+jev" }, p2: { fighter: "kenji", model: "jev:fake" } }, result: { winner: "p1", wins: [2, 0], reason: "rounds" }, coaches: { p1: { turns: 3, usd: 0.5 } }, reflexes: { p1: { ticks: 400, usd: 0.05, reads: { made: 6, right: 2 }, nudges: 9 }, p2: { ticks: 390, usd: 0.04, reads: { made: 4, right: 1 }, nudges: 12 } } }, "x")!;
+  assert.deepEqual(s.reflexes.p1, { ticks: 400, usd: 0.05, reads: { made: 6, right: 2 }, nudges: 9 });
+  assert.equal(s.coaches.p2, undefined);
+  const table = elo([s]);
+  assert.equal(table.find((r) => r.model === "fake:coach+jev")?.usd, 0.55);
+  assert.equal(table.find((r) => r.model === "jev:fake")?.usd, 0.04);
+});
+
 test("validateMatch refuses bad fighters, specs, stages and numbers", () => {
   const good = { p1: { fighter: "jin", spec: "fake:coach" }, p2: { fighter: "kenji", spec: "fake:coach" }, stage: "ring" };
   assert.throws(() => validateMatch({ ...good, p1: { fighter: "ryu", spec: "fake:coach" } }, fighters, stageIds), /unknown fighter/);
@@ -141,7 +164,7 @@ test("the API serves setup, results, logs and refuses bad requests", async () =>
     const setup = await get("/api/setup");
     assert.equal(setup.status, 200);
     assert.ok(setup.body.roster.length >= 7 && setup.body.stages.length >= 8);
-    assert.deepEqual(setup.body.providers, ["fake", "anthropic", "openai", "openrouter", "ollama"]);
+    assert.deepEqual(setup.body.providers, ["fake", "anthropic", "openai", "openrouter", "ollama", "jev"]);
     assert.ok("anthropic" in setup.body.keys);
     assert.deepEqual((await get("/api/models?provider=fake")).body, { models: ["coach"] });
     const bad = await get("/api/match", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ p1: { fighter: "x", spec: "fake:coach" } }) });

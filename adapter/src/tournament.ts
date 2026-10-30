@@ -32,6 +32,9 @@ export interface TournamentRequest {
   graphics: string;
   capture: boolean;
   record: boolean;
+  reflexRate?: number;
+  readThreshold?: number;
+  gateThreshold?: number;
 }
 
 export type FixtureStatus = "pending" | "running" | "done" | "failed" | "skipped";
@@ -195,7 +198,7 @@ export class TournamentRunner {
     const f = t.fixtures.find((x) => x.status === "pending");
     if (!f) return this.finish(t);
     const r = t.request;
-    const request: MatchRequest = { p1: r.entrants[f.p1], p2: r.entrants[f.p2], stage: f.stage, seed: f.seed, cap: r.cap, cadence: r.cadence, effort: r.effort, capture: r.capture, record: r.record, mode: r.mode, window: r.window, graphics: r.graphics };
+    const request: MatchRequest = { p1: r.entrants[f.p1], p2: r.entrants[f.p2], stage: f.stage, seed: f.seed, cap: r.cap, cadence: r.cadence, effort: r.effort, capture: r.capture, record: r.record, mode: r.mode, window: r.window, graphics: r.graphics, reflexRate: r.reflexRate, readThreshold: r.readThreshold, gateThreshold: r.gateThreshold };
     try {
       f.matchId = this.runner.start(request).id;
       f.status = "running";
@@ -223,7 +226,8 @@ export class TournamentRunner {
         f.winner = battle.result.winner === "p1" || battle.result.winner === "p2" ? battle.result.winner : null;
         f.wins = Array.isArray(battle.result.wins) ? battle.result.wins.map(Number) : null;
         f.reason = battle.result.reason ?? null;
-        f.usd = [Number(battle.coaches?.p1?.usd ?? 0), Number(battle.coaches?.p2?.usd ?? 0)];
+        // A corner's cost: its brain's and its reflexes' (docs/jev-plan.md).
+        f.usd = [Number(battle.coaches?.p1?.usd ?? 0) + Number(battle.reflexes?.p1?.usd ?? 0), Number(battle.coaches?.p2?.usd ?? 0) + Number(battle.reflexes?.p2?.usd ?? 0)];
       } else if (t.stopped) {
         f.status = "failed";
         f.reason = "stopped";

@@ -6,7 +6,9 @@ import { existsSync, unlinkSync } from "node:fs";
 import { basename } from "node:path";
 import { Coach } from "./coach.ts";
 import { FakeModelClient } from "./fake.ts";
+import { FakeJevClient, JevClient, type ReflexClient } from "./jev.ts";
 import { Link } from "./link.ts";
+import { DEFAULT_GATE_THRESHOLD, DEFAULT_READ_THRESHOLD, REFLEX_RATES, Reflexes, parseSpec, type ReadLedger } from "./reflex.ts";
 import { BattleLog, battleId } from "./log.ts";
 import type { Mode } from "./types.ts";
 import { ProviderClient, REPO_ROOT, splitSpec, type Effort } from "./models.ts";
@@ -31,7 +33,16 @@ interface Args {
   window: string;
   /** Picture quality: high (live, 60 fps and up) or showcase (native resolution, global illumination; for recordings). */
   graphics: string;
+  /** Reflex ticks a second (2 or 4) for a side with reflexes (+jev or jev:...). */
+  reflexRate: number;
+  /** A reflex read is sent when its probability reaches this. */
+  readThreshold: number;
+  /** A gate wakes the brain when its probability reaches this. */
+  gateThreshold: number;
 }
+
+/** The brain's cadence when a side has reflexes and --cadence is not given: the gates wake it sooner. */
+export const REFLEX_BRAIN_CADENCE = 6000;
 
 export const WINDOWS = ["720p", "900p", "1080p", "1440p", "fullscreen"] as const;
 export const GRAPHICS = ["high", "showcase"] as const;
@@ -47,6 +58,7 @@ export function parseCli(argv: string[]): Args {
     const v = get(name, `${fighter}=fake:coach`)!;
     const i = v.indexOf("=");
     if (i < 0) throw new Error(`--${name} must be fighter=provider:model, got "${v}"`);
+    parseSpec(v.slice(i + 1)); // throws on a bad reflexes suffix
     return { fighter: v.slice(0, i), spec: v.slice(i + 1) };
   };
   const effort = get("effort", "low") as Effort;
@@ -57,12 +69,24 @@ export function parseCli(argv: string[]): Args {
   if (!(WINDOWS as readonly string[]).includes(window)) throw new Error(`--window must be one of ${WINDOWS.join(", ")}`);
   const graphics = get("graphics", "high")!;
   if (!(GRAPHICS as readonly string[]).includes(graphics)) throw new Error(`--graphics must be one of ${GRAPHICS.join(", ")}`);
+  const reflexRate = Number(get("reflex-rate", "4"));
+  if (!(REFLEX_RATES as readonly number[]).includes(reflexRate)) throw new Error(`--reflex-rate must be one of ${REFLEX_RATES.join(", ")}`);
+  const threshold = (name: string, fallback: string) => {
+    const v = Number(get(name, fallback));
+    if (!Number.isFinite(v) || v < 0.3 || v > 0.95) throw new Error(`--${name} must be a number between 0.3 and 0.95`);
+    return v;
+  };
+  const sides = { p1: side("p1", "jin"), p2: side("p2", "kenji") };
+  const hybrid = Object.values(sides).some((x) => {
+    const { brain, reflex } = parseSpec(x.spec);
+    return brain && reflex;
+  });
   return {
-    sides: { p1: side("p1", "jin"), p2: side("p2", "kenji") },
+    sides,
     stage: get("stage", "rooftop")!,
     seed: Number(get("seed", String(Math.floor(Math.random() * 1e9)))),
     cap: Number(get("cap", "1")),
-    cadence: Number(get("cadence", "2000")),
+    cadence: Number(get("cadence", hybrid ? String(REFLEX_BRAIN_CADENCE) : "2000")),
     effort,
     port: Number(get("port", "8797")),
     launch: !argv.includes("--no-launch"),
@@ -74,6 +98,9 @@ export function parseCli(argv: string[]): Args {
     mode,
     window,
     graphics,
+    reflexRate,
+    readThreshold: threshold("read-threshold", String(DEFAULT_READ_THRESHOLD)),
+    gateThreshold: threshold("gate-threshold", String(DEFAULT_GATE_THRESHOLD)),
   };
 }
 
@@ -102,6 +129,17 @@ export function clientFor(spec: string, effort: Effort, cache: Map<string, Model
   let c = cache.get(key);
   if (!c) {
     c = provider === "fake" ? new FakeModelClient(300) : new ProviderClient(effort);
+    cache.set(key, c);
+  }
+  return c;
+}
+
+/** The reflexes' client: Jev, or the fake for "jev:fake" (and for a fake brain's reflexes). */
+export function reflexClientFor(spec: string, cache: Map<string, ReflexClient>): ReflexClient {
+  const key = spec === "jev:fake" ? "fake" : "jev";
+  let c = cache.get(key);
+  if (!c) {
+    c = key === "fake" ? new FakeJevClient(60) : new JevClient();
     cache.set(key, c);
   }
   return c;
@@ -180,6 +218,7 @@ async function main(): Promise<void> {
     link.send({ type: "mode", mode: args.mode });
     const log = args.log ? BattleLog.at(args.log) : new BattleLog(battleId(hello));
     const clients = new Map<string, ModelClient>();
+    const reflexClients = new Map<string, ReflexClient>();
     const recent: unknown[] = []; // the last events, for live.json
     let videoReady = false;
     liveWriter = () => live();
@@ -197,17 +236,28 @@ async function main(): Promise<void> {
         mode: args.mode,
         state: link.latest,
         coaches: Object.fromEntries(coaches.map((c) => [c.side, c.stats()])),
+        reflexes: Object.fromEntries(reflexes.map((r) => [r.side, r.stats()])),
         events: recent.slice(-12),
         result,
         video: args.record ? { file: basename(args.record), ready: videoReady } : null,
       });
-    const coaches = SIDES.map(
-      (side) =>
-        new Coach(side, args.sides[side].spec, clientFor(args.sides[side].spec, args.effort, clients), link, hello, log, {
+    // Each corner: a brain (Coach), reflexes (Jev), or both (docs/jev-plan.md).
+    const coaches: Coach[] = [];
+    const reflexes: Reflexes[] = [];
+    for (const side of SIDES) {
+      const { brain, reflex } = parseSpec(args.sides[side].spec);
+      const ledger: ReadLedger = { owner: null };
+      let coach: Coach | null = null;
+      let reflexesOf: Reflexes | null = null;
+      if (brain) {
+        coach = new Coach(side, brain, clientFor(brain, args.effort, clients), link, hello, log, {
           cadenceMs: args.cadence,
           capUsd: args.cap,
           effort: args.effort,
           mode: args.mode,
+          reflexes: !!reflex,
+          ledger,
+          extraContext: () => reflexesOf?.recordForBrain() ?? null,
           onTurn: (s, t) => {
             const who = `${s} ${hello[s].name}`;
             if (t.error) say(`${who}: error ${t.error}`);
@@ -215,13 +265,37 @@ async function main(): Promise<void> {
             if (t.talk) say(`${who} talk: ${t.talk}`);
             if (t.caption) say(`${who} says: "${t.caption}"`);
           },
-        }),
-    );
+        });
+        coaches.push(coach);
+      }
+      if (reflex) {
+        reflexesOf = new Reflexes(side, reflex, reflexClientFor(reflex, reflexClients), link, hello, log, {
+          coach,
+          hz: args.reflexRate,
+          readThreshold: args.readThreshold,
+          gateThreshold: args.gateThreshold,
+          capUsd: args.cap,
+          nudgePlan: args.mode === "coach",
+          wakeBrain: !!coach && args.mode === "coach",
+          ledger,
+          onTick: (s, t) => {
+            const who = `${s} ${hello[s].name} reflexes`;
+            if (t.error) say(`${who}: error ${t.error}`);
+            else if (t.sent.length || t.gates.length) say(`${who} (tick ${t.tick}, ${(t.seconds * 1000).toFixed(0)} ms): ${[...t.sent, ...t.gates.map((g) => `gate ${g}`)].join("; ")}`);
+          },
+        });
+        reflexes.push(reflexesOf);
+      }
+    }
     const liveTimer = setInterval(live, 1000);
     const status = setInterval(() => {
       for (const c of coaches) {
         const s = c.stats();
         say(`${s.side} ${hello[s.side].name}: ${s.status}, ${s.turns} turns, ${s.tokens} tokens, $${s.usd.toFixed(3)}, ${s.avgSeconds != null ? s.avgSeconds.toFixed(1) : "-"} s/turn, ${s.plansApplied} applied, ${s.refused} refused, ${s.errors} errors`);
+      }
+      for (const r of reflexes) {
+        const s = r.stats();
+        say(`${s.side} ${hello[s.side].name} reflexes: ${s.status}, ${s.ticks} ticks, ${s.avgMs != null ? s.avgMs.toFixed(0) : "-"} ms/tick, ${s.nudges} nudges, reads ${s.reads.right}/${s.reads.made}, gates ${s.gates.plan_failing}/${s.gates.window_open}/${s.gates.pattern_changed}, ${s.tokens} tokens, $${s.usd.toFixed(3)}, ${s.errors} errors`);
       }
     }, 5000);
     link.on("event", (e) => {
@@ -236,6 +310,7 @@ async function main(): Promise<void> {
         const winner = e.winner as Side | null;
         say(`MATCH OVER: ${winner ? `${winner} ${hello[winner].name} (${args.sides[winner].spec}) wins` : "draw"} ${JSON.stringify(e.wins ?? "")} (${e.reason ?? ""})`);
         for (const c of coaches) c.stop();
+        for (const r of reflexes) r.stop();
         log.battle({
           id: log.id,
           at: new Date().toISOString(),
@@ -244,7 +319,8 @@ async function main(): Promise<void> {
           sides: Object.fromEntries(SIDES.map((s) => [s, { fighter: hello[s].id, model: args.sides[s].spec }])),
           result: { winner, wins: e.wins ?? null, reason: e.reason ?? null },
           coaches: Object.fromEntries(coaches.map((c) => [c.side, c.stats()])),
-          settings: { cap: args.cap, cadence: args.cadence, effort: args.effort, mode: args.mode },
+          reflexes: Object.fromEntries(reflexes.map((r) => [r.side, r.stats()])),
+          settings: { cap: args.cap, cadence: args.cadence, effort: args.effort, mode: args.mode, reflexRate: args.reflexRate, readThreshold: args.readThreshold, gateThreshold: args.gateThreshold },
         });
         live();
         say(`log: ${log.dir}`);

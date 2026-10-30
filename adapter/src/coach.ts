@@ -7,8 +7,9 @@ import type { GameLink } from "./link.ts";
 import type { BattleLog } from "./log.ts";
 import { toolCallsForLog } from "./log.ts";
 import type { Effort } from "./models.ts";
-import { SCRIPT_TOOLS, TOOLS, buildScriptSystemPrompt, buildScriptTurnMessage, buildSystemPrompt, buildTurnMessage, mergePlan, talkOf, validatePlan, validatePredict, validateQueue, validateRules, validateSay } from "./prompt.ts";
-import type { Applied, GameEvent, Hello, Mode, ModelClient, Plan, Rule, Side, State } from "./types.ts";
+import { ORDERS_TOOL, SCRIPT_TOOLS, TOOLS, buildScriptSystemPrompt, buildScriptTurnMessage, buildSystemPrompt, buildTurnMessage, mergePlan, talkOf, validateOrders, validatePlan, validatePredict, validateQueue, validateRules, validateSay } from "./prompt.ts";
+import type { ReadLedger } from "./reflex.ts";
+import type { Applied, ChatBody, GameEvent, Hello, Mode, ModelClient, Plan, Rule, Side, State } from "./types.ts";
 import { other } from "./types.ts";
 
 export type CoachStatus = "waiting" | "thinking" | "coaching" | "out of budget" | "stopped" | "failed";
@@ -32,6 +33,8 @@ export interface CoachStats {
   reads: { made: number; right: number };
   plan: Plan | null;
   rules?: Rule[] | null;
+  /** Standing orders for the side's reflexes (docs/jev-plan.md), when it has them. */
+  orders?: string | null;
 }
 
 export interface CoachOptions {
@@ -44,6 +47,12 @@ export interface CoachOptions {
   setTimer?: (fn: () => void, ms: number) => unknown;
   clearTimer?: (t: unknown) => void;
   onTurn?: (side: Side, info: { reason: string; calls: string[]; caption: string | null; talk: string | null; seconds: number; usd: number | null; error?: string }) => void;
+  /** The side has reflexes (Jev): the prompt says so and the `orders` tool is offered. */
+  reflexes?: boolean;
+  /** Shared with the reflexes: who owns the pending read. */
+  ledger?: ReadLedger;
+  /** A line for every prompt (the reflexes' record since the last turn); null for none. */
+  extraContext?: () => string | null;
 }
 
 const HEALTH_SWING = 0.25;
@@ -61,6 +70,9 @@ export class Coach {
   lastTalk: string | null = null;
   reads = { made: 0, right: 0 };
   plan: Plan | null = null;
+  orders: string | null = null;
+  /** When set_plan last went to the game (the reflexes hold off for 2 s after it). */
+  planSetAt = -Infinity;
   private seconds = 0;
   private events: GameEvent[] = [];
   private results: string[] = [];
@@ -79,6 +91,10 @@ export class Coach {
   private readonly setTimer: (fn: () => void, ms: number) => unknown;
   private readonly clearTimer: (t: unknown) => void;
   private readonly onTurn: CoachOptions["onTurn"];
+  private readonly tools: NonNullable<ChatBody["tools"]>;
+  private readonly ledger: ReadLedger | null;
+  private readonly extraContext: CoachOptions["extraContext"];
+  readonly reflexes: boolean;
   private roundLive = false;
 
   readonly side: Side;
@@ -102,7 +118,11 @@ export class Coach {
     this.clearTimer = opts.clearTimer ?? ((t) => clearTimeout(t as NodeJS.Timeout));
     this.onTurn = opts.onTurn;
     this.mode = opts.mode ?? "coach";
-    this.system = this.mode === "script" ? buildScriptSystemPrompt(side, hello) : buildSystemPrompt(side, hello, opts.effort ?? "low");
+    this.reflexes = !!opts.reflexes;
+    this.ledger = opts.ledger ?? null;
+    this.extraContext = opts.extraContext;
+    this.tools = this.mode === "script" ? SCRIPT_TOOLS : this.reflexes ? [...TOOLS, ORDERS_TOOL] : TOOLS;
+    this.system = this.mode === "script" ? buildScriptSystemPrompt(side, hello, this.reflexes) : buildSystemPrompt(side, hello, opts.effort ?? "low", this.reflexes);
     log?.system(side, spec, this.system);
     link.on("event", this.onEvent);
     link.on("state", this.onState);
@@ -133,6 +153,7 @@ export class Coach {
       reads: { ...this.reads },
       plan: this.plan,
       rules: this.rules,
+      orders: this.orders,
     };
   }
 
@@ -155,7 +176,12 @@ export class Coach {
     } else if (e.event === "knockdown" && e.side === this.side) {
       if (this.mode === "coach") this.turn("knockdown");
     } else if (e.event === "read" && e.side === this.side) {
-      if (e.right) this.reads.right++;
+      // A replaced read's miss belongs to nobody; a resolved read to whoever made it.
+      if (e.actual === "replaced") return;
+      if (!this.ledger || this.ledger.owner === "coach") {
+        if (e.right) this.reads.right++;
+        if (this.ledger) this.ledger.owner = null;
+      }
     } else if (e.event === "round_end" || e.event === "match_end") {
       this.roundLive = false;
       this.clearCadence();
@@ -188,7 +214,7 @@ export class Coach {
 
   private schedule(): void {
     this.clearCadence();
-    if (this.mode !== "coach" || this.stopped || !this.roundLive || this.status === "out of budget" || this.status === "failed") return;
+    if (this.mode !== "coach" || this.cadenceMs <= 0 || this.stopped || !this.roundLive || this.status === "out of budget" || this.status === "failed") return;
     this.timer = this.setTimer(() => {
       this.timer = null;
       this.turn("cadence");
@@ -213,8 +239,10 @@ export class Coach {
     const state = this.link.latest;
     const events = this.events.splice(0);
     const results = this.results.splice(0);
-    const prompt = this.mode === "script" ? buildScriptTurnMessage(this.side, this.hello, events, results) : buildTurnMessage(this.side, state, events, this.plan, results);
-    const tools = this.mode === "script" ? SCRIPT_TOOLS : TOOLS;
+    const extra = this.extraContext?.() ?? null;
+    let prompt = this.mode === "script" ? buildScriptTurnMessage(this.side, this.hello, events, results) : buildTurnMessage(this.side, state, events, this.plan, results);
+    if (extra) prompt = prompt.replace(/\n(Adjust the plan with the tools\.|Write the behaviour for the next round with set_policy\.)$/, `\n${extra}\n$1`);
+    const tools = this.tools;
     if (state) this.lastHealth = [state.p1.health / Math.max(1, state.p1.max_health), state.p2.health / Math.max(1, state.p2.max_health)];
     let error: string | undefined;
     let reply: Awaited<ReturnType<ModelClient["chat"]>> | null = null;
@@ -253,6 +281,7 @@ export class Coach {
             if (problems.length) this.results.push(`set_plan: ${problems.join(", ")}`);
             if (Object.keys(plan).length) {
               this.plan = mergePlan(this.plan, plan);
+              this.planSetAt = this.now();
               this.pending.set(id, `set_plan ${JSON.stringify(plan)}`);
               if (!this.link.send({ type: "plan", side: this.side, plan_id: id, plan })) this.results.push("set_plan: the game is not connected");
               sent.push(`set_plan ${JSON.stringify(plan)}`);
@@ -277,6 +306,10 @@ export class Coach {
             if (all.length) this.results.push(`set_policy: ${all.join(", ")}`);
             if (Object.keys(plan).length) this.plan = mergePlan(this.plan, plan);
             this.rules = r.rules;
+            if (a.orders !== undefined) {
+              const orders = validateOrders(a.orders);
+              if (orders) this.orders = orders;
+            }
             const what = `set_policy ${r.rules.length} rules${Object.keys(plan).length ? ` + plan ${JSON.stringify(plan)}` : ""}`;
             this.pending.set(id, what);
             if (!this.link.send({ type: "policy", side: this.side, plan_id: id, plan: Object.keys(plan).length ? plan : undefined, rules: r.rules })) this.results.push("set_policy: the game is not connected");
@@ -293,11 +326,21 @@ export class Coach {
             }
             break;
           }
+          case "orders": {
+            const orders = validateOrders(args);
+            if (!orders) this.results.push("orders: give one line of standing orders for your reflexes");
+            else {
+              this.orders = orders;
+              sent.push(`orders "${orders}"`);
+            }
+            break;
+          }
           case "predict": {
             const what = validatePredict(args);
             if (!what) this.results.push("predict: give what the opponent will do (a move input, jump, throw, super, fireball, low, overhead, sweep, reversal, uppercut)");
             else {
               this.reads.made++;
+              if (this.ledger) this.ledger.owner = "coach";
               this.pending.set(id, `predict ${what}`);
               if (!this.link.send({ type: "predict", side: this.side, plan_id: id, what })) this.results.push("predict: the game is not connected");
               sent.push(`predict ${what}`);
