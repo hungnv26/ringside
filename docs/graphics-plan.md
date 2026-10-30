@@ -384,3 +384,18 @@ trees, buildings and ground.
 - **Cost**: 85–87 fps at High (88–90 before).
 - Reference: `docs/look/phase3/beach_before_after.jpg`, `beach_fight_before_after.jpg`,
   `beach_palm.jpg`, `beach_shore.jpg`, `beach_umbrellas.jpg`, `beach_wide.jpg`.
+
+### Phase 3: the Courtyard (built 2026-10-31)
+
+- **Neighbours**: CourtyardLife's box figures are gone; each neighbour is one of the
+  standing MakeHuman locals in its own MultiMesh, under the engine's lighting
+  (`crowd_vat_lit.gdshader`, which shares `crowd_vat.gdshaderinc` with the crowd shader)
+  because the sunrise changes the light. Their arm raise drives their cheer or applause.
+- **Plants**: Poly Haven Calathea Orbifolia in the clay pots and styrofoam planters, Potted
+  Plant 04 succulents on the tea table and the wall coping.
+- **Pigeons**: built from ellipsoids (plump body, iridescent neck, small head, beak and
+  cere, wing bars, tail band, red feet) instead of boxes; the wings too.
+- **Cost**: 75 fps at High (77 before).
+- Reference: `docs/look/phase3/courtyard_before_after.jpg`, `courtyard_fight_before_after.jpg`,
+  `courtyard_gate.jpg`, `courtyard_planters.jpg`, `courtyard_table.jpg`,
+  `courtyard_pigeons.jpg`, `courtyard_wide.jpg`.

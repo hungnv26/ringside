@@ -583,16 +583,19 @@ func _build_courtyard_props() -> void:
 		for leg in 4:
 			var a := leg * PI / 2.0 + 0.4
 			_batch(_plastic[s * 3 % _plastic.size()], Vector3(0.035, 0.42, 0.035), Transform3D(Basis(), spot + Vector3(cos(a) * 0.12, 0.21, sin(a) * 0.12)))
+	for k in 2: # little succulents on the tea table
+		_prop(_prop_mesh("potted_plant_04"), table + Vector3(0.25 - k * 0.5, 0.74, 0.28), 0.8, "Succulent%d" % k)
 	# Styrofoam planters and pots along the back wall, right of the gate; a big potted
 	# palm by the shrine.
 	_side = 0
 	for p in 6:
 		var at := Vector3(3.6 + p * 0.9, 0, BACK_Z + 0.4)
 		_batch(mat_styro, Vector3(0.6, 0.3, 0.4), Transform3D(Basis(), at + Vector3(0, 0.15, 0)))
-		for l in 5:
-			_batch(mat_leaf, Vector3(0.1, _rng.randf_range(0.25, 0.5), 0.1), Transform3D(Basis(Vector3(_rng.randf_range(-1, 1), 0, _rng.randf_range(-1, 1)).normalized(), _rng.randf_range(0.1, 0.5)), at + Vector3(-0.2 + l * 0.1, 0.45, 0)))
+		_prop(_prop_mesh("calathea_orbifolia_01"), at + Vector3(0, 0.28, 0), _rng.randf_range(0.8, 1.0), "Planter%d" % p)
 	_plant(Vector3(-3.3, 0, BACK_Z + 0.45), 1.2)
 	_plant(Vector3(-8.6, 0, BACK_Z + 0.5), 1.6)
+	for k in 4: # pots of succulents along the wall's coping
+		_prop(_prop_mesh("potted_plant_04"), Vector3(4.0 + k * 1.3, WALL_TOP + 0.08, BACK_Z - 0.15), 1.0, "WallPot%d" % k)
 	# Bird cages hanging from a bracket on the left tenement.
 	_side = 2
 	for c in 2:
@@ -613,10 +616,36 @@ func _plant(at: Vector3, size: float) -> void:
 	pot.height = 0.4 * size
 	pot.radial_segments = 12
 	_append(mat_clay, pot, Transform3D(Basis(), at + Vector3(0, 0.2 * size, 0)))
-	for l in 9:
-		var a := l * TAU / 9.0 + _rng.randf() * 0.3
-		var tilt := Basis(Vector3(cos(a), 0, sin(a)).cross(Vector3.UP).normalized(), _rng.randf_range(0.25, 0.7))
-		_batch(mat_leaf, Vector3(0.12, 0.8 * size, 0.03), Transform3D(tilt, at + Vector3(0, 0.4 * size, 0) + tilt * Vector3(0, 0.4 * size, 0)))
+	_prop(_prop_mesh("calathea_orbifolia_01"), at + Vector3(0, 0.38 * size, 0), 1.7 * size, "PottedPlant%d" % _plant_count)
+	_plant_count += 1
+
+
+var _plant_count := 0
+var _prop_meshes := {}
+const PROPS := "res://assets/stages/courtyard/props/"
+
+
+## A Poly Haven plant (CC0) at `at`, turned at random; no shadow (leaves in a shadow pass
+## cost more than they show).
+func _prop(mesh: Mesh, at: Vector3, size: float, node_name: String) -> void:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.position = at
+	mi.rotation.y = _rng.randf() * TAU
+	mi.scale = Vector3.ONE * size
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_add(stage, mi, node_name)
+
+
+func _prop_mesh(source: String) -> Mesh:
+	var path := PROPS + "%s/%s.res" % [source, source]
+	if not _prop_meshes.has(path):
+		var scene: Node = (load(PROPS + "%s/%s_1k.gltf" % [source, source]) as PackedScene).instantiate()
+		var node := scene.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
+		ResourceSaver.save(node.mesh, path, ResourceSaver.FLAG_COMPRESS)
+		scene.free()
+		_prop_meshes[path] = load(path)
+	return _prop_meshes[path]
 
 
 func _bicycle(xform: Transform3D) -> void:

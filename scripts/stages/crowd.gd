@@ -46,6 +46,9 @@ extends MultiMeshInstance3D
 const CROWD_SHADER := "res://assets/stages/shared/crowd.gdshader"
 const PEOPLE_DIR := "res://assets/crowd/"
 const PEOPLE_SHADER := "res://assets/crowd/crowd_vat.gdshader"
+## The same animation under the engine's lighting (a few people on a stage whose light
+## changes; CourtyardLife's neighbours).
+const PEOPLE_LIT_SHADER := "res://assets/crowd/crowd_vat_lit.gdshader"
 ## Share of the spectators who chat rather than sit still, and who clap rather than cheer.
 const TALKERS := 0.35
 const CLAPPERS := 0.45
@@ -272,9 +275,9 @@ func _official_custom(rng: RandomNumberGenerator) -> Color:
 	return Color(rng.randf(), 2.0, 1.0 if rng.randf() < 0.5 else 0.0, 0.0)
 
 
-func _person_material(id: String, stem: String, info: Dictionary, alt: bool) -> ShaderMaterial:
+static func _person_material(id: String, stem: String, info: Dictionary, alt: bool, lit := false) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
-	m.shader = load(PEOPLE_SHADER)
+	m.shader = load(PEOPLE_LIT_SHADER if lit else PEOPLE_SHADER)
 	m.set_shader_parameter("vat_pos", load(PEOPLE_DIR + stem + "_pos.res"))
 	m.set_shader_parameter("vat_nrm", load(PEOPLE_DIR + stem + "_nrm.res"))
 	m.set_shader_parameter("albedo_tex", load(PEOPLE_DIR + id + ("_atlas_alt.png" if alt else "_atlas.png")))
@@ -284,7 +287,7 @@ func _person_material(id: String, stem: String, info: Dictionary, alt: bool) -> 
 	return m
 
 
-func _person_mesh(id: String) -> Mesh:
+static func _person_mesh(id: String) -> Mesh:
 	var scene: Node = (load(PEOPLE_DIR + id + ".glb") as PackedScene).instantiate()
 	var mesh := (scene.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).mesh
 	scene.free()

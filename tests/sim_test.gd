@@ -2245,6 +2245,9 @@ func courtyard_tests() -> void:
 	for i in 120:
 		sound.excitement = 1.0
 		life._process(1.0 / 60.0)
+	var real_neighbours := life._local_people.size() == life.neighbour_spots.size() and life._local_people.all(
+		func(p: MultiMeshInstance3D) -> bool: return float((p.material_override as ShaderMaterial).get_shader_parameter("excitement")) > 0.9)
+	check("Courtyard: the neighbours are real people, and they cheer when it's wild", real_neighbours)
 	check("Courtyard: an excited crowd brings everyone out, arms up",
 		life.visible_neighbours() == 9 and life._neighbour_state.all(func(n: Array) -> bool: return n[4] > 2.0))
 	sound.excitement = 0.0

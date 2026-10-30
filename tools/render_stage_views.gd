@@ -29,6 +29,13 @@ const VIEWS := {
 		"umbrellas": [Vector3(-5.0, 2.0, 0.0), Vector3(-10.5, 1.5, 4.5)],
 		"wide": [Vector3(0, 6.0, 10.0), Vector3(0, 1.5, -6.0)],
 	},
+	"courtyard": {
+		"gate": [Vector3(0, 1.7, 0.0), Vector3(0, 1.4, -7.5)],
+		"planters": [Vector3(4.0, 1.5, -2.5), Vector3(5.5, 0.6, -6.6)],
+		"table": [Vector3(4.5, 1.6, -1.0), Vector3(6.9, 0.7, -3.6)],
+		"pigeons": [Vector3(-1.5, 2.6, -5.0), Vector3(-3.0, 2.3, -7.2)],
+		"wide": [Vector3(0, 4.5, 7.0), Vector3(0, 1.5, -5.0)],
+	},
 	"temple": {
 		"tree": [Vector3(-5.5, 1.8, -1.5), Vector3(-10.5, 2.6, -7.0)],
 		"gate": [Vector3(0, 2.2, 6.0), Vector3(0, 2.4, -10.5)],

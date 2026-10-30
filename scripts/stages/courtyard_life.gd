@@ -106,6 +106,7 @@ var _player: AudioStreamPlayer
 var _jet_player: AudioStreamPlayer
 # Neighbours: per spot [order, progress 0..1, appearing, phase, arm raise].
 var _people: MultiMeshInstance3D
+var _local_people: Array[MultiMeshInstance3D] = [] # one per neighbour (real people)
 var _arms: MultiMeshInstance3D
 var _neighbour_state := []
 var _visible_target := 0
@@ -308,24 +309,45 @@ func _update_shutter(delta: float) -> void:
 		_shop_light.light_energy = 1.2 * shutter_open
 
 
+## Each neighbour is one of the standing MakeHuman locals (Crowd's "pedestrian" people,
+## tools/mpfb/build_crowd.py) in its own MultiMesh and material under the engine's lighting
+## (the sunrise changes it), so cheering is per person: their material's excitement follows
+## their arm raise (_update_neighbours). Without the crowd assets, the old box figures.
 func _build_neighbours() -> void:
 	var count := neighbour_spots.size()
 	if count == 0:
 		return
-	var material := ShaderMaterial.new()
-	material.shader = load(FIGURE_SHADER)
-	_people = _multimesh(_figure_mesh(), count, material, "Neighbours")
-	_arms = _multimesh(_arms_mesh(), count, material, "NeighbourArms")
+	var meta = JSON.parse_string(FileAccess.get_file_as_string(Crowd.PEOPLE_DIR + "crowd.json")) if FileAccess.file_exists(Crowd.PEOPLE_DIR + "crowd.json") else null
+	var locals: Array = []
+	if meta is Dictionary:
+		locals = (meta as Dictionary).keys().filter(func(k: String) -> bool: return meta[k].get("kind", "") == "pedestrian")
+		locals.sort()
 	var shirts := [Color(0.9, 0.9, 0.88), Color(0.2, 0.35, 0.65), Color(0.8, 0.25, 0.2), Color(0.95, 0.85, 0.5),
 		Color(0.3, 0.55, 0.4), Color(0.55, 0.45, 0.7), Color(0.85, 0.6, 0.65)]
+	if locals.is_empty():
+		var material := ShaderMaterial.new()
+		material.shader = load(FIGURE_SHADER)
+		_people = _multimesh(_figure_mesh(), count, material, "Neighbours")
+		_arms = _multimesh(_arms_mesh(), count, material, "NeighbourArms")
 	# Who comes out first: people at ground level, then the balconies, the kid last.
 	var order := range(count)
 	var rank := func(i: int) -> int: return (5 if neighbour_kinds[i] == 2 else neighbour_kinds[i]) * 100 + i
 	order.sort_custom(func(a: int, b: int) -> bool: return rank.call(a) < rank.call(b))
 	for i in count:
-		var shirt: Color = shirts[i % shirts.size()]
-		_people.multimesh.set_instance_custom_data(i, shirt)
-		_arms.multimesh.set_instance_custom_data(i, shirt)
+		if locals.is_empty():
+			var shirt: Color = shirts[i % shirts.size()]
+			_people.multimesh.set_instance_custom_data(i, shirt)
+			_arms.multimesh.set_instance_custom_data(i, shirt)
+		else:
+			var id: String = locals[(i * 3 + 1) % locals.size()]
+			var material := Crowd._person_material(id, id, meta[id], i % 2 == 1, true)
+			var person := _multimesh(Crowd._person_mesh(id), 1, material, "Neighbour%d" % i)
+			person.multimesh.use_colors = false
+			person.extra_cull_margin = 0.6
+			# Phase, cheering threshold (the material's excitement is set per person), talks
+			# rather than stands still, claps rather than cheers.
+			person.multimesh.set_instance_custom_data(0, Color(_rng.randf(), 0.5, 1.0 if i % 3 == 0 else 0.0, 1.0 if i % 2 == 0 else 0.0))
+			_local_people.append(person)
 		_neighbour_state.append([order.find(i), 0.0, false, _rng.randf() * TAU, 0.0])
 		_place_neighbour(i)
 
@@ -340,7 +362,7 @@ func visible_neighbours() -> int:
 
 
 func _update_neighbours(delta: float) -> void:
-	if _people == null:
+	if _people == null and _local_people.is_empty():
 		return
 	var excitement: float = _sound.excitement if _sound and "excitement" in _sound else 0.0
 	var round_number: int = manager.round_number if manager else 1
@@ -374,6 +396,12 @@ func _place_neighbour(i: int, bounce := 0.0) -> void:
 	var scale := neighbour_scale(i)
 	var basis := Basis(Vector3.UP, neighbour_yaws[i]).scaled(Vector3.ONE * maxf(scale, 0.0001))
 	var at := neighbour_spots[i] + neighbour_hidden[i] * (1.0 - shown) + Vector3.UP * bounce
+	if not _local_people.is_empty():
+		var person := _local_people[i]
+		person.multimesh.set_instance_transform(0, Transform3D(basis, at - Vector3.UP * bounce * 0.5))
+		# Arms up (state[4] toward 2.4) is the person's cheer or applause clip.
+		(person.material_override as ShaderMaterial).set_shader_parameter("excitement", clampf((state[4] - 0.12) / 2.0, 0.0, 1.0))
+		return
 	_people.multimesh.set_instance_transform(i, Transform3D(basis, at))
 	var shoulder := Transform3D(basis, at) * Transform3D(Basis(Vector3.RIGHT, -state[4]), Vector3(0, 1.38, 0))
 	_arms.multimesh.set_instance_transform(i, shoulder)
@@ -387,6 +415,7 @@ func _build_pigeons() -> void:
 	var material := StandardMaterial3D.new()
 	material.vertex_color_use_as_albedo = true
 	material.roughness = 0.8
+	material.vertex_color_is_srgb = true
 	_pigeons = _multimesh(_pigeon_mesh(), perches.size(), material, "Pigeons")
 	for side in [-1.0, 1.0]:
 		_wings.append(_multimesh(_wing_mesh(side), perches.size(), material, "PigeonWings%d" % int(side + 1.0)))
@@ -641,22 +670,52 @@ func _arms_mesh() -> Mesh:
 
 
 ## A pigeon (faces +Z): grey body, darker head with a green-purple neck, tail.
+## A rock pigeon facing +Z, feet at the origin: a plump grey body tapering to the tail,
+## the iridescent green and purple neck, a small round head with a dark beak and a white
+## cere, two dark wing bars, a dark tail band, red feet.
 func _pigeon_mesh() -> Mesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	_colored_box(st, Vector3(0, 0.1, 0), Vector3(0.12, 0.11, 0.22), Color(0.55, 0.57, 0.62))
-	_colored_box(st, Vector3(0, 0.17, 0.1), Vector3(0.08, 0.08, 0.08), Color(0.32, 0.4, 0.38))
-	_colored_box(st, Vector3(0, 0.2, 0.14), Vector3(0.06, 0.06, 0.07), Color(0.4, 0.42, 0.48))
-	_colored_box(st, Vector3(0, 0.08, -0.15), Vector3(0.09, 0.03, 0.1), Color(0.3, 0.3, 0.34))
-	_colored_box(st, Vector3(0, 0.02, 0.02), Vector3(0.04, 0.04, 0.03), Color(0.75, 0.3, 0.3))
+	var grey := Color(0.56, 0.58, 0.64)
+	_colored_ellipsoid(st, Vector3(0, 0.1, 0.0), Vector3(0.065, 0.06, 0.11), grey, Basis(Vector3.RIGHT, 0.25))
+	_colored_ellipsoid(st, Vector3(0, 0.15, 0.075), Vector3(0.042, 0.05, 0.045), Color(0.3, 0.42, 0.38), Basis(Vector3.RIGHT, -0.3)) # neck sheen
+	_colored_ellipsoid(st, Vector3(0, 0.16, 0.06), Vector3(0.03, 0.035, 0.03), Color(0.42, 0.3, 0.44)) # purple at the nape
+	_colored_ellipsoid(st, Vector3(0, 0.195, 0.1), Vector3(0.032, 0.03, 0.036), Color(0.45, 0.47, 0.53)) # head
+	_colored_ellipsoid(st, Vector3(0, 0.19, 0.142), Vector3(0.008, 0.008, 0.016), Color(0.15, 0.13, 0.13)) # beak
+	_colored_ellipsoid(st, Vector3(0, 0.2, 0.129), Vector3(0.009, 0.006, 0.008), Color(0.9, 0.9, 0.88)) # cere
+	for x in [-1.0, 1.0]:
+		_colored_ellipsoid(st, Vector3(x * 0.022, 0.205, 0.115), Vector3(0.006, 0.006, 0.006), Color(0.85, 0.35, 0.1)) # eyes
+		for bar in 2: # wing bars on the folded wings
+			_colored_ellipsoid(st, Vector3(x * 0.061, 0.105, -0.015 - bar * 0.03), Vector3(0.006, 0.028, 0.008), Color(0.18, 0.18, 0.22), Basis(Vector3.RIGHT, 0.5))
+		_colored_ellipsoid(st, Vector3(x * 0.02, 0.022, 0.02), Vector3(0.008, 0.022, 0.008), Color(0.75, 0.28, 0.28)) # legs
+	_colored_ellipsoid(st, Vector3(0, 0.085, -0.13), Vector3(0.045, 0.012, 0.07), Color(0.42, 0.44, 0.5), Basis(Vector3.RIGHT, 0.2)) # tail
+	_colored_ellipsoid(st, Vector3(0, 0.072, -0.185), Vector3(0.045, 0.013, 0.02), Color(0.16, 0.16, 0.2), Basis(Vector3.RIGHT, 0.2)) # tail band
 	return st.commit()
 
 
+## One wing reaching out to `side`, from the shoulder at the origin: a broad, rounded
+## covert area with dark primaries at the tip.
 func _wing_mesh(side: float) -> Mesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	_colored_box(st, Vector3(side * 0.15, 0.0, 0.0), Vector3(0.26, 0.015, 0.13), Color(0.5, 0.52, 0.58))
+	_colored_ellipsoid(st, Vector3(side * 0.08, 0.0, 0.0), Vector3(0.09, 0.012, 0.065), Color(0.52, 0.54, 0.6))
+	_colored_ellipsoid(st, Vector3(side * 0.2, 0.0, -0.01), Vector3(0.07, 0.008, 0.05), Color(0.25, 0.25, 0.3))
 	return st.commit()
+
+
+func _colored_ellipsoid(st: SurfaceTool, center: Vector3, radii: Vector3, color: Color, basis := Basis()) -> void:
+	var sphere := SphereMesh.new()
+	sphere.radius = 1.0
+	sphere.height = 2.0
+	sphere.radial_segments = 10
+	sphere.rings = 6
+	var arrays := sphere.get_mesh_arrays()
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	for index: int in arrays[Mesh.ARRAY_INDEX]:
+		st.set_color(color)
+		st.set_normal((basis * (normals[index] / radii)).normalized())
+		st.add_vertex(center + basis * (verts[index] * radii))
 
 
 func _colored_box(st: SurfaceTool, center: Vector3, size: Vector3, color: Color) -> void:
