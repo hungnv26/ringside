@@ -410,3 +410,17 @@ trees, buildings and ground.
 - **Cost**: 68–69 fps at High (69 before).
 - Reference: `docs/look/phase3/rooftop_before_after.jpg`, `rooftop_fight_before_after.jpg`,
   `rooftop_ac.jpg`, `rooftop_crowd.jpg`, `rooftop_wide.jpg`.
+
+### Phase 3: the Express (built 2026-10-31)
+
+- **Trees**: the cones and blobs are gone. `tools/make_train_art.py` draws a tree atlas
+  (a spruce with ragged tiers of drooping, needled branches; a broadleaf with limbs under
+  clumps of leaves lit from the upper left; a bush; a poplar), and each tree is three
+  crossed cards (`scenery_cards.gdshader`: alpha-tested, the low sun shining through, and
+  the same scenery loop as before), normals leaning out so the cards shade as one crown.
+- **Mountains**: the two ridges lean back as they rise and are cut by gullies (periodic over
+  the loop), drawn with `mountain_haze.gdshader`, which can now scroll with the scenery.
+- **Cost**: 75 fps at High (75–76 before).
+- **Not done**: the fields are still the tiled aerial texture; the coaches are the builder's
+  shapes.
+- Reference: `docs/look/phase3/train_before_after.jpg`, `train_fight_before_after.jpg`.

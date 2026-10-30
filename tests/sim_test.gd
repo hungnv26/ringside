@@ -1227,6 +1227,7 @@ func stage_tests() -> void:
 	_market_tests()
 	_beach_tests()
 	_rooftop_tests()
+	_express_tests()
 	# Download size: 3D textures must not be imported lossless (a 1K photo texture is 2-3 MB
 	# lossless, about 0.4 MB as lossy WebP). Godot only switches them automatically in the
 	# editor, so textures imported headless stay lossless unless their .import says otherwise.
@@ -1377,6 +1378,21 @@ func polish_tests() -> void:
 	wait_until(func() -> bool: return p1.projectile == null, 120)
 	check("FX: projectile impact burst + ring", fx.spawned >= before + 2, "%d effects" % (fx.spawned - before))
 	gs.stage_path = gs.DEFAULT_STAGE
+
+
+## The Express: the trees stream past as crossed cards of the drawn tree atlas, and the
+## ridges are sloped, textured haze that scrolls with the scenery.
+func _express_tests() -> void:
+	var train := (load("res://scenes/stages/train.tscn") as PackedScene).instantiate()
+	var motion := train.get_node("Motion")
+	var cards: ShaderMaterial = motion.tree_material
+	var ridge := train.get_node_or_null("Ridge0_0") as MeshInstance3D
+	var haze := ridge.material_override as ShaderMaterial if ridge else null
+	check("Express: card trees from the drawn atlas, textured haze ridges that scroll",
+		cards.shader.resource_path.ends_with("scenery_cards.gdshader") and cards.get_shader_parameter("albedo_tex") != null
+		and motion.tree_meshes.size() == 4 and haze != null and haze.shader.resource_path.ends_with("mountain_haze.gdshader")
+		and float(haze.get_shader_parameter("period")) > 0.0 and haze in motion.materials)
+	train.free()
 
 
 ## The Rooftop: onlookers standing at the side railings who react to the fight, and AC

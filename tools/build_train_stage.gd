@@ -16,6 +16,7 @@ extends SceneTree
 const OUTPUT := "res://scenes/stages/train.tscn"
 const SKY := "res://assets/stages/train/kloppenheim_06_puresky_2k.hdr"
 const SCENERY_SHADER := "res://assets/stages/train/scenery.gdshader"
+const CARDS_SHADER := "res://assets/stages/train/scenery_cards.gdshader" # the trees
 const GROUND_SHADER := "res://assets/stages/train/ground.gdshader"
 const STAGE_SCRIPT := "res://scripts/stages/stage.gd"
 const MOTION_SCRIPT := "res://scripts/stages/train_motion.gd"
@@ -267,7 +268,7 @@ func _build_rails() -> void:
 func _scroll_material(shader_path: String, period: float = SCENERY_PERIOD) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = load(shader_path)
-	if shader_path == SCENERY_SHADER:
+	if shader_path in [SCENERY_SHADER, CARDS_SHADER]:
 		m.set_shader_parameter("period", period)
 	_scroll_materials.append(m)
 	return m
@@ -295,9 +296,10 @@ func _build_ground() -> void:
 
 ## Two ridges of hills in the distance, built as eight segments each so the shader can
 ## loop them (one jump per segment, far out of view). Heights are periodic over the loop.
+## The faces lean back as they rise and are cut by gullies and spurs (periodic over the
+## loop too), unlit in the haze colour with the aerial rock-and-grass texture as detail
+## (mountain_haze.gdshader, scrolling with the scenery).
 func _build_mountains() -> void:
-	var m := _scroll_material(SCENERY_SHADER, MOUNTAIN_PERIOD)
-	m.set_shader_parameter("unlit", true)
 	var ridges := [[-330.0, 55.0, Color(0.42, 0.5, 0.46), 3], [-560.0, 120.0, Color(0.6, 0.62, 0.68), 7]]
 	var segments := 8
 	var seg_len := MOUNTAIN_PERIOD / segments
@@ -306,27 +308,46 @@ func _build_mountains() -> void:
 		var peak: float = ridges[r][1]
 		var color: Color = ridges[r][2]
 		var phase: int = ridges[r][3]
+		var m := ShaderMaterial.new()
+		m.shader = load("res://assets/stages/shared/mountain_haze.gdshader")
+		m.set_shader_parameter("detail_tex", load(GRASS + "diff_1k.jpg"))
+		m.set_shader_parameter("haze", Vector3(color.r, color.g, color.b) * 1.05)
+		m.set_shader_parameter("peak_light", Vector3(1.0, 0.85, 0.7))
+		m.set_shader_parameter("peak_height", GROUND_Y + peak)
+		m.set_shader_parameter("detail", 0.4)
+		m.set_shader_parameter("scale", 0.012)
+		m.set_shader_parameter("period", MOUNTAIN_PERIOD)
+		_scroll_materials.append(m)
 		for s in segments:
 			var st := SurfaceTool.new()
 			st.begin(Mesh.PRIMITIVE_TRIANGLES)
 			var x0 := -MOUNTAIN_PERIOD * 0.5 + s * seg_len
-			var steps := 30
-			for i in steps:
-				var xa := x0 + seg_len * i / steps
-				var xb := x0 + seg_len * (i + 1) / steps
-				var ha := _ridge_height(xa, peak, phase)
-				var hb := _ridge_height(xb, peak, phase)
-				var top_color := color.lerp(Color(1.0, 0.85, 0.7), 0.3) # the sun on the ridgeline haze
-				for v in [[Vector3(xa, GROUND_Y - 20.0, z), color], [Vector3(xa, GROUND_Y + ha, z), top_color], [Vector3(xb, GROUND_Y + hb, z), top_color],
-						[Vector3(xa, GROUND_Y - 20.0, z), color], [Vector3(xb, GROUND_Y + hb, z), top_color], [Vector3(xb, GROUND_Y - 20.0, z), color]]:
-					st.set_color(v[1])
-					st.add_vertex(v[0] - Vector3(x0, 0, 0)) # local to the segment's origin
+			const STEPS := 40
+			const ROWS := 6
+			var grid := []
+			for j in ROWS + 1:
+				var t := float(j) / ROWS
+				var row := []
+				for i in STEPS + 1:
+					var x := x0 + seg_len * i / STEPS
+					var top := _ridge_height(x, peak, phase)
+					var gully := 0.0
+					for k in [17, 29, 43]: # whole waves over the loop
+						gully += sin(TAU * k * x / MOUNTAIN_PERIOD + k * phase)
+					var depth := 70.0 * (1.0 - t) + gully * 9.0 * (1.0 - 0.6 * t)
+					row.append(Vector3(x - x0, lerpf(GROUND_Y - 20.0, GROUND_Y + top, pow(t, 0.8)), z + depth))
+				grid.append(row)
+			for j in ROWS:
+				for i in STEPS:
+					for v in [[j, i], [j + 1, i], [j + 1, i + 1], [j, i], [j + 1, i + 1], [j, i + 1]]:
+						st.add_vertex(grid[v[0]][v[1]])
+			st.generate_normals()
 			var mi := MeshInstance3D.new()
 			mi.mesh = st.commit()
 			mi.material_override = m
 			mi.position = Vector3(x0, 0, 0)
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			mi.custom_aabb = AABB(Vector3(-MOUNTAIN_PERIOD, -50, -50), Vector3(MOUNTAIN_PERIOD * 2.0, 300, 100))
+			mi.custom_aabb = AABB(Vector3(-MOUNTAIN_PERIOD, -50, -50), Vector3(MOUNTAIN_PERIOD * 2.0, 300, 200))
 			_add(stage, mi, "Ridge%d_%d" % [r, s])
 
 
@@ -341,19 +362,30 @@ func _ridge_height(x: float, peak: float, phase: int) -> float:
 
 
 ## Low-poly trees (two kinds) and a telegraph pole with its wires, vertex coloured.
+## Trees as three crossed cards of the drawn tree atlas (tools/make_train_art.py: spruce,
+## broadleaf, bush, poplar), `size` metres square, base on the ground. Normals lean out
+## from the trunk and up, so the cards shade as one rounded crown.
 func _tree_meshes() -> Array[Mesh]:
-	var trunk := Color(0.3, 0.22, 0.15)
-	var pine := VertexMesh.new()
-	pine.cylinder(Vector3.ZERO, 0.22, 3.0, trunk)
-	for i in 3:
-		pine.cone(Vector3(0, 2.2 + i * 2.1, 0), 2.4 - i * 0.6, 3.4, Color(0.06, 0.18, 0.09).lerp(Color(0.1, 0.26, 0.12), i * 0.3))
-	var broad := VertexMesh.new()
-	broad.cylinder(Vector3.ZERO, 0.3, 4.0, trunk)
-	for blob in [[Vector3(0, 5.0, 0), 2.6], [Vector3(1.4, 4.3, 0.6), 1.9], [Vector3(-1.2, 4.6, -0.7), 2.0], [Vector3(0.2, 6.3, -0.3), 1.8]]:
-		broad.sphere(blob[0], blob[1], Color(0.16, 0.3, 0.08).lerp(Color(0.26, 0.38, 0.1), _rng.randf()))
-	var bush := VertexMesh.new()
-	bush.sphere(Vector3(0, 0.6, 0), 1.3, Color(0.18, 0.3, 0.1))
-	return [pine.commit(), broad.commit(), bush.commit()]
+	var out: Array[Mesh] = []
+	for cell in [[0, 9.0], [1, 9.5], [2, 3.2], [3, 10.0]]:
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var u0: float = (cell[0] % 2) * 0.5
+		var v0: float = (cell[0] / 2) * 0.5
+		var size: float = cell[1]
+		for k in 3:
+			var a := k * PI / 3.0
+			var right := Vector3(cos(a), 0, sin(a)) * size / 2.0
+			var corners := [-right, right, right + Vector3.UP * size, -right + Vector3.UP * size]
+			var uvs := [Vector2(u0, v0 + 0.5), Vector2(u0 + 0.5, v0 + 0.5), Vector2(u0 + 0.5, v0), Vector2(u0, v0)]
+			for i in [0, 1, 2, 0, 2, 3]:
+				var p: Vector3 = corners[i]
+				st.set_normal((Vector3(p.x, 0, p.z) * 0.6 / maxf(size, 0.01) + Vector3.UP * 0.6 + Vector3(-sin(a), 0, cos(a)) * 0.3).normalized())
+				st.set_color(Color(1, 1, 1))
+				st.set_uv(uvs[i])
+				st.add_vertex(p)
+		out.append(st.commit())
+	return out
 
 
 func _pole_mesh(spacing: float) -> Mesh:
@@ -377,7 +409,8 @@ func _pole_mesh(spacing: float) -> Mesh:
 func _build_motion(passing: Node3D) -> void:
 	var motion := Node3D.new()
 	motion.set_script(load(MOTION_SCRIPT))
-	var tree_material := _scroll_material(SCENERY_SHADER)
+	var tree_material := _scroll_material(CARDS_SHADER)
+	tree_material.set_shader_parameter("albedo_tex", load("res://assets/stages/train/art/trees.png"))
 	var pole_material := _scroll_material(SCENERY_SHADER)
 	pole_material.set_shader_parameter("roughness", 0.8)
 	motion.set("tree_meshes", _tree_meshes())
