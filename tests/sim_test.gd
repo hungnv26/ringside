@@ -1222,6 +1222,7 @@ func stage_tests() -> void:
 	check("Stages: baked contact shadows and ambient effects", missing.is_empty(), "%s" % [missing])
 	var ring_crowd := (load(gs.DEFAULT_STAGE) as PackedScene).instantiate()
 	_people_crowd_tests(ring_crowd)
+	_temple_tests()
 	# Download size: 3D textures must not be imported lossless (a 1K photo texture is 2-3 MB
 	# lossless, about 0.4 MB as lossy WebP). Godot only switches them automatically in the
 	# editor, so textures imported headless stay lossless unless their .import says otherwise.
@@ -1372,6 +1373,41 @@ func polish_tests() -> void:
 	wait_until(func() -> bool: return p1.projectile == null, 120)
 	check("FX: projectile impact burst + ring", fx.spawned >= before + 2, "%d effects" % (fx.spawned - before))
 	gs.stage_path = gs.DEFAULT_STAGE
+
+
+## The Temple's Phase 3 dressing: cherry trees built from Poly Haven's jacaranda (blossom
+## cards swaying in the wind, kept out of the shadow passes, bark that still casts shadows),
+## hip roofs, the rock garden, fallen petals cut out rather than blended, unlit haze ridges.
+func _temple_tests() -> void:
+	var temple := (load("res://scenes/stages/temple.tscn") as PackedScene).instantiate()
+	var trees := 0
+	var blossom_ok := true
+	for n in temple.get_children():
+		if String(n.name).begins_with("CherryTree"):
+			trees += 1
+			var blossom := n.get_node_or_null("Blossom") as MeshInstance3D
+			var bark := n.get_node_or_null("Bark1") as MeshInstance3D
+			var wind := blossom.mesh.surface_get_material(0) as ShaderMaterial if blossom else null
+			blossom_ok = blossom_ok and wind != null and wind.shader.resource_path.ends_with("foliage_wind.gdshader") \
+				and blossom.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+				and bark != null and bark.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+				and blossom.mesh.get_faces().size() / 3 < 12000
+	check("Temple: six cherry trees, blossom in the wind and out of the shadow passes", trees == 6 and blossom_ok, "%d trees" % trees)
+	var garden := temple.get_node_or_null("Garden")
+	var petals_cut := true
+	for name in ["PavingPetals", "GravelPetals"]:
+		var mi := temple.get_node_or_null(name) as MeshInstance3D
+		var mat := (mi.mesh as PrimitiveMesh).material as BaseMaterial3D if mi else null
+		petals_cut = petals_cut and mat != null and mat.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	var ridges := 0
+	for n in temple.get_children():
+		if String(n.name).begins_with("Mountains"):
+			var m := (n as MeshInstance3D).mesh.surface_get_material(0) as ShaderMaterial
+			ridges += 1 if m and m.shader.resource_path.ends_with("mountain_haze.gdshader") else 0
+	check("Temple: hip roofs, rock garden, cut-out fallen petals, haze ridges",
+		temple.get_node_or_null("Roofs") != null and garden != null and garden.get_child_count() > 40 and petals_cut and ridges == 3,
+		"garden %d, ridges %d" % [garden.get_child_count() if garden else 0, ridges])
+	temple.free()
 
 
 ## The Ring's crowd of real people (Crowd.people, tools/mpfb/build_crowd.py): every

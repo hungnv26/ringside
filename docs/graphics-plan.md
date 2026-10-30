@@ -294,3 +294,41 @@ around the ring is dressed with modelled props.
 - Reference: `docs/look/phase3/ring_before_after.jpg`, `ring_fight_before_after.jpg`, and
   the close views `ring_judges.jpg`, `ring_red_corner.jpg`, `ring_stands.jpg`,
   `ring_wide.jpg`.
+
+### Phase 3: the Temple (built 2026-10-30)
+
+The second stage through the recipe. The Temple has no crowd, so the work went into its
+trees, buildings and ground.
+
+- **Cherry trees**: `tools/blender/build_cherry_tree.py` turns Poly Haven's Jacaranda Tree
+  (CC0, about 3.9 million triangles) into a 51,000-triangle cherry: the trunk and branches
+  decimated (40,000 for the branches; fewer left flat shards in the crown), and the 2.4
+  million modelled leaves replaced by about 2,600 blossom cards on the canopy's outer
+  shell. The cards use a drawn sakura atlas (`tools/blender/make_blossom_texture.py`: five-
+  petal flowers with notched tips, eyes and stamens, buds, young leaves, twigs). The builder
+  saves the meshes with the game's materials: bark tinted a cherry's dark red-brown, and the
+  blossom in `foliage_wind.gdshader` (a gust that travels across the stage, a flutter per
+  card, light from the low sun shining through).
+- **Buildings**: generated hip roofs (four slopes that sag a little, corners that sweep up)
+  on the pagoda's five tiers and the hall; rafter ends and fascia under every eave; bracket
+  blocks; timber bands; shoji lattices over paper on every pagoda face and in the hall's
+  bays, with lattice doors in the middle and a veranda. Weathered vermilion plaster on the
+  torii and pillars, white plaster walls, dark planks and cedar.
+- **Ground**: a dry rock garden (Poly Haven's Rock Moss Set 02 in six groups with ferns),
+  shrubs along the walls, weeds where the gravel meets them; fallen petals scattered on the
+  paving and drifted under each tree on the gravel; falling petals are now petal-shaped.
+- **Mountains**: the same three rings, now with gullies and spurs and the Express's aerial
+  rock-and-grass texture as detail, unlit in the old haze colours
+  (`mountain_haze.gdshader`).
+- **Cost**: 60 fps at High (76 before). The first version ran at 21 fps: the canopies had
+  about 13,000 crossed cards each (about 24 layers of alpha-tested cards per canopy pixel),
+  drawn again in every sun shadow pass. What fixed it, measured by taking parts out of the
+  scene: only the canopy's outer shell gets cards, one card each, facing out (2,600 per
+  tree); the blossom casts no shadow (the bark still casts the long sunset shadows); no
+  alpha-to-coverage on the cards (+7 fps); the fallen petals cut out rather than blended
+  (1.8 ms); small plants cast no shadows; the mountains unlit (0.6 ms).
+- **Not done**: the lanterns and walls are still the builder's primitives (textured); the
+  ground past the gate is a plain haze; the trees share one model, turned and scaled.
+- Reference: `docs/look/phase3/temple_before_after.jpg`, `temple_fight_before_after.jpg`,
+  and the close views `temple_tree.jpg`, `temple_gate.jpg`, `temple_hall.jpg`,
+  `temple_pagoda.jpg`, `temple_wide.jpg`.
