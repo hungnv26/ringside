@@ -1,0 +1,26 @@
+{
+  "id": "kenji",
+  "body": "male",
+  "macros": {
+    "gender": 1.0,
+    "age": 0.5,
+    "muscle": 0.85,
+    "weight": 0.55,
+    "proportions": 0.9,
+    "height": 0.55,
+    "race": {
+      "asian": 0.85,
+      "caucasian": 0.15,
+      "african": 0.0
+    }
+  },
+  "skin": "young_asian_male",
+  "alt_skin": "young_african_male",
+  "eyes": "brown",
+  "eyebrows": "eyebrow001",
+  "eyelashes": "eyelashes01",
+  "hair": "short02",
+  "expression_race": "asian",
+  "teeth": "teeth_base",
+  "tongue": "tongue01"
+}

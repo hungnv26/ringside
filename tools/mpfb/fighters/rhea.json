@@ -1,0 +1,28 @@
+{
+  "id": "rhea",
+  "body": "female",
+  "macros": {
+    "gender": 0.0,
+    "age": 0.4,
+    "muscle": 0.75,
+    "weight": 0.45,
+    "proportions": 0.9,
+    "height": 0.5,
+    "cupsize": 0.45,
+    "firmness": 0.75,
+    "race": {
+      "caucasian": 0.9,
+      "asian": 0.05,
+      "african": 0.05
+    }
+  },
+  "skin": "young_caucasian_female",
+  "alt_skin": "young_asian_female",
+  "eyes": "green",
+  "eyebrows": "eyebrow010",
+  "eyelashes": "eyelashes02",
+  "hair": "ponytail01",
+  "expression_race": "caucasian",
+  "teeth": "teeth_base",
+  "tongue": "tongue01"
+}

@@ -1,0 +1,26 @@
+{
+  "id": "brutus",
+  "body": "male",
+  "macros": {
+    "gender": 1.0,
+    "age": 0.72,
+    "muscle": 1.0,
+    "weight": 0.85,
+    "proportions": 0.55,
+    "height": 0.7,
+    "race": {
+      "caucasian": 0.65,
+      "african": 0.2,
+      "asian": 0.15
+    }
+  },
+  "skin": "middleage_caucasian_male",
+  "alt_skin": "middleage_african_male",
+  "eyes": "brownlight",
+  "eyebrows": "eyebrow007",
+  "eyelashes": "eyelashes01",
+  "hair": "short01",
+  "expression_race": "caucasian",
+  "teeth": "teeth_base",
+  "tongue": "tongue01"
+}

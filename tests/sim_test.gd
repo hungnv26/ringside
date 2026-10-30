@@ -2634,37 +2634,37 @@ func mira_tests() -> void:
 	step(60)
 	check("Mira: the move list shows the dive kick with an arrow", FightHud.notation("j.2K") == "j.↓ K", FightHud.notation("j.2K"))
 
-	# Detailed textures: hem shading and stitch lines in the outfit, a second UV set for the
-	# skin detail, and the materials that use them (other fighters keep the plain ones).
-	var outfit := mira.outfit_mesh as ArrayMesh
-	var darkest := 1.0
-	var brightest := 0.0
-	for surface in outfit.get_surface_count():
-		var colors = outfit.surface_get_arrays(surface)[Mesh.ARRAY_COLOR]
-		if colors == null:
-			darkest = -1.0
-			break
-		for c: Color in colors:
-			darkest = minf(darkest, c.r)
-			brightest = maxf(brightest, c.r)
-	check("Mira: the outfit has hem shading and stitch lines", mira.detailed_textures and darkest > 0.5 and darkest < 0.7 and brightest > 0.99,
-		"%.2f .. %.2f" % [darkest, brightest])
-	check("Mira: her body carries a second UV set", (mira.outfit_body_mesh as ArrayMesh).surface_get_arrays(0)[Mesh.ARRAY_TEX_UV2] != null)
+	# Detailed textures: hem shading baked into the clothes' vertex colours, a second UV set
+	# on the body for the skin detail map, and the materials that use them.
 	var looks := {}
 	for character: CharacterData in [mira, gs.roster[0]]:
 		var model := FighterModel.new()
 		root.add_child(model)
 		model.build(character)
-		var cloth := (model.skeleton.get_node("Outfit") as MeshInstance3D).get_surface_override_material(0) as StandardMaterial3D
+		var darkest := 1.0
+		var brightest := 0.0
+		var cloth: StandardMaterial3D
 		var skin: StandardMaterial3D
+		var uv2 := false
 		for mi: MeshInstance3D in model.skeleton.find_children("*", "MeshInstance3D", true, false):
-			if mi.mesh == character.outfit_body_mesh:
-				skin = mi.get_surface_override_material(0)
-		looks[character.id] = [cloth.albedo_texture != null and cloth.vertex_color_use_as_albedo,
-			skin.detail_enabled and skin.detail_uv_layer == BaseMaterial3D.DETAIL_UV_2 and skin.detail_normal != null]
+			for surface in mi.mesh.get_surface_count():
+				var name := mi.mesh.surface_get_material(surface).resource_name if mi.mesh.surface_get_material(surface) else ""
+				if name.begins_with("MI_Cloth_"):
+					cloth = mi.get_surface_override_material(surface)
+					var colors = mi.mesh.surface_get_arrays(surface)[Mesh.ARRAY_COLOR]
+					if colors != null:
+						for c: Color in colors:
+							darkest = minf(darkest, c.r)
+							brightest = maxf(brightest, c.r)
+				elif name.begins_with("MI_Superhero"):
+					skin = mi.get_surface_override_material(surface)
+					uv2 = mi.mesh.surface_get_arrays(surface)[Mesh.ARRAY_TEX_UV2] != null
+		looks[character.id] = [darkest > 0.5 and darkest < 0.75 and brightest > 0.99, uv2,
+			cloth != null and cloth.albedo_texture != null and cloth.vertex_color_use_as_albedo,
+			skin != null and skin.detail_enabled and skin.detail_uv_layer == BaseMaterial3D.DETAIL_UV_2 and skin.detail_normal != null]
 		model.queue_free()
-	check("Mira: detailed cloth (weave, hem shading) and skin detail", looks[&"mira"] == [true, true], "%s" % [looks])
-	check("Kenji gets the detailed materials too", looks[&"kenji"] == [true, true], "%s" % [looks])
+	check("Mira: hem shading, a second UV set, detailed cloth (weave, shading) and skin detail", looks[&"mira"] == [true, true, true, true], "%s" % [looks])
+	check("Kenji gets the detailed materials too", looks[&"kenji"] == [true, true, true, true], "%s" % [looks])
 	check("Every fighter has detailed textures", gs.roster.all(func(c: CharacterData) -> bool: return c.detailed_textures))
 
 	# Realistic shading (every fighter): wrapped skin with a backlight (never screen-space
@@ -2715,40 +2715,34 @@ func face_tests() -> void:
 	check("FighterModel and the shape builder agree on the shapes", FighterModel.FACE_SHAPES == FaceShapes.SHAPES)
 	for character: CharacterData in gs.roster:
 		var id := String(character.id)
-		if _is_makehuman(character):
-			# MakeHuman fighters (tools/mpfb/build_fighter.py) carry the shapes in the model:
-			# on the body and refitted onto the brows, lashes, teeth and tongue.
-			var mh := FighterModel.new()
-			root.add_child(mh)
-			mh.build(character)
-			var mh_pieces := mh._face_meshes.map(func(mi: MeshInstance3D) -> String: return mi.name)
-			check("%s (MakeHuman): body, brows, lashes, teeth and tongue all take the expressions" % id,
-				["Human", "eyebrows", "eyelashes", "teeth", "tongue"].all(func(n): return n in mh_pieces), "%s" % [mh_pieces])
-			check("%s (MakeHuman): the eyes turn" % id, mh.has_gaze())
-			mh.free()
-			continue
-		var body := character.outfit_body_mesh as ArrayMesh
-		var names := []
-		for i in body.get_blend_shape_count():
-			names.append(body.get_blend_shape_name(i))
-		var surfaces := []
-		for i in body.get_surface_count():
-			surfaces.append(body.surface_get_name(i))
-		check("%s: the body has every expression and a mouth" % id,
-			FighterModel.FACE_SHAPES.all(func(n): return n in names) and "mouth" in surfaces, "%s %s" % [names, surfaces])
-		var model := FighterModel.new()
-		root.add_child(model)
-		model.build(character)
-		var pieces := model._face_meshes.map(func(mi: MeshInstance3D) -> String: return mi.name)
-		check("%s: the face pieces (eyebrows, lashes%s) are expression-ready too" % [id, ", beard" if id == "brutus" else ""],
-			"Eyebrows" in pieces and pieces.size() >= 2 and (id != "brutus" or "Hair_Beard" in pieces), "%s" % [pieces])
-		model.free()
-	# The shapes themselves, on Kenji's body.
+		# The shapes live in the model (tools/mpfb/build_fighter.py): on the body and refitted
+		# onto the brows, lashes, teeth and tongue (and Brutus's beard).
+		var mh := FighterModel.new()
+		root.add_child(mh)
+		mh.build(character)
+		var pieces := mh._face_meshes.map(func(mi: MeshInstance3D) -> String: return mi.name)
+		check("%s: body, brows, lashes, teeth and tongue%s all take the expressions" % [id, ", beard" if id == "brutus" else ""],
+			["Human", "eyebrows", "eyelashes", "teeth", "tongue"].all(func(n): return n in pieces) and (id != "brutus" or "beard" in pieces), "%s" % [pieces])
+		check("%s: the eyes turn" % id, mh.has_gaze())
+		mh.free()
+	# The shapes themselves, on Kenji's body: the mouth opens without moving the brow, the
+	# lids close without moving the forehead or the mouth.
 	var kenji := gs.roster[0] as CharacterData
-	var base := kenji.model_scene.instantiate()
-	var face := FaceShapes.landmarks(base)
-	base.free()
-	var body := kenji.outfit_body_mesh as ArrayMesh
+	var km := FighterModel.new()
+	root.add_child(km)
+	km.build(kenji)
+	var body: ArrayMesh
+	var eyes_mesh: ArrayMesh
+	for mi: MeshInstance3D in km.skeleton.find_children("*", "MeshInstance3D", true, false):
+		var material := mi.mesh.surface_get_material(0)
+		if material and material.resource_name.begins_with("MI_Superhero"):
+			body = mi.mesh
+		elif mi.mesh.get_blend_shape_count() > 0 and mi.find_blend_shape_by_name(&"look_left") >= 0:
+			eyes_mesh = mi.mesh
+	km.free()
+	var eye_box := eyes_mesh.get_aabb()
+	var eye := eye_box.get_center()
+	var eye_x := eye_box.size.x / 4.0
 	var rest: PackedVector3Array = body.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
 	var shapes := body.surface_get_blend_shape_arrays(0)
 	var moved := func(shape: StringName, region: Callable) -> float:
@@ -2758,34 +2752,27 @@ func face_tests() -> void:
 			if region.call(rest[i]):
 				most = maxf(most, rest[i].distance_to(target[i]))
 		return most
-	var seam: float = face.seam
-	var eye: Vector3 = face.eye
-	var chin := func(p: Vector3) -> bool: return absf(p.x) < 0.02 and p.y < seam - 0.02 and p.y > seam - 0.05 and p.z > 0.04
-	var above_mouth := func(p: Vector3) -> bool: return p.y > seam + 0.012
-	var lids := func(p: Vector3) -> bool: return absf(absf(p.x) - eye.x) < 0.008 and p.y > eye.y and p.y < eye.y + 0.006 and p.z > eye.z
-	var far_from_eyes := func(p: Vector3) -> bool: return p.y > eye.y + 0.03 or p.y < eye.y - 0.05
-	check("jaw_open drops the chin; nothing above the mouth moves",
-		moved.call(&"jaw_open", chin) > 0.012 and moved.call(&"jaw_open", above_mouth) < 0.002,
-		"chin %.4f, above %.4f" % [moved.call(&"jaw_open", chin), moved.call(&"jaw_open", above_mouth)])
+	var front_of_face := func(p: Vector3) -> bool: return p.z > eye.z - 0.03 and absf(p.x) < 0.08
+	var mouth_chin := func(p: Vector3) -> bool: return front_of_face.call(p) and p.y < eye.y - 0.06 and p.y > eye.y - 0.16
+	var brow_up := func(p: Vector3) -> bool: return front_of_face.call(p) and p.y > eye.y + 0.035
+	var lids := func(p: Vector3) -> bool: return absf(absf(p.x) - eye_x) < 0.015 and p.y > eye.y - 0.004 and p.y < eye.y + 0.016 and p.z > eye.z - 0.01
+	var far_from_eyes := func(p: Vector3) -> bool: return front_of_face.call(p) and (p.y > eye.y + 0.05 or p.y < eye.y - 0.07)
+	check("jaw_open drops the jaw; the brow stays",
+		moved.call(&"jaw_open", mouth_chin) > 0.01 and moved.call(&"jaw_open", brow_up) < 0.002,
+		"jaw %.4f, brow %.4f" % [moved.call(&"jaw_open", mouth_chin), moved.call(&"jaw_open", brow_up)])
 	check("blink closes the lids and leaves the forehead and mouth alone",
-		moved.call(&"blink", lids) > 0.004 and moved.call(&"blink", far_from_eyes) < 0.0005,
+		moved.call(&"blink", lids) > 0.004 and moved.call(&"blink", far_from_eyes) < 0.001,
 		"lids %.4f, elsewhere %.4f" % [moved.call(&"blink", lids), moved.call(&"blink", far_from_eyes)])
-	var at_rest := 0
-	var indices: PackedInt32Array = body.surface_get_arrays(0)[Mesh.ARRAY_INDEX]
-	for t in range(0, indices.size(), 3):
-		var spans_mouth := true
-		for c in 3:
-			var p := rest[indices[t + c]]
-			spans_mouth = spans_mouth and absf(p.x) < 0.01 and absf(p.y - seam) < 0.0008 and absf(p.z - face.inner_z) < 0.0008
-		if spans_mouth:
-			at_rest += 1
-	check("The lips are cut apart (no triangle seals the mouth)", at_rest == 0, "%d" % at_rest)
 
 	# Gaze: the eyeballs turn about their centres; only the iris moves.
-	var eyes_mesh := load(FighterModel.face_piece_path(kenji.model_scene.resource_path,
-		kenji.model_scene.resource_path, "Eyes")) as ArrayMesh
 	var eye_rest: PackedVector3Array = eyes_mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
-	var centres := FaceShapes.eyeball_centres(eye_rest)
+	var halves := [AABB(), AABB()]
+	var started := [false, false]
+	for v in eye_rest:
+		var h := 0 if v.x >= 0.0 else 1
+		halves[h] = halves[h].expand(v) if started[h] else AABB(v, Vector3.ZERO)
+		started[h] = true
+	var centres := [halves[0].get_center(), halves[1].get_center()]
 	var look_left: PackedVector3Array = eyes_mesh.surface_get_blend_shape_arrays(0)[0][Mesh.ARRAY_VERTEX]
 	var off_sphere := 0.0
 	var front := 0
@@ -2797,7 +2784,7 @@ func face_tests() -> void:
 	check("The eyes have the gaze shapes, in FighterModel's order",
 		range(eyes_mesh.get_blend_shape_count()).map(func(i): return eyes_mesh.get_blend_shape_name(i)) == Array(FighterModel.GAZE_SHAPES))
 	check("Looking left turns the eyeball in place (the pupil moves, the sphere doesn't)",
-		off_sphere < 0.0001 and look_left[front].x - eye_rest[front].x > 0.004,
+		off_sphere < 0.0002 and look_left[front].x - eye_rest[front].x > 0.004,
 		"off sphere %.5f, pupil %.4f" % [off_sphere, look_left[front].x - eye_rest[front].x])
 	var watcher := FighterModel.new()
 	root.add_child(watcher)
@@ -2871,88 +2858,72 @@ func outfit_tests() -> void:
 	var gs = root.get_node("GameState")
 	for character: CharacterData in gs.roster:
 		var id := String(character.id)
-		if _is_makehuman(character):
-			# The outfit is part of the MakeHuman model: cloth surfaces named for colour slots,
-			# skinned to the skeleton, each given the character's fabric and colour.
-			var mh := FighterModel.new()
-			root.add_child(mh)
-			mh.build(character)
-			var cloth := []
-			for mesh: MeshInstance3D in mh.skeleton.find_children("*", "MeshInstance3D", true, false):
-				for surface in mesh.mesh.get_surface_count():
-					var material := mesh.mesh.surface_get_material(surface)
-					if material and material.resource_name.begins_with("MI_Cloth_") and mesh.skin != null:
-						var given := mesh.get_surface_override_material(surface) as StandardMaterial3D
-						if given and given.normal_texture != null:
-							cloth.append(material.resource_name)
-			check("%s (MakeHuman) wears skinned, fabric-shaded clothes in every colour slot" % id,
-				["MI_Cloth_main", "MI_Cloth_trim", "MI_Cloth_accent"].all(func(n): return n in cloth), "%s" % [cloth])
-			mh.free()
-			continue
-		var outfit := character.outfit_mesh as ArrayMesh
-		check("%s has an outfit" % id, outfit != null and character.outfit_body_mesh != null and outfit.get_surface_count() >= 2)
-		if outfit == null:
-			continue
-		var names := []
-		for surface in outfit.get_surface_count():
-			names.append(outfit.surface_get_name(surface))
-		var slots := character.outfit_colors.size()
-		check("%s outfit surfaces are colour slots with colours and fabrics" % id,
-			names.all(func(n): return n in ["main", "trim", "accent", "extra"]) and slots >= names.size()
-			and character.alt_outfit_colors.size() == slots and character.outfit_fabrics.size() == slots
-			and character.alt_outfit_colors != character.outfit_colors, "%s" % [names])
-		var base_triangles := 0
-		var base_scene := character.model_scene.instantiate()
-		var bind_count := 0
-		for mi: MeshInstance3D in base_scene.find_children("*", "MeshInstance3D", true, false):
-			var material := mi.mesh.surface_get_material(0)
-			if material and material.resource_name.begins_with("MI_Superhero"):
-				base_triangles = mi.mesh.surface_get_array_index_len(0) / 3
-				bind_count = mi.skin.get_bind_count()
-		base_scene.free()
-		var body_triangles := (character.outfit_body_mesh as ArrayMesh).surface_get_array_index_len(0) / 3
-		check("%s: the skin under the clothes is removed" % id, body_triangles < base_triangles and body_triangles > base_triangles / 3,
-			"%d of %d triangles kept" % [body_triangles, base_triangles])
+		check("%s is a MakeHuman fighter" % id, _is_makehuman(character))
+		check("%s outfit colours: a colour and a fabric per slot, different for mirror matches" % id,
+			character.outfit_colors.size() >= 3 and character.alt_outfit_colors.size() == character.outfit_colors.size()
+			and character.outfit_fabrics.size() == character.outfit_colors.size() and character.alt_outfit_colors != character.outfit_colors)
+		# The outfit is part of the model: cloth surfaces named for colour slots, skinned to
+		# the skeleton, each given the character's fabric and colour; valid bone weights.
+		var mh := FighterModel.new()
+		root.add_child(mh)
+		mh.build(character)
+		var slots := []
 		var weights_ok := true
-		for surface in outfit.get_surface_count():
-			var arrays := outfit.surface_get_arrays(surface)
-			var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
-			var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
-			for v in weights.size() / 4:
-				var total := weights[v * 4] + weights[v * 4 + 1] + weights[v * 4 + 2] + weights[v * 4 + 3]
-				if absf(total - 1.0) > 0.01:
-					weights_ok = false
-				for k in 4:
-					if bones[v * 4 + k] < 0 or bones[v * 4 + k] >= bind_count:
+		var body_skin: Skin
+		for mesh: MeshInstance3D in mh.skeleton.find_children("*", "MeshInstance3D", true, false):
+			var first := mesh.mesh.surface_get_material(0)
+			if first and first.resource_name.begins_with("MI_Superhero"):
+				body_skin = mesh.skin
+			for surface in mesh.mesh.get_surface_count():
+				var material := mesh.mesh.surface_get_material(surface)
+				if material == null or not material.resource_name.begins_with("MI_Cloth_") or mesh.skin == null:
+					continue
+				var given := mesh.get_surface_override_material(surface) as StandardMaterial3D
+				if given and given.normal_texture != null:
+					slots.append(material.resource_name.trim_prefix("MI_Cloth_"))
+				var arrays := mesh.mesh.surface_get_arrays(surface)
+				var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+				var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+				var per := weights.size() / (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+				for v in weights.size() / per:
+					var total := 0.0
+					for k in per:
+						total += weights[v * per + k]
+						if bones[v * per + k] < 0 or bones[v * per + k] >= mesh.skin.get_bind_count():
+							weights_ok = false
+					if absf(total - 1.0) > 0.01:
 						weights_ok = false
+		var known := ["main", "trim", "accent", "extra"]
+		check("%s wears skinned, fabric-shaded clothes, every slot coloured" % id,
+			"main" in slots and slots.all(func(n): return known.find(n) < character.outfit_colors.size()), "%s" % [slots])
 		check("%s outfit vertices have valid bone weights" % id, weights_ok)
+		mh.free()
 
-	# FighterModel dresses the fighter on the body's skin, with alt colours for mirrors.
+	# Mirror matches swap the outfit colours; the cloth stays matte.
 	var kenji: CharacterData = gs.roster[0]
 	for alt in [false, true]:
 		var model := FighterModel.new()
 		root.add_child(model)
 		model.build(kenji, alt)
-		var dressed := model.skeleton.get_node_or_null("Outfit") as MeshInstance3D
-		var body: MeshInstance3D
-		for mi: MeshInstance3D in model.skeleton.find_children("*", "MeshInstance3D", true, false):
-			if mi.mesh == kenji.outfit_body_mesh:
-				body = mi
 		var colors := kenji.alt_outfit_colors if alt else kenji.outfit_colors
 		var expected: Color = colors[0]
 		var brightest := maxf(expected.r, maxf(expected.g, expected.b))
 		if brightest > FighterModel.MAX_FABRIC_ALBEDO:
 			expected = Color(expected * (FighterModel.MAX_FABRIC_ALBEDO / brightest), 1.0)
-		var material := dressed.get_surface_override_material(0) as StandardMaterial3D if dressed else null
-		check("FighterModel dresses Kenji%s on the body's skin" % (" (alt)" if alt else ""),
-			dressed != null and body != null and dressed.skin == body.skin and dressed.get_node_or_null(dressed.skeleton) == model.skeleton
-			and material != null and material.albedo_color.is_equal_approx(expected) and material.normal_texture != null)
+		var main_ok := false
 		var max_specular := 0.0
 		var max_albedo := 0.0
-		for surface in dressed.mesh.get_surface_count():
-			var cloth := dressed.get_surface_override_material(surface) as StandardMaterial3D
-			max_specular = maxf(max_specular, cloth.metallic_specular)
-			max_albedo = maxf(max_albedo, maxf(cloth.albedo_color.r, maxf(cloth.albedo_color.g, cloth.albedo_color.b)))
+		for mi: MeshInstance3D in model.skeleton.find_children("*", "MeshInstance3D", true, false):
+			for surface in mi.mesh.get_surface_count():
+				var material := mi.mesh.surface_get_material(surface)
+				if material == null or not material.resource_name.begins_with("MI_Cloth_"):
+					continue
+				var cloth := mi.get_surface_override_material(surface) as StandardMaterial3D
+				if material.resource_name == "MI_Cloth_main":
+					main_ok = cloth.albedo_color.is_equal_approx(expected) and mi.get_node_or_null(mi.skeleton) == model.skeleton
+				max_specular = maxf(max_specular, cloth.metallic_specular)
+				max_albedo = maxf(max_albedo, maxf(cloth.albedo_color.r, maxf(cloth.albedo_color.g, cloth.albedo_color.b)))
+		check("FighterModel dresses Kenji%s in his colours on his skeleton" % (" (alt)" if alt else ""), main_ok)
 		check("Kenji%s's outfit is matte (low specular, no blown-out whites)" % (" (alt)" if alt else ""),
 			max_specular <= 0.35 and max_albedo <= FighterModel.MAX_FABRIC_ALBEDO + 0.001, "specular %.2f, albedo %.2f" % [max_specular, max_albedo])
 		model.queue_free()

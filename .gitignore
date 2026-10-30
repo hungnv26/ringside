@@ -23,3 +23,4 @@ CLAUDE.md
 adapter/node_modules/
 battle-logs/
 infra/keys/
+__pycache__/

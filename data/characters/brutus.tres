@@ -1,11 +1,10 @@
 [gd_resource type="Resource" script_class="CharacterData" format=3]
 
-[ext_resource type="PackedScene" path="res://assets/characters/hair/Hair_Buzzed.gltf" id="1_2ndvl"]
-[ext_resource type="Texture2D" path="res://assets/characters/base/T_Superhero_Male_Light.png" id="1_063lg"]
+[ext_resource type="PackedScene" path="res://assets/characters/mh/brutus/brutus.gltf" id="mh_model_1"]
+[ext_resource type="Texture2D" path="res://assets/characters/mh/brutus/textures/skin.png" id="mh_skin_1"]
+[ext_resource type="Texture2D" path="res://assets/characters/mh/brutus/textures/skin_alt.png" id="mh_skin_alt_1"]
 [ext_resource type="Script" path="res://scripts/character_data.gd" id="1_char"]
 [ext_resource type="Script" path="res://scripts/fighter/move_data.gd" id="1_k5w2a"]
-[ext_resource type="PackedScene" path="res://assets/characters/hair/Hair_Beard.gltf" id="2_adg58"]
-[ext_resource type="PackedScene" path="res://assets/characters/base/Superhero_Male_FullBody.gltf" id="3_ryvlx"]
 [ext_resource type="Resource" path="res://data/moves/brutus/jab.tres" id="5_nd1kg"]
 [ext_resource type="Resource" path="res://data/moves/brutus/straight.tres" id="6_hbv0f"]
 [ext_resource type="Resource" path="res://data/moves/brutus/mid_kick.tres" id="7_063lg"]
@@ -25,8 +24,6 @@
 [ext_resource type="Resource" path="res://data/moves/brutus/earthquake.tres" id="21_gxjex"]
 [ext_resource type="Resource" path="res://data/moves/brutus/titan_rush.tres" id="22_utyi1"]
 [ext_resource type="Resource" path="res://data/moves/brutus/titan_finish.tres" id="23_t86aj"]
-[ext_resource type="ArrayMesh" path="res://assets/characters/outfits/brutus_body.res" id="24_utyi1"]
-[ext_resource type="ArrayMesh" path="res://assets/characters/outfits/brutus_outfit.res" id="25_t86aj"]
 
 [resource]
 script = ExtResource("1_char")
@@ -36,14 +33,13 @@ archetype = "Power"
 description = "Slow, heavy hitter. Every connected blow hurts, and he shrugs off knockback."
 select_order = 2
 portrait = ExtResource("19_hbv0f")
-model_scene = ExtResource("3_ryvlx")
-hair_scenes = Array[PackedScene]([ExtResource("1_2ndvl"), ExtResource("2_adg58")])
+model_scene = ExtResource("mh_model_1")
+hair_scenes = Array[PackedScene]([])
+body_albedo = ExtResource("mh_skin_1")
+alt_body_albedo = ExtResource("mh_skin_alt_1")
 model_scale = 1.08
 hair_color = Color(0.22, 0.13, 0.07, 1)
-alt_body_albedo = ExtResource("1_063lg")
 alt_hair_color = Color(0.42, 0.42, 0.44, 1)
-outfit_mesh = ExtResource("25_t86aj")
-outfit_body_mesh = ExtResource("24_utyi1")
 outfit_colors = PackedColorArray(0.34, 0.37, 0.2, 1, 0.15, 0.18, 0.26, 1, 0.08, 0.06, 0.05, 1)
 outfit_fabrics = Array[StringName]([&"cotton", &"denim", &"leather"])
 alt_outfit_colors = PackedColorArray(0.52, 0.52, 0.54, 1, 0.22, 0.32, 0.52, 1, 0.27, 0.16, 0.08, 1)

@@ -209,3 +209,37 @@ Jin is the first MakeHuman fighter; the other six still use the Quaternius bodie
   steps in extreme close-ups (the cut-in); folds are procedural, not simulated; the skin has
   no normal map of its own (the game's tiling pore map supplies detail).
 - Reference: `docs/look/phase2/jin_before_after.jpg` and the stage stills beside it.
+
+### Phase 2: all seven fighters (built 2026-10-30)
+
+Kenji, Brutus, Mira, Lian, Rhea and Valka followed Jin. Every fighter is now a MakeHuman
+model; the Quaternius bodies, hair pieces and generated outfits are no longer used (they stay
+on disk, and in git history).
+
+- **Outfits** come from `tools/mpfb/outfits.py`, a port of `tools/build_outfits.gd`'s
+  garment language, so each fighter keeps the clothes it had: signed-distance regions on the
+  T-pose body cut along their exact zero line (clean hems and necklines), trims split into
+  their own colour slot, thickness per garment, folds on loose cotton that fade toward every
+  edge (so layered garments don't cross), hems turned inward and shaded darker in the vertex
+  colours, shoes and boots smoothed into a shoe shape with flat soles, a belt knot, Kenji's
+  headband and Brutus's beard (cut from his face along an exact line, carrying the face
+  shapes so it moves with the jaw).
+- **Bodies**: male fighters on the male game skeleton, female fighters on the female one.
+  Each JSON in `tools/mpfb/fighters/` picks macros, skin and mirror-match skin, eyes, brows,
+  lashes and hair. Hair, brow and lash textures are made grey so the game's `hair_color`
+  (unchanged from before) sets the colour.
+- **Data**: `tools/mpfb/use_models.py <id> ...` points a character file at its model.
+- Skin texture names come from each skin's `.mhmat` (some are `_diffuse3.png`).
+- New `.import` files must be set lossy (`compress/mode=1`), which sim_test checks.
+- sim_test checks the same promises on the new models: face shapes on every face piece,
+  jaw and blink regions, gaze turning in place, hem shading, the second UV set, realistic
+  shading, skinned fabric-shaded clothes in every slot with valid weights, mirror colours,
+  matte cloth.
+- Shoes and boots: the toes are separate surfaces with crevices between them, so each foot
+  point is averaged with every point within 3 cm (four passes) before the soles go flat.
+  Lian's jacket sits outside her trousers below the belt line (`over_below_waist`).
+- **Cost**: two MakeHuman fighters run every stage at 67 to 85 fps at High (74 to 93 with the
+  old bodies).
+- **Known weak spots**: MakeHuman's hair cards (best on Rhea and Valka, roughest on the short
+  male cuts), the beard is a shaped shell rather than strands, folds are procedural.
+- Reference: `docs/look/phase2/fighters_compare.jpg`, `portraits_after.jpg`.

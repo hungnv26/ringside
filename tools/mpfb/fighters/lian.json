@@ -1,0 +1,28 @@
+{
+  "id": "lian",
+  "body": "female",
+  "macros": {
+    "gender": 0.0,
+    "age": 0.55,
+    "muscle": 0.6,
+    "weight": 0.45,
+    "proportions": 0.85,
+    "height": 0.4,
+    "cupsize": 0.4,
+    "firmness": 0.7,
+    "race": {
+      "asian": 0.95,
+      "caucasian": 0.05,
+      "african": 0.0
+    }
+  },
+  "skin": "young_asian_female",
+  "alt_skin": "young_african_female",
+  "eyes": "brown",
+  "eyebrows": "eyebrow011",
+  "eyelashes": "eyelashes02",
+  "hair": "ponytail01",
+  "expression_race": "asian",
+  "teeth": "teeth_base",
+  "tongue": "tongue01"
+}

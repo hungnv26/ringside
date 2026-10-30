@@ -307,7 +307,10 @@ func _dress_model_cloth(data: CharacterData, alt: bool) -> void:
 			if material == null or not material.resource_name.begins_with("MI_Cloth_"):
 				continue
 			var slot := ["main", "trim", "accent", "extra"].find(material.resource_name.trim_prefix("MI_Cloth_"))
-			mesh.set_surface_override_material(surface, _cloth_material(data, alt, maxi(slot, 0)))
+			var cloth := _cloth_material(data, alt, maxi(slot, 0))
+			# Hem shading baked into the vertex colours (tools/mpfb/outfits.py).
+			cloth.vertex_color_use_as_albedo = mesh.mesh.surface_get_format(surface) & Mesh.ARRAY_FORMAT_COLOR != 0
+			mesh.set_surface_override_material(surface, cloth)
 
 
 ## The textures build() loads by path for `data` (everything else comes with the

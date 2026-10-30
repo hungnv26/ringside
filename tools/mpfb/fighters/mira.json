@@ -1,0 +1,28 @@
+{
+  "id": "mira",
+  "body": "female",
+  "macros": {
+    "gender": 0.0,
+    "age": 0.45,
+    "muscle": 0.75,
+    "weight": 0.5,
+    "proportions": 0.8,
+    "height": 0.45,
+    "cupsize": 0.45,
+    "firmness": 0.7,
+    "race": {
+      "asian": 0.6,
+      "african": 0.25,
+      "caucasian": 0.15
+    }
+  },
+  "skin": "middleage_african_female",
+  "alt_skin": "young_asian_female",
+  "eyes": "brown",
+  "eyebrows": "eyebrow010",
+  "eyelashes": "eyelashes02",
+  "hair": "bob01",
+  "expression_race": "asian",
+  "teeth": "teeth_base",
+  "tongue": "tongue01"
+}

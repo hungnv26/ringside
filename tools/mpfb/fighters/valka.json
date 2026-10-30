@@ -1,0 +1,28 @@
+{
+  "id": "valka",
+  "body": "female",
+  "macros": {
+    "gender": 0.0,
+    "age": 0.55,
+    "muscle": 1.0,
+    "weight": 0.62,
+    "proportions": 0.8,
+    "height": 0.9,
+    "cupsize": 0.5,
+    "firmness": 0.7,
+    "race": {
+      "caucasian": 1.0,
+      "asian": 0.0,
+      "african": 0.0
+    }
+  },
+  "skin": "young_caucasian_female2",
+  "alt_skin": "middleage_african_female",
+  "eyes": "ice",
+  "eyebrows": "eyebrow011",
+  "eyelashes": "eyelashes02",
+  "hair": "long01",
+  "expression_race": "caucasian",
+  "teeth": "teeth_base",
+  "tongue": "tongue01"
+}

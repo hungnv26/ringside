@@ -1,10 +1,8 @@
 [gd_resource type="Resource" script_class="CharacterData" format=3]
 
-[ext_resource type="Texture2D" path="res://assets/characters/base/T_Superhero_Female_Dark_BaseColor.png" id="1_2leu8"]
-[ext_resource type="Texture2D" path="res://assets/characters/base/T_Superhero_Female_Light_BaseColor.png" id="2_sktwq"]
-[ext_resource type="PackedScene" path="res://assets/characters/hair/Hair_Bun.tscn" id="3_r65gl"]
-[ext_resource type="PackedScene" path="res://assets/characters/hair/Eyebrows_Female.gltf" id="4_1smuh"]
-[ext_resource type="PackedScene" path="res://assets/characters/base/Superhero_Female_FullBody.gltf" id="5_fhypt"]
+[ext_resource type="PackedScene" path="res://assets/characters/mh/lian/lian.gltf" id="mh_model_1"]
+[ext_resource type="Texture2D" path="res://assets/characters/mh/lian/textures/skin.png" id="mh_skin_1"]
+[ext_resource type="Texture2D" path="res://assets/characters/mh/lian/textures/skin_alt.png" id="mh_skin_alt_1"]
 [ext_resource type="Script" path="res://scripts/fighter/move_data.gd" id="6_tobrv"]
 [ext_resource type="Resource" path="res://data/moves/lian/jab.tres" id="7_ckwaw"]
 [ext_resource type="Resource" path="res://data/moves/lian/straight.tres" id="8_hx2fa"]
@@ -25,9 +23,7 @@
 [ext_resource type="Resource" path="res://data/moves/lian/inch_palm.tres" id="23_gk75r"]
 [ext_resource type="Resource" path="res://data/moves/lian/thousand_hands.tres" id="24_eujh8"]
 [ext_resource type="Resource" path="res://data/moves/lian/thousand_finish.tres" id="25_2lx58"]
-[ext_resource type="ArrayMesh" path="res://assets/characters/outfits/lian_body.res" id="26_r65gl"]
 [ext_resource type="Script" path="res://scripts/character_data.gd" id="26_tp6pj"]
-[ext_resource type="ArrayMesh" path="res://assets/characters/outfits/lian_outfit.res" id="27_1smuh"]
 [ext_resource type="Texture2D" path="res://assets/ui/portraits/lian.png" id="28_1smuh"]
 
 [resource]
@@ -38,15 +34,13 @@ archetype = "Counter"
 description = "Wing Chun master. Holds the centre line, rattles off chain punches, and turns any careless strike into a throw."
 select_order = 6
 portrait = ExtResource("28_1smuh")
-model_scene = ExtResource("5_fhypt")
-hair_scenes = Array[PackedScene]([ExtResource("3_r65gl"), ExtResource("4_1smuh")])
-body_albedo = ExtResource("2_sktwq")
+model_scene = ExtResource("mh_model_1")
+hair_scenes = Array[PackedScene]([])
+body_albedo = ExtResource("mh_skin_1")
+alt_body_albedo = ExtResource("mh_skin_alt_1")
 model_scale = 0.98
 hair_color = Color(0.045, 0.035, 0.035, 1)
-alt_body_albedo = ExtResource("1_2leu8")
 alt_hair_color = Color(0.3, 0.16, 0.08, 1)
-outfit_mesh = ExtResource("27_1smuh")
-outfit_body_mesh = ExtResource("26_r65gl")
 outfit_colors = PackedColorArray(0.1, 0.36, 0.29, 1, 0.84, 0.75, 0.52, 1, 0.06, 0.06, 0.07, 1, 0.07, 0.07, 0.08, 1)
 outfit_fabrics = Array[StringName]([&"cotton", &"cotton", &"cotton", &"cotton"])
 alt_outfit_colors = PackedColorArray(0.8, 0.79, 0.75, 1, 0.08, 0.08, 0.09, 1, 0.5, 0.06, 0.06, 1, 0.08, 0.08, 0.09, 1)

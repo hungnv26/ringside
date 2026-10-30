@@ -42,8 +42,14 @@ from bl_ext.blender_org.mpfb.services.exportservice import ExportService
 from bl_ext.blender_org.mpfb.services.locationservice import LocationService
 from bl_ext.blender_org.mpfb.entities.clothes.mhclo import Mhclo
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import outfits  # noqa: E402  (tools/mpfb/outfits.py)
+
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-GAME_SKELETON = os.path.join(REPO, "assets/characters/base/Superhero_Male_FullBody.gltf")
+GAME_SKELETONS = {
+    "male": os.path.join(REPO, "assets/characters/base/Superhero_Male_FullBody.gltf"),
+    "female": os.path.join(REPO, "assets/characters/base/Superhero_Female_FullBody.gltf"),
+}
 import bl_ext.blender_org.mpfb as _mpfb
 MPFB_UNITS = os.path.join(os.path.dirname(_mpfb.__file__), "data", "targets", "expression", "units")
 
@@ -128,10 +134,11 @@ def make_human(spec):
 
 # ---- 2. pose the limbs into the game's rest pose ----
 
-def game_bone_dirs():
-    """Imports the game skeleton and returns {bone: (head, direction, length, roll matrix)} plus the armature."""
+def game_bone_dirs(body):
+    """Imports the game skeleton for this body ("male" or "female") and returns
+    {bone: (head, direction, length, matrix)} plus the armature."""
     before = set(bpy.data.objects)
-    bpy.ops.import_scene.gltf(filepath=GAME_SKELETON, bone_heuristic="BLENDER")
+    bpy.ops.import_scene.gltf(filepath=GAME_SKELETONS[body], bone_heuristic="BLENDER")
     new = [o for o in bpy.data.objects if o not in before]
     arm = [o for o in new if o.type == "ARMATURE"][0]
     for o in new:
@@ -351,302 +358,6 @@ def build_game_skeleton(game_arm, rig, objects):
 
 
 
-# ---- 4b. the outfit: cut from the body's own surface ----
-
-import bmesh
-from mathutils import noise
-
-
-def landmarks(rig):
-    def head(name):
-        return rig.matrix_world @ rig.data.bones[name].head_local
-    lm = {
-        "waist_z": head("spine_01").z - 0.005,
-        "crotch_z": head("thigh_l").z - 0.075,
-        "knee_z": head("calf_l").z,
-        "ankle_z": head("foot_l").z,
-        "neck_z": head("neck_01").z,
-        "chest_z": head("spine_03").z,
-        "shoulder_x": head("upperarm_l").x,
-        "elbow_x": head("lowerarm_l").x,
-        "wrist_x": head("hand_l").x,
-    }
-    lm["sleeve_x"] = lm["elbow_x"] + 0.88 * (lm["wrist_x"] - lm["elbow_x"])
-    lm["v_bottom"] = lm["chest_z"] + 0.03
-    return lm
-
-
-def v_half(lm, z):
-    t = max(0.0, min(1.0, (z - lm["v_bottom"]) / max(lm["neck_z"] - lm["v_bottom"], 0.01)))
-    return 0.012 + 0.07 * t
-
-
-def in_jacket(lm, c, margin=0.0):
-    if not (lm["crotch_z"] + 0.03 + margin <= c.z <= lm["neck_z"] - 0.004 - margin):
-        return False
-    if abs(c.x) > lm["sleeve_x"] - margin:
-        return False
-    if c.y < 0 and c.z > lm["v_bottom"] - margin and abs(c.x) < v_half(lm, c.z) + margin:
-        return False # the V-neck
-    return True
-
-
-def in_trousers(lm, c, margin=0.0):
-    return lm["ankle_z"] + 0.035 + margin <= c.z <= lm["waist_z"] + 0.012 - margin and abs(c.x) < lm["shoulder_x"]
-
-
-def copy_region(basemesh, name, keep):
-    """A new object holding the body faces whose centre passes `keep`, with the body's
-    vertex groups (so the garment inherits the skin's weights) and no shape keys."""
-    me = basemesh.data.copy()
-    obj = bpy.data.objects.new(name, me)
-    bpy.context.scene.collection.objects.link(obj)
-    for g in basemesh.vertex_groups:
-        obj.vertex_groups.new(name=g.name)
-    if me.shape_keys:
-        set_active(obj)
-        obj.shape_key_clear()
-    body_group = basemesh.vertex_groups["body"].index
-    bm = bmesh.new()
-    bm.from_mesh(me)
-    deform = bm.verts.layers.deform.active
-    doomed = []
-    for f in bm.faces:
-        real = all(body_group in v[deform] for v in f.verts)
-        if not real or not keep(f.calc_center_median()):
-            doomed.append(f)
-    bmesh.ops.delete(bm, geom=doomed, context="FACES")
-    loose = [v for v in bm.verts if not v.link_faces]
-    bmesh.ops.delete(bm, geom=loose, context="VERTS")
-    relax_boundary(bm)
-    bm.to_mesh(me)
-    bm.free()
-    obj.matrix_world = basemesh.matrix_world.copy()
-    return obj
-
-
-def relax_boundary(bm, iterations=6):
-    """The cut follows the body's faces, so its edge steps; slide the edge vertices toward
-    their two edge neighbours until the hems and the V run as smooth curves."""
-    edge = [v for v in bm.verts if v.is_boundary]
-    for _ in range(iterations):
-        moved = {}
-        for v in edge:
-            ring = [e.other_vert(v) for e in v.link_edges if e.is_boundary]
-            if len(ring) == 2:
-                moved[v] = v.co * 0.4 + (ring[0].co + ring[1].co) * 0.3
-        for v, co in moved.items():
-            v.co = co
-
-
-def subdivide(obj, levels=1):
-    set_active(obj)
-    m = obj.modifiers.new("Sub", "SUBSURF")
-    m.levels = levels
-    bpy.ops.object.modifier_apply(modifier=m.name)
-
-
-def fold(p, axis, scale_along, scale_across):
-    """Fabric folds: noise stretched along the limb (axis) so the ridges run with it."""
-    q = Vector((p.x * (scale_along if axis == "X" else scale_across),
-                p.y * scale_across,
-                p.z * (scale_along if axis == "Z" else scale_across)))
-    return noise.noise(q) + 0.5 * noise.noise(q * 2.03)
-
-
-def shape_garment(obj, offset, folds, collar=None):
-    bm = bmesh.new()
-    bm.from_mesh(obj.data)
-    bm.normal_update()
-    for v in bm.verts:
-        v.co += v.normal * (offset(v.co) + folds(v.co))
-    bm.normal_update()
-    if collar is not None:
-        collar(bm)
-    # Hems: the open edges turned inward, so the cloth shows a thickness.
-    bm.normal_update()
-    boundary = [e for e in bm.edges if e.is_boundary]
-    ret = bmesh.ops.extrude_edge_only(bm, edges=boundary)
-    for v in [g for g in ret["geom"] if isinstance(g, bmesh.types.BMVert)]:
-        v.co -= v.normal * 0.007
-    bm.normal_update()
-    bm.to_mesh(obj.data)
-    bm.free()
-
-
-def ring(c, z0, around, width):
-    """Gaussian bump around height (or x) `around`."""
-    return math.exp(-((c - around) / width) ** 2)
-
-
-def make_outfit(basemesh, rig, spec):
-    lm = landmarks(rig)
-    log("landmarks", {k: round(v, 3) for k, v in lm.items()})
-    seed = hash(spec["id"]) % 1000
-
-    jacket = copy_region(basemesh, "jacket", lambda c: in_jacket(lm, c))
-    subdivide(jacket)
-
-    def jacket_offset(c):
-        base = 0.016
-        if abs(c.x) > lm["shoulder_x"]: # sleeves hang loose, widest at the cuff
-            t = (abs(c.x) - lm["shoulder_x"]) / max(lm["sleeve_x"] - lm["shoulder_x"], 0.01)
-            base = 0.022 + 0.018 * t
-        elif c.z < lm["waist_z"]: # the skirt below the belt sits over the trousers
-            base = 0.03 + 0.02 * (lm["waist_z"] - c.z) / 0.12
-        return base
-
-    def jacket_folds(c):
-        if abs(c.x) > lm["shoulder_x"]:
-            f = 0.0055 * fold(c + Vector((seed, 0, 0)), "X", 3.0, 28.0)
-            f += 0.006 * ring(abs(c.x), 0, lm["elbow_x"], 0.04) * math.sin(abs(c.x) * 220.0)
-            return f
-        return 0.0035 * fold(c + Vector((0, seed, 0)), "Z", 4.0, 18.0)
-    collar_obj = []
-
-    def collar(bm):
-        collar_obj.append(make_collar(jacket, bm, lm))
-    shape_garment(jacket, jacket_offset, jacket_folds, collar)
-
-    trousers = copy_region(basemesh, "trousers", lambda c: in_trousers(lm, c))
-    subdivide(trousers)
-
-    def trousers_offset(c):
-        if c.z > lm["crotch_z"]:
-            return 0.014
-        t = (lm["crotch_z"] - c.z) / max(lm["crotch_z"] - lm["ankle_z"], 0.01)
-        return 0.018 + 0.035 * t ** 1.4 # wide legs that flare toward the ankle
-
-    def trousers_folds(c):
-        f = 0.006 * fold(c + Vector((0, 0, seed)), "Z", 2.5, 24.0)
-        f += 0.007 * ring(c.z, 0, lm["knee_z"], 0.05) * math.sin(c.z * 200.0)
-        f += 0.005 * ring(c.z, 0, lm["ankle_z"] + 0.06, 0.04) * math.sin(c.z * 260.0)
-        return f
-    shape_garment(trousers, trousers_offset, trousers_folds)
-
-    jacket.data.materials.append(bpy.data.materials.new("MI_Cloth_main"))
-    trousers.data.materials.append(bpy.data.materials["MI_Cloth_main"])
-
-    belt = make_belt(basemesh, lm)
-    log("outfit: jacket %d, trousers %d, belt %d faces" % (len(jacket.data.polygons), len(trousers.data.polygons), len(belt.data.polygons)))
-    return [jacket, trousers, belt] + collar_obj, lm
-
-
-def make_collar(jacket, bm, lm, width=0.042):
-    """The collar band in the trim colour: a strip of constant width laid on the jacket
-    along the neckline (the highest open edge loop), carrying the jacket's weights."""
-    deform = bm.verts.layers.deform.active
-    boundary = {v for v in bm.verts if v.is_boundary}
-    loops, seen = [], set()
-    for start in boundary:
-        if start in seen:
-            continue
-        loop, v, prev = [], start, None
-        while v is not None and v not in seen:
-            seen.add(v)
-            loop.append(v)
-            nxt = [e.other_vert(v) for e in v.link_edges if e.is_boundary and e.other_vert(v) is not prev and e.other_vert(v) not in seen]
-            prev, v = v, (nxt[0] if nxt else None)
-        loops.append(loop)
-    neck = max(loops, key=lambda lp: sum(v.co.z for v in lp) / len(lp))
-    me = bpy.data.meshes.new("collar")
-    cbm = bmesh.new()
-    cdeform = cbm.verts.layers.deform.verify()
-    rows = []
-    for v in neck:
-        inward = sum(((f.calc_center_median() - v.co) for f in v.link_faces), Vector()).normalized()
-        n = v.normal
-        inward = (inward - n * inward.dot(n)).normalized()
-        a = cbm.verts.new(v.co + n * 0.003 - inward * 0.004)
-        b = cbm.verts.new(v.co + n * 0.004 + inward * width)
-        for vv in (a, b):
-            for g, w in v[deform].items():
-                vv[cdeform][g] = w
-        rows.append((a, b))
-    for i in range(len(rows)):
-        a0, b0 = rows[i]
-        a1, b1 = rows[(i + 1) % len(rows)]
-        cbm.faces.new((a0, a1, b1, b0))
-    cbm.normal_update()
-    cbm.to_mesh(me)
-    cbm.free()
-    obj = bpy.data.objects.new("collar", me)
-    bpy.context.scene.collection.objects.link(obj)
-    for g in jacket.vertex_groups:
-        obj.vertex_groups.new(name=g.name)
-    me.materials.append(bpy.data.materials.new("MI_Cloth_trim"))
-    uv = me.uv_layers.new(name="UVMap")
-    for poly in me.polygons:
-        for k, li in enumerate(poly.loop_indices):
-            uv.data[li].uv = (poly.index * 0.05 + (1 if k in (1, 2) else 0) * 0.05, 0.0 if k in (0, 1) else 0.3)
-    return obj
-
-
-def make_belt(basemesh, lm):
-    """A band around the waist over the jacket, a knot at the front and two hanging ends."""
-    z = lm["waist_z"]
-    pts = [basemesh.matrix_world @ v.co for v in basemesh.data.vertices if abs((basemesh.matrix_world @ v.co).z - z) < 0.02]
-    cy = sum(p.y for p in pts) / max(len(pts), 1)
-    n = 48
-    radius = [0.0] * n
-    for p in pts:
-        a = math.atan2(p.y - cy, p.x)
-        i = int((a + math.pi) / (2 * math.pi) * n) % n
-        radius[i] = max(radius[i], math.hypot(p.x, p.y - cy))
-    for i in range(n): # fill gaps from neighbours
-        if radius[i] == 0.0:
-            radius[i] = max(radius[(i - 1) % n], radius[(i + 1) % n])
-    bm = bmesh.new()
-    half_w, thick, out = 0.022, 0.006, 0.05
-    rows = []
-    for i in range(n):
-        a = -math.pi + (i + 0.5) / n * 2 * math.pi
-        d = Vector((math.cos(a), math.sin(a), 0))
-        r = radius[i] + out
-        centre = Vector((0, cy, z))
-        rows.append([bm.verts.new(centre + d * (r + dr) + Vector((0, 0, dz))) for dr, dz in ((0, -half_w), (0, half_w), (-thick, half_w), (-thick, -half_w))])
-    for i in range(n):
-        a, b = rows[i], rows[(i + 1) % n]
-        for k in range(4):
-            bm.faces.new((a[k], b[k], b[(k + 1) % 4], a[(k + 1) % 4]))
-    # Knot at the front (-Y) and two ends.
-    front = Vector((0, cy - (radius[n // 4] + out) - 0.012, z))
-    bmesh.ops.create_cube(bm, size=1.0, matrix=Matrix.Translation(front) @ Matrix.Diagonal((0.055, 0.03, 0.05, 1)))
-    for side in (-1, 1):
-        top = front + Vector((0.012 * side, -0.004, -0.018))
-        tail = Matrix.Translation(top + Vector((0.03 * side, -0.004, -0.11))) @ Matrix.Rotation(0.18 * side, 4, "Y") @ Matrix.Diagonal((0.045, 0.006, 0.22, 1))
-        bmesh.ops.create_cube(bm, size=1.0, matrix=tail)
-    me = bpy.data.meshes.new("belt")
-    bm.to_mesh(me)
-    bm.free()
-    belt = bpy.data.objects.new("belt", me)
-    bpy.context.scene.collection.objects.link(belt)
-    me.materials.append(bpy.data.materials.new("MI_Cloth_accent"))
-    for name, w in (("pelvis", 0.5), ("spine_01", 0.5)):
-        g = belt.vertex_groups.new(name=name)
-        g.add(range(len(me.vertices)), w, "REPLACE")
-    # UVs so the weave tiles along the band.
-    uv = me.uv_layers.new(name="UVMap")
-    for poly in me.polygons:
-        for li in poly.loop_indices:
-            co = me.vertices[me.loops[li].vertex_index].co
-            uv.data[li].uv = (math.atan2(co.y - cy, co.x) / (2 * math.pi) * 6.0, co.z * 6.0)
-    return belt
-
-
-def hide_covered_skin(basemesh, lm):
-    """Deletes body faces well inside the garments: nothing to see there, and no skin
-    poking through the cloth when a joint bends."""
-    bm = bmesh.new()
-    bm.from_mesh(basemesh.data)
-    doomed = [f for f in bm.faces if in_jacket(lm, basemesh.matrix_world @ f.calc_center_median(), margin=0.06)
-              or in_trousers(lm, basemesh.matrix_world @ f.calc_center_median(), margin=0.06)]
-    bmesh.ops.delete(bm, geom=doomed, context="FACES")
-    loose = [v for v in bm.verts if not v.link_faces]
-    bmesh.ops.delete(bm, geom=loose, context="VERTS")
-    bm.to_mesh(basemesh.data)
-    bm.free()
-    log("covered skin removed:", len(doomed), "faces")
 
 # ---- 5. materials and export ----
 
@@ -675,6 +386,34 @@ def principled(name, base_tex=None, normal_tex=None, roughness=0.5, alpha=False,
     return mat
 
 
+def greyscale_for_tint(path):
+    """Hair, brow and lash textures in grey (mean about 0.8 where opaque), so the game's
+    hair_color decides the colour, as it does for the other fighters."""
+    import numpy as np
+    img = bpy.data.images.load(path)
+    px = np.array(img.pixels[:], dtype=np.float32).reshape(-1, 4)
+    lum = px[:, 0] * 0.2126 + px[:, 1] * 0.7152 + px[:, 2] * 0.0722
+    opaque = px[:, 3] > 0.5
+    mean = float(lum[opaque].mean()) if opaque.any() else 0.5
+    lum = np.clip(lum * (0.8 / max(mean, 0.05)), 0.0, 1.0)
+    px[:, 0] = px[:, 1] = px[:, 2] = lum
+    img.pixels[:] = px.ravel()
+    img.filepath_raw = path
+    img.file_format = "PNG"
+    img.save()
+    bpy.data.images.remove(img)
+    return path
+
+
+def skin_texture(name):
+    """The skin's diffuse texture, as its .mhmat names it (file names vary: _diffuse3.png...)."""
+    folder = user_data("skins", name)
+    for line in open(os.path.join(folder, name + ".mhmat")):
+        if line.startswith("diffuseTexture"):
+            return os.path.join(folder, line.split(None, 1)[1].strip())
+    raise FileNotFoundError(f"no diffuseTexture in {name}.mhmat")
+
+
 def texture(folder, pattern_end):
     for f in sorted(os.listdir(folder)):
         if f.endswith(pattern_end):
@@ -696,14 +435,19 @@ def dress_materials(spec, basemesh, pieces, out_tex):
         dst = os.path.join(out_tex, name + os.path.splitext(path)[1])
         shutil.copyfile(path, dst)
         return dst
-    skin_dir = user_data("skins", spec["skin"])
-    assign(basemesh, principled("MI_Superhero_MH_Skin", keep(texture(skin_dir, "_diffuse.png"), "skin"), roughness=0.55, specular=0.35))
+    assign(basemesh, principled("MI_Superhero_MH_Skin", keep(skin_texture(spec["skin"]), "skin"), roughness=0.55, specular=0.35))
     assign(pieces["eyes"][0], principled("MI_Eyes_MH", keep(user_data("eyes", "materials", spec["eyes"] + "_eye.png"), "eyes"), roughness=0.15))
     for kind, mat_name in [("eyebrows", "MI_Hair_Brows"), ("eyelashes", "MI_Hair_Lashes")]:
         folder = user_data(kind, spec[kind])
-        assign(pieces[kind][0], principled(mat_name, keep(texture(folder, ".png"), kind), roughness=0.6, alpha=True))
+        assign(pieces[kind][0], principled(mat_name, greyscale_for_tint(keep(texture(folder, ".png"), kind)), roughness=0.6, alpha=True))
     hair_dir = user_data("hair", spec["hair"])
-    assign(pieces["hair"][0], principled("MI_Hair_MH", keep(texture(hair_dir, "_diffuse.png"), "hair"), keep(texture(hair_dir, "_normal.png"), "hair_normal"), roughness=0.75, alpha=True))
+    assign(pieces["hair"][0], principled("MI_Hair_MH", greyscale_for_tint(keep(texture(hair_dir, "_diffuse.png"), "hair")), keep(texture(hair_dir, "_normal.png"), "hair_normal"), roughness=0.75, alpha=True))
+    beard = bpy.data.materials.get("MI_Hair_Beard")
+    if beard:
+        beard.use_nodes = True
+        bsdf = beard.node_tree.nodes["Principled BSDF"]
+        bsdf.inputs["Base Color"].default_value = (0.8, 0.8, 0.8, 1.0)
+        bsdf.inputs["Roughness"].default_value = 0.92
     for kind, mat_name in [("teeth", "Teeth"), ("tongue", "Tongue")]:
         folder = user_data(kind, spec[kind])
         assign(pieces[kind][0], principled(mat_name, keep(texture(folder, ".png"), kind), roughness=0.3))
@@ -727,7 +471,7 @@ def export(spec, out_dir):
     bpy.ops.export_scene.gltf(filepath=path, export_format="GLTF_SEPARATE", export_texture_dir="textures",
                               export_yup=True, export_skins=True, export_morph=True, export_morph_normal=True,
                               export_animations=False, export_apply=False, export_materials="EXPORT",
-                              export_image_format="AUTO")
+                              export_image_format="AUTO", export_vertex_color="ACTIVE")
     log("exported", path)
 
 
@@ -739,15 +483,15 @@ def main():
     os.makedirs(out_dir, exist_ok=True)
     clear_scene()
     basemesh, rig, pieces = make_human(spec)
-    game_arm, game = game_bone_dirs()
+    game_arm, game = game_bone_dirs(spec.get("body", "male"))
     pose_to_game(rig, game)
     bake_face_shapes(basemesh, pieces, spec.get("expression_race", "caucasian"))
     bake_gaze_shapes(pieces["eyes"][0])
     objects = [basemesh] + [p[0] for p in pieces.values()]
     scale_to_game(objects, rig, game)
-    outfit, lm = make_outfit(basemesh, rig, spec)
+    outfit, _, outfit_spec = outfits.make_outfit(spec["id"], basemesh, rig, log)
     finish_meshes(basemesh)
-    hide_covered_skin(basemesh, lm)
+    outfits.hide_covered_skin(basemesh, outfit_spec, log)
     build_game_skeleton(game_arm, rig, objects + outfit)
     import tempfile
     dress_materials(spec, basemesh, pieces, tempfile.mkdtemp(prefix="ringside_tex_"))
@@ -756,7 +500,7 @@ def main():
     export(spec, out_dir)
     # The mirror-match skin: another MakeHuman skin on the same UV layout.
     if spec.get("alt_skin"):
-        alt = texture(user_data("skins", spec["alt_skin"]), "_diffuse.png")
+        alt = skin_texture(spec["alt_skin"])
         shutil.copyfile(alt, os.path.join(out_dir, "textures", "skin_alt.png"))
         log("alt skin", spec["alt_skin"])
 
