@@ -1225,6 +1225,7 @@ func stage_tests() -> void:
 	_temple_tests()
 	_dojo_people_tests()
 	_market_tests()
+	_beach_tests()
 	# Download size: 3D textures must not be imported lossless (a 1K photo texture is 2-3 MB
 	# lossless, about 0.4 MB as lossy WebP). Godot only switches them automatically in the
 	# editor, so textures imported headless stay lossless unless their .import says otherwise.
@@ -1375,6 +1376,24 @@ func polish_tests() -> void:
 	wait_until(func() -> bool: return p1.projectile == null, 120)
 	check("FX: projectile impact burst + ring", fx.spawned >= before + 2, "%d effects" % (fx.spawned - before))
 	gs.stage_path = gs.DEFAULT_STAGE
+
+
+## The Beach: standing beachgoers, textured palm fronds swaying in the wind, Poly Haven
+## rocks on the shore, striped umbrella canopies, shaped surfboards.
+func _beach_tests() -> void:
+	var beach := (load("res://scenes/stages/beach.tscn") as PackedScene).instantiate()
+	var crowd := beach.get_node("Crowd") as Crowd
+	var fronds := beach.get_node_or_null("PalmFronds") as MeshInstance3D
+	var wind := fronds.mesh.surface_get_material(0) as ShaderMaterial if fronds else null
+	var rocks := 0
+	var boards := 0
+	for n in beach.get_children():
+		rocks += 1 if String(n.name).begins_with("Rock") and n is MeshInstance3D else 0
+		boards += 1 if String(n.name).begins_with("Surfboard") else 0
+	check("Beach: beachgoers, palm fronds in the wind, real rocks, surfboards",
+		crowd.people and crowd.people_kind == "pedestrian" and wind != null and wind.shader.resource_path.ends_with("foliage_wind.gdshader")
+		and rocks == 12 and boards == 4, "rocks %d, boards %d" % [rocks, boards])
+	beach.free()
 
 
 ## The Market's locals are real people standing on the street (Crowd.people, kind

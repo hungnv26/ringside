@@ -18,6 +18,8 @@ const OCEAN_SHADER := "res://assets/stages/beach/ocean.gdshader"
 const STAGE_SCRIPT := "res://scripts/stages/stage.gd"
 const CROWD_SCRIPT := "res://scripts/stages/crowd.gd"
 const AO_PATH := "res://assets/stages/beach/sand_ao.res"
+const ART := "res://assets/stages/beach/art/" # tools/make_beach_art.py
+const PROPS := "res://assets/stages/beach/props/"
 
 const SHORE_Z := -12.5
 ## Direction toward the sun once the sky is turned 180° (sun high behind the camera, a
@@ -67,6 +69,7 @@ func _initialize() -> void:
 	_build_spray()
 	_add(stage, StageFX.ambience([["res://assets/audio/ambience/waves.ogg", -9.0], ["res://assets/audio/ambience/wind.ogg", -25.0]], "res://assets/audio/ambience/crowd_cheer.ogg", -8.0, ["res://assets/audio/ambience/seagull_1.ogg", "res://assets/audio/ambience/seagull_2.ogg"], -15.0), "Sound") # ambient loops (StageAmbience)
 	_flush_batches()
+	_flush_fronds()
 	_bake_contact_shadows()
 	_add(stage, _marker(Vector3(-2, 0, 0)), "P1Spawn")
 	_add(stage, _marker(Vector3(2, 0, 0)), "P2Spawn")
@@ -240,24 +243,54 @@ func _build_palms() -> void:
 			_frond(top, Vector3(cos(a), 0, sin(a)), _rng.randf_range(2.4, 3.2))
 
 
-## One frond: a leaf strip that arcs up and droops, made of short, tapering, V-angled
-## segments.
+## One frond: a strip that arcs up and droops, folded into a shallow V along its midrib,
+## textured with the drawn frond (tools/make_beach_art.py). Collected into one mesh that
+## sways in the wind (foliage_wind.gdshader; the vertex alpha is how far along the frond).
 func _frond(base: Vector3, dir: Vector3, length: float) -> void:
-	var steps := 8
-	var prev := base
+	if _fronds == null:
+		_fronds = SurfaceTool.new()
+		_fronds.begin(Mesh.PRIMITIVE_TRIANGLES)
+	const STEPS := 10
 	var side := dir.cross(Vector3.UP).normalized()
-	for s in range(1, steps + 1):
-		var t := float(s) / steps
-		var p := base + dir * length * t + Vector3.UP * (0.9 * t - 2.0 * t * t)
-		var along := (p - prev).normalized()
-		var width := lerpf(0.75, 0.12, t)
-		for tilt in [-0.45, 0.45]: # two halves angled up into a shallow V
-			var normal := along.cross(side).normalized().rotated(along, tilt)
-			var x_axis := along.cross(normal).normalized()
-			var basis := Basis(x_axis, normal, along)
-			var offset := x_axis * width * 0.25 * signf(tilt)
-			_batch(mat_leaf, Vector3(width * 0.5, 0.02, prev.distance_to(p) + 0.05), Transform3D(basis, (prev + p) / 2.0 + offset))
-		prev = p
+	var droop := _rng.randf_range(1.6, 2.4)
+	var bright := _rng.randf_range(0.8, 1.05)
+	var twist := _rng.randf_range(-0.25, 0.25)
+	var rows := []
+	for s in STEPS + 1:
+		var t := float(s) / STEPS
+		var p := base + dir * length * t + Vector3.UP * (0.9 * t - droop * t * t)
+		var width := 1.05 * sin(PI * (0.08 + 0.84 * t)) + 0.08
+		var across := side.rotated(dir, twist * t)
+		var fold := Vector3.UP * width * 0.16
+		rows.append([p - across * width * 0.5, p + fold, p + across * width * 0.5, t])
+	for s in STEPS:
+		var a: Array = rows[s]
+		var b: Array = rows[s + 1]
+		for half in 2:
+			var quad := [[a[half], half * 0.5, a[3]], [a[half + 1], half * 0.5 + 0.5, a[3]], [b[half + 1], half * 0.5 + 0.5, b[3]], [b[half], half * 0.5, b[3]]]
+			for k in [0, 1, 2, 0, 2, 3]:
+				var v: Array = quad[k]
+				_fronds.set_color(Color(bright, bright, bright, v[2]))
+				_fronds.set_uv(Vector2(v[1], 1.0 - v[2]))
+				_fronds.add_vertex(v[0])
+
+
+var _fronds: SurfaceTool
+
+
+func _flush_fronds() -> void:
+	_fronds.generate_normals()
+	var wind := ShaderMaterial.new()
+	wind.shader = load("res://assets/stages/shared/foliage_wind.gdshader")
+	wind.set_shader_parameter("albedo_tex", load(ART + "frond.png"))
+	wind.set_shader_parameter("sway", 0.14)
+	wind.set_shader_parameter("gust_speed", 1.2)
+	wind.set_shader_parameter("backlight", Color(0.3, 0.45, 0.15))
+	wind.set_shader_parameter("alpha_cut", 0.4)
+	_fronds.set_material(wind)
+	var mi := MeshInstance3D.new()
+	mi.mesh = _fronds.commit()
+	_add(stage, mi, "PalmFronds")
 
 
 ## A thatched tiki bar: bamboo counter, posts, stools and a thatch roof.
@@ -308,37 +341,153 @@ func _build_umbrellas() -> void:
 		var at: Vector3 = spots[i]
 		var tilt := Basis(Vector3(_rng.randf_range(-1, 1), 0, _rng.randf_range(-1, 1)).normalized(), _rng.randf_range(0.05, 0.18))
 		_batch(mat_white_wood, Vector3(0.05, 2.2, 0.05), Transform3D(tilt, at + tilt * Vector3(0, 1.1, 0)))
-		var canopy := CylinderMesh.new()
-		canopy.top_radius = 0.04
-		canopy.bottom_radius = 1.25
-		canopy.height = 0.45
-		canopy.radial_segments = 12
-		canopy.material = _fabric[i % _fabric.size()]
 		var mi := MeshInstance3D.new()
-		mi.mesh = canopy
-		mi.transform = Transform3D(tilt, at + tilt * Vector3(0, 2.2, 0))
+		mi.mesh = _umbrella_canopy((_fabric[i % _fabric.size()] as BaseMaterial3D).albedo_color)
+		mi.transform = Transform3D(tilt, at + tilt * Vector3(0, 1.98, 0))
 		_add(stage, mi, "Umbrella%d" % i)
 		_batch(_fabric[(i + 2) % _fabric.size()], Vector3(0.8, 0.02, 1.7), Transform3D(Basis(Vector3.UP, _rng.randf() * PI), at + Vector3(0.6, 0.01, 0.4)))
 	for i in 4:
 		var at := Vector3(-7.5 + i * 0.7, 0, 7.5) if i < 2 else Vector3(10.5 + (i - 2) * 0.7, 0, -1.5)
 		var board := Basis(Vector3.UP, _rng.randf_range(-0.3, 0.3)) * Basis(Vector3.RIGHT, _rng.randf_range(-0.1, 0.1))
-		_batch(_fabric[(i + 1) % _fabric.size()], Vector3(0.5, 2.1, 0.07), Transform3D(board, at + Vector3(0, 0.95, 0)))
+		var mi := MeshInstance3D.new()
+		mi.mesh = _surfboard((_fabric[(i + 1) % _fabric.size()] as BaseMaterial3D).albedo_color)
+		mi.transform = Transform3D(board, at + Vector3(0, 0.0, 0))
+		_add(stage, mi, "Surfboard%d" % i)
 
 
+## A surfboard standing on its tail along Y (2.1 m): a pointed nose, a rounded tail, wide
+## in the middle, thicker along the centre than at the rails, a white stringer stripe.
+func _surfboard(colour: Color) -> Mesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	const ALONG := 24
+	const ACROSS := 8
+	var length := 2.1
+	var grid := [[], []] # deck, bottom
+	for j in ALONG + 1:
+		var t := float(j) / ALONG
+		var half := 0.27 * pow(sin(PI * clampf(t * 0.94 + 0.04, 0.0, 1.0)), 0.75) * (1.0 - 0.35 * t * t)
+		var thick := 0.035 * pow(sin(PI * clampf(t, 0.02, 0.98)), 0.5)
+		for face in 2:
+			var row := []
+			for i in ACROSS + 1:
+				var u := float(i) / ACROSS * 2.0 - 1.0
+				var z := thick * sqrt(maxf(0.0, 1.0 - u * u)) * (1.0 if face == 0 else -0.8)
+				row.append(Vector3(u * half, t * length, z))
+			grid[face].append(row)
+	for face in 2:
+		for j in ALONG:
+			for i in ACROSS:
+				var stripe := absf(float(i) + 0.5 - ACROSS / 2.0) < 0.6 and face == 0
+				var c := Color(0.97, 0.96, 0.92) if stripe else colour
+				var q := [grid[face][j][i], grid[face][j][i + 1], grid[face][j + 1][i + 1], grid[face][j + 1][i]]
+				var order := [0, 2, 1, 0, 3, 2] if face == 0 else [0, 1, 2, 0, 2, 3]
+				for k in order:
+					st.set_color(c)
+					st.add_vertex(q[k])
+	st.generate_normals()
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.vertex_color_is_srgb = true
+	mat.roughness = 0.25 # glassed fibreglass
+	st.set_material(mat)
+	return st.commit()
+
+
+## A beach umbrella's canopy: eight panels alternating `colour` and white, domed, the rim
+## scalloped between the ribs; thin ribs underneath and a finial on top.
+func _umbrella_canopy(colour: Color) -> Mesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	const PANELS := 8
+	const RINGS := 5
+	const ACROSS := 4
+	var radius := 1.3
+	var height := 0.5
+	for panel in PANELS:
+		var c := colour if panel % 2 == 0 else Color(0.96, 0.95, 0.92)
+		for ring in RINGS:
+			for k in ACROSS:
+				var corners := []
+				for q in [[ring, k], [ring + 1, k], [ring + 1, k + 1], [ring, k + 1]]:
+					var r: float = radius * q[0] / RINGS
+					var u: float = float(q[1]) / ACROSS
+					var a: float = TAU * (panel + u) / PANELS
+					var scallop := 0.06 * sin(PI * u) * pow(r / radius, 4.0) # the rim rises between ribs
+					var y := height * (1.0 - pow(r / radius, 1.6)) + scallop
+					var rr := r * (1.0 - 0.04 * sin(PI * u)) # and pulls in a little
+					corners.append(Vector3(cos(a) * rr, y, sin(a) * rr))
+				for v in [0, 2, 1, 0, 3, 2]:
+					st.set_color(c)
+					st.add_vertex(corners[v])
+	st.generate_normals()
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.vertex_color_is_srgb = true
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.roughness = 0.85
+	mat.albedo_texture = (_fabric[0] as BaseMaterial3D).albedo_texture # the weave, if the fabric has one
+	st.set_material(mat)
+	var mesh := st.commit()
+	# Ribs and the finial share the canopy's node as a second surface.
+	var ribs := SurfaceTool.new()
+	ribs.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for panel in PANELS:
+		var a := TAU * panel / PANELS
+		var rib := BoxMesh.new()
+		rib.size = Vector3(0.018, 0.018, radius)
+		var mid := Vector3(cos(a), 0, sin(a)) * radius * 0.5 + Vector3.UP * (height * 0.55 - 0.02)
+		var basis := Basis.looking_at(Vector3(cos(a), -height / radius * 0.9, sin(a)))
+		ribs.append_from(rib, 0, Transform3D(basis, mid))
+	var finial := SphereMesh.new()
+	finial.radius = 0.04
+	finial.height = 0.08
+	ribs.append_from(finial, 0, Transform3D(Basis(), Vector3.UP * (height + 0.04)))
+	ribs.generate_normals()
+	ribs.set_material(mat_white_wood)
+	return ribs.commit(mesh)
+
+
+## Rocks along the shore: Poly Haven's Rock 07 and Rock 09 (CC0), sized and half sunk in
+## the sand; a few shells on the wet sand.
 func _build_rocks() -> void:
-	for i in 14:
+	var sources := [_prop_mesh("rock_07"), _prop_mesh("rock_09")]
+	for i in 12:
 		var side := -1.0 if i % 2 == 0 else 1.0
-		var at := Vector3(side * _rng.randf_range(9.0, 22.0), -0.15, SHORE_Z + _rng.randf_range(-2.0, 2.5))
-		var size := _rng.randf_range(0.4, 1.4)
-		var rock := SphereMesh.new()
-		rock.radius = size
-		rock.height = size * 1.3
-		rock.radial_segments = 7
-		rock.rings = 4
-		_append(mat_rock, rock, Transform3D(Basis(Vector3.UP, _rng.randf() * TAU).scaled(Vector3(1.3, 0.7, 1.0)), at))
+		var at := Vector3(side * _rng.randf_range(9.0, 22.0), 0.0, SHORE_Z + _rng.randf_range(-2.0, 2.5))
+		var mesh: Mesh = sources[i % 2]
+		var extent := mesh.get_aabb().size
+		var size := _rng.randf_range(0.8, 2.4) / maxf(extent.x, extent.z)
+		var rock := MeshInstance3D.new()
+		rock.mesh = mesh
+		rock.position = at - Vector3.UP * extent.y * size * _rng.randf_range(0.15, 0.35)
+		rock.rotation.y = _rng.randf() * TAU
+		rock.scale = Vector3.ONE * size
+		_add(stage, rock, "Rock%d" % i)
+	for i in 4:
+		var shell := MeshInstance3D.new()
+		shell.mesh = _prop_mesh("lambis_shell")
+		shell.position = Vector3(_rng.randf_range(-6.0, 6.0), 0.0, SHORE_Z + _rng.randf_range(1.0, 3.0))
+		shell.rotation = Vector3(0, _rng.randf() * TAU, _rng.randf_range(-0.3, 0.3))
+		_add(stage, shell, "Shell%d" % i)
 
 
-## Spectators sitting on the sand along both sides.
+var _prop_meshes := {}
+
+
+## A Poly Haven model's mesh, saved on its own.
+func _prop_mesh(source: String) -> Mesh:
+	var path := PROPS + "%s/%s.res" % [source, source]
+	if not _prop_meshes.has(path):
+		var scene: Node = (load(PROPS + "%s/%s_1k.gltf" % [source, source]) as PackedScene).instantiate()
+		var node := scene.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
+		ResourceSaver.save(node.mesh, path, ResourceSaver.FLAG_COMPRESS)
+		scene.free()
+		_prop_meshes[path] = load(path)
+	return _prop_meshes[path]
+
+
+## Beachgoers standing on the sand along both sides (Crowd.people).
 func _build_crowd() -> void:
 	var crowd := MultiMeshInstance3D.new()
 	crowd.set_script(load(CROWD_SCRIPT))
@@ -347,15 +496,18 @@ func _build_crowd() -> void:
 	crowd.set("tier_depth", 0.85)
 	crowd.set("tier_rise", 0.0)
 	crowd.set("row_width", 13.0)
-	crowd.set("seat_spacing", 0.75)
-	crowd.set("floor_y", -0.15)
+	crowd.set("seat_spacing", 0.9)
+	crowd.set("floor_y", 0.0)
 	crowd.set("empty_seat_chance", 0.4)
 	crowd.set("crowd_seed", 1401)
 	crowd.set("sides", PackedInt32Array([1, 3]))
-	crowd.set("sway", 0.025) # a lively beach crowd, cheering now and then
-	crowd.set("jump", 0.2)
-	crowd.set("palette", PackedColorArray([Color(0.95, 0.3, 0.3), Color(0.98, 0.8, 0.2), Color(0.2, 0.65, 0.85),
-		Color(0.95, 0.5, 0.7), Color(0.3, 0.8, 0.5), Color(0.98, 0.98, 0.95), Color(0.95, 0.6, 0.2)]))
+	# Beachgoers standing on the sand (MakeHuman locals, tools/mpfb/build_crowd.py): they
+	# cheer and clap with the fight.
+	crowd.set("people", true)
+	crowd.set("people_kind", "pedestrian")
+	crowd.set("aisle_every", 0)
+	crowd.set("people_sky_light", Color(0.75, 0.78, 0.85)) # bright midday sky
+	crowd.set("people_ground_light", Color(0.55, 0.45, 0.32)) # light off the sand
 	_add(stage, crowd, "Crowd")
 
 

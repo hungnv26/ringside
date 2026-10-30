@@ -370,3 +370,17 @@ trees, buildings and ground.
 - **Cost**: 79 fps at High (82–86 before).
 - Reference: `docs/look/phase3/market_before_after.jpg`, `market_fight_before_after.jpg`,
   `market_fruit.jpg`, `market_locals.jpg`, `market_wide.jpg`.
+
+### Phase 3: the Beach (built 2026-10-31)
+
+- **Palms**: the fronds are textured strips folded along the midrib (a drawn coconut frond,
+  `tools/make_beach_art.py`: leaflets angled to the tip, yellowing at their ends, a few
+  missing), one mesh swaying in `foliage_wind.gdshader`.
+- **Beachgoers**: the same standing MakeHuman locals as the Market, on the sand at both
+  sides.
+- **Props**: Poly Haven rocks (Rock 07, Rock 09) half sunk along the shore and shells on the
+  wet sand; umbrellas with eight striped panels, scalloped rims, ribs and a finial;
+  surfboards with a pointed nose, rounded tail, domed deck and stringer stripe.
+- **Cost**: 85–87 fps at High (88–90 before).
+- Reference: `docs/look/phase3/beach_before_after.jpg`, `beach_fight_before_after.jpg`,
+  `beach_palm.jpg`, `beach_shore.jpg`, `beach_umbrellas.jpg`, `beach_wide.jpg`.

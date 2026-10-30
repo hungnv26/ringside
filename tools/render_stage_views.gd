@@ -23,6 +23,12 @@ const VIEWS := {
 		"locals": [Vector3(4.0, 1.7, 1.5), Vector3(9.5, 1.0, -1.0)],
 		"wide": [Vector3(0, 5.0, 8.0), Vector3(0, 1.0, -5.0)],
 	},
+	"beach": {
+		"palm": [Vector3(-4.0, 3.5, 1.0), Vector3(-8.5, 5.5, -4.5)],
+		"shore": [Vector3(6.0, 1.6, -6.0), Vector3(12.0, 0.3, -12.5)],
+		"umbrellas": [Vector3(-5.0, 2.0, 0.0), Vector3(-10.5, 1.5, 4.5)],
+		"wide": [Vector3(0, 6.0, 10.0), Vector3(0, 1.5, -6.0)],
+	},
 	"temple": {
 		"tree": [Vector3(-5.5, 1.8, -1.5), Vector3(-10.5, 2.6, -7.0)],
 		"gate": [Vector3(0, 2.2, 6.0), Vector3(0, 2.4, -10.5)],
