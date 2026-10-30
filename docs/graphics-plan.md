@@ -175,3 +175,37 @@ work is judged under the final lighting instead of the current flat light.
 - Blender 5.2.3 is installed for Phase 2.
 - What Phase 1 does not fix: at the fight camera the change is modest. The basic look is the
   content (primitive props, pill crowds, two shared faces), which is Phases 2 and 3.
+
+### Phase 2 pilot: Jin (built 2026-10-30)
+
+Jin is the first MakeHuman fighter; the other six still use the Quaternius bodies.
+
+- **Setup on a new machine**: Blender 5.2 (`brew install --cask blender`), the MPFB extension
+  (`Blender --online-mode --command extension install --enable mpfb`), and MakeHuman's CC0
+  system asset pack (makehuman_system_assets_cc0.zip, 267 MB, from the page in
+  `assets/CREDITS.md`) installed into MPFB's user data folder.
+- **Build**: `Blender -b --python tools/mpfb/build_fighter.py -- tools/mpfb/fighters/jin.json`
+  writes `assets/characters/mh/jin/` (glTF, about 10 MB, and its textures). A fighter is one
+  small JSON file: macros (gender, age, muscle, weight, proportions, height, ethnic mix),
+  skin and mirror-match skin, eyes, brows, lashes, hair, teeth, tongue.
+- **Skeleton**: the MakeHuman limbs are posed into the game skeleton's T-pose and baked;
+  the game skeleton is then rebuilt with each bone at the new body's joint and its own
+  orientation (local rest rotations match within 0.06°), so all 94 existing animation clips
+  play unchanged. Apply scale per object, never through a parent: double scaling put the
+  finger pivots in the wrong place and stretched curled fists into planks.
+- **Face**: blink, squint, brow_down, brow_up, jaw_open, smile and grimace come from
+  MakeHuman's expression units, refitted onto brows, lashes, teeth and tongue; four gaze
+  shapes turn each eyeball about its centre.
+- **Gi**: jacket and trousers are cut from the body's own surface (so they inherit its
+  weights), pushed out with looser sleeves and flared legs, given folds along the limbs and
+  bunching at elbows and knees, hems turned inward for thickness; a collar band of constant
+  width follows the neckline; a belt with knot and two ends. Skin hidden under the cloth is
+  deleted. Materials `MI_Cloth_main/trim/accent` take the character's outfit colours and
+  fabric maps in the game (`FighterModel._dress_model_cloth`), so mirror matches still swap
+  colours.
+- **Cost**: body about 107,000 triangles (one subdivision); one MakeHuman fighter costs 2 to
+  3 fps at High (72 to 89 fps on every stage).
+- **Known weak spots**: MakeHuman's hair cards read as a rough cap; the collar edge shows
+  steps in extreme close-ups (the cut-in); folds are procedural, not simulated; the skin has
+  no normal map of its own (the game's tiling pore map supplies detail).
+- Reference: `docs/look/phase2/jin_before_after.jpg` and the stage stills beside it.

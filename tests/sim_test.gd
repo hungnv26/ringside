@@ -2715,6 +2715,18 @@ func face_tests() -> void:
 	check("FighterModel and the shape builder agree on the shapes", FighterModel.FACE_SHAPES == FaceShapes.SHAPES)
 	for character: CharacterData in gs.roster:
 		var id := String(character.id)
+		if _is_makehuman(character):
+			# MakeHuman fighters (tools/mpfb/build_fighter.py) carry the shapes in the model:
+			# on the body and refitted onto the brows, lashes, teeth and tongue.
+			var mh := FighterModel.new()
+			root.add_child(mh)
+			mh.build(character)
+			var mh_pieces := mh._face_meshes.map(func(mi: MeshInstance3D) -> String: return mi.name)
+			check("%s (MakeHuman): body, brows, lashes, teeth and tongue all take the expressions" % id,
+				["Human", "eyebrows", "eyelashes", "teeth", "tongue"].all(func(n): return n in mh_pieces), "%s" % [mh_pieces])
+			check("%s (MakeHuman): the eyes turn" % id, mh.has_gaze())
+			mh.free()
+			continue
 		var body := character.outfit_body_mesh as ArrayMesh
 		var names := []
 		for i in body.get_blend_shape_count():
@@ -2859,6 +2871,24 @@ func outfit_tests() -> void:
 	var gs = root.get_node("GameState")
 	for character: CharacterData in gs.roster:
 		var id := String(character.id)
+		if _is_makehuman(character):
+			# The outfit is part of the MakeHuman model: cloth surfaces named for colour slots,
+			# skinned to the skeleton, each given the character's fabric and colour.
+			var mh := FighterModel.new()
+			root.add_child(mh)
+			mh.build(character)
+			var cloth := []
+			for mesh: MeshInstance3D in mh.skeleton.find_children("*", "MeshInstance3D", true, false):
+				for surface in mesh.mesh.get_surface_count():
+					var material := mesh.mesh.surface_get_material(surface)
+					if material and material.resource_name.begins_with("MI_Cloth_") and mesh.skin != null:
+						var given := mesh.get_surface_override_material(surface) as StandardMaterial3D
+						if given and given.normal_texture != null:
+							cloth.append(material.resource_name)
+			check("%s (MakeHuman) wears skinned, fabric-shaded clothes in every colour slot" % id,
+				["MI_Cloth_main", "MI_Cloth_trim", "MI_Cloth_accent"].all(func(n): return n in cloth), "%s" % [cloth])
+			mh.free()
+			continue
 		var outfit := character.outfit_mesh as ArrayMesh
 		check("%s has an outfit" % id, outfit != null and character.outfit_body_mesh != null and outfit.get_surface_count() >= 2)
 		if outfit == null:
@@ -4386,3 +4416,8 @@ func server_tests() -> void:
 	check("room codes are typed in any case", net._room_key(" kx7q2m ") == "KX7Q2M" and net._room_key("r_7f3a9c2e") == "r_7f3a9c2e")
 	gs.mode = gs.Mode.VS_CPU
 	await process_frame
+
+
+## True for fighters built from MakeHuman (tools/mpfb/build_fighter.py, docs/graphics-plan.md).
+func _is_makehuman(character: CharacterData) -> bool:
+	return character.model_scene != null and character.model_scene.resource_path.begins_with("res://assets/characters/mh/")

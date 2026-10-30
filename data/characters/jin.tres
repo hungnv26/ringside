@@ -1,10 +1,8 @@
 [gd_resource type="Resource" script_class="CharacterData" format=3]
 
-[ext_resource type="Texture2D" path="res://assets/characters/base/T_Superhero_Male_Light.png" id="1_5wv7d"]
-[ext_resource type="Texture2D" path="res://assets/characters/jin/T_Jin_Body.png" id="2_jdp5k"]
-[ext_resource type="PackedScene" path="res://assets/characters/hair/Hair_Buzzed.gltf" id="3_6ny7v"]
-[ext_resource type="PackedScene" path="res://assets/characters/hair/Eyebrows_Regular.gltf" id="4_700ar"]
-[ext_resource type="PackedScene" path="res://assets/characters/base/Superhero_Male_FullBody.gltf" id="5_yesxv"]
+[ext_resource type="Texture2D" path="res://assets/characters/mh/jin/textures/skin_alt.png" id="1_5wv7d"]
+[ext_resource type="Texture2D" path="res://assets/characters/mh/jin/textures/skin.png" id="2_jdp5k"]
+[ext_resource type="PackedScene" path="res://assets/characters/mh/jin/jin.gltf" id="5_yesxv"]
 [ext_resource type="Script" path="res://scripts/fighter/move_data.gd" id="6_433y7"]
 [ext_resource type="Resource" path="res://data/moves/jin/jab.tres" id="7_5kvxu"]
 [ext_resource type="Resource" path="res://data/moves/jin/straight.tres" id="8_k247t"]
@@ -24,10 +22,8 @@
 [ext_resource type="Resource" path="res://data/moves/jin/tornado_kick.tres" id="22_qgigs"]
 [ext_resource type="Resource" path="res://data/moves/jin/hurricane_kicks.tres" id="23_4ixq8"]
 [ext_resource type="Resource" path="res://data/moves/jin/hurricane_finish.tres" id="24_gpeku"]
-[ext_resource type="ArrayMesh" path="res://assets/characters/outfits/jin_body.res" id="25_6ny7v"]
 [ext_resource type="Texture2D" path="res://assets/ui/portraits/jin.png" id="25_iebd8"]
 [ext_resource type="Script" path="res://scripts/character_data.gd" id="26_2anx2"]
-[ext_resource type="ArrayMesh" path="res://assets/characters/outfits/jin_outfit.res" id="26_700ar"]
 
 [resource]
 script = ExtResource("26_2anx2")
@@ -38,14 +34,12 @@ description = "Tae Kwon Do kicker. Controls the space at kick range and punishes
 select_order = 4
 portrait = ExtResource("25_iebd8")
 model_scene = ExtResource("5_yesxv")
-hair_scenes = Array[PackedScene]([ExtResource("3_6ny7v"), ExtResource("4_700ar")])
+hair_scenes = Array[PackedScene]([])
 body_albedo = ExtResource("2_jdp5k")
-model_scale = 1.02
-hair_color = Color(0.05, 0.04, 0.04, 1)
+model_scale = 1.0
+hair_color = Color(0.72, 0.7, 0.68, 1)
 alt_body_albedo = ExtResource("1_5wv7d")
-alt_hair_color = Color(0.5, 0.33, 0.15, 1)
-outfit_mesh = ExtResource("26_700ar")
-outfit_body_mesh = ExtResource("25_6ny7v")
+alt_hair_color = Color(1.0, 0.72, 0.48, 1)
 outfit_colors = PackedColorArray(0.8, 0.8, 0.8, 1, 0.06, 0.06, 0.07, 1, 0, 0, 0, 1)
 outfit_fabrics = Array[StringName]([&"cotton", &"cotton", &"cotton"])
 alt_outfit_colors = PackedColorArray(0.1, 0.1, 0.11, 1, 0.72, 0.1, 0.1, 1, 0, 0, 0, 1)

@@ -1,0 +1,14 @@
+{
+  "id": "jin",
+  "macros": {"gender": 1.0, "age": 0.5, "muscle": 1.0, "weight": 0.62, "proportions": 1.0, "height": 0.6,
+             "race": {"african": 0.85, "caucasian": 0.15, "asian": 0.0}},
+  "skin": "young_african_male",
+  "alt_skin": "young_caucasian_male",
+  "eyes": "brownlight",
+  "eyebrows": "eyebrow001",
+  "eyelashes": "eyelashes01",
+  "hair": "short01",
+  "teeth": "teeth_base",
+  "tongue": "tongue01",
+  "expression_race": "african"
+}

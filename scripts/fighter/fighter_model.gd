@@ -164,6 +164,8 @@ func build(data: CharacterData, alt: bool = false) -> void:
 		_add_eye_light()
 	if data.outfit_mesh:
 		_dress(data, alt)
+	else:
+		_dress_model_cloth(data, alt)
 	_find_face()
 
 	player = AnimationPlayer.new()
@@ -262,32 +264,50 @@ func _dress(data: CharacterData, alt: bool) -> void:
 	outfit.skin = body_mesh.skin
 	skeleton.add_child(outfit)
 	outfit.skeleton = outfit.get_path_to(skeleton)
-	var colors := data.alt_outfit_colors if alt and not data.alt_outfit_colors.is_empty() else data.outfit_colors
 	for surface in data.outfit_mesh.get_surface_count():
-		var slot := _surface_slot(data, surface)
-		var fabric_name := _fabric_name(data, slot)
-		var fabric := _fabric(data, fabric_name)
-		var detailed: bool = data.detailed_textures and DETAILED_FABRICS.has(fabric_name)
-		var color: Color = colors[slot] if slot < colors.size() else Color.WHITE
-		var brightest := maxf(color.r, maxf(color.g, color.b))
-		if brightest > MAX_FABRIC_ALBEDO:
-			color = Color(color * (MAX_FABRIC_ALBEDO / brightest), 1.0)
-		var cloth := StandardMaterial3D.new()
-		cloth.albedo_color = color
-		cloth.normal_enabled = true
-		cloth.normal_texture = load(fabric[0])
-		cloth.normal_scale = 0.8
-		if fabric[1] != "":
-			cloth.roughness_texture = load(fabric[1])
-		cloth.roughness = fabric[3]
-		cloth.metallic_specular = fabric[4]
-		cloth.uv1_scale = Vector3.ONE * fabric[2]
-		cloth.cull_mode = BaseMaterial3D.CULL_DISABLED # the inside shows at hems and sleeves
-		if detailed:
-			cloth.albedo_texture = load(DETAILED_FABRICS[fabric_name][2])
+		var cloth := _cloth_material(data, alt, _surface_slot(data, surface))
 		if data.detailed_textures:
 			cloth.vertex_color_use_as_albedo = true # hem shading and stitch lines
 		outfit.set_surface_override_material(surface, cloth)
+
+
+## A fabric material for colour slot `slot` (main, trim, accent, extra) of the character's
+## outfit: the fabric's weave normal and roughness maps tinted with the outfit colour.
+func _cloth_material(data: CharacterData, alt: bool, slot: int) -> StandardMaterial3D:
+	var colors := data.alt_outfit_colors if alt and not data.alt_outfit_colors.is_empty() else data.outfit_colors
+	var fabric_name := _fabric_name(data, slot)
+	var fabric := _fabric(data, fabric_name)
+	var detailed: bool = data.detailed_textures and DETAILED_FABRICS.has(fabric_name)
+	var color: Color = colors[slot] if slot < colors.size() else Color.WHITE
+	var brightest := maxf(color.r, maxf(color.g, color.b))
+	if brightest > MAX_FABRIC_ALBEDO:
+		color = Color(color * (MAX_FABRIC_ALBEDO / brightest), 1.0)
+	var cloth := StandardMaterial3D.new()
+	cloth.albedo_color = color
+	cloth.normal_enabled = true
+	cloth.normal_texture = load(fabric[0])
+	cloth.normal_scale = 0.8
+	if fabric[1] != "":
+		cloth.roughness_texture = load(fabric[1])
+	cloth.roughness = fabric[3]
+	cloth.metallic_specular = fabric[4]
+	cloth.uv1_scale = Vector3.ONE * fabric[2]
+	cloth.cull_mode = BaseMaterial3D.CULL_DISABLED # the inside shows at hems and sleeves
+	if detailed:
+		cloth.albedo_texture = load(DETAILED_FABRICS[fabric_name][2])
+	return cloth
+
+
+## MakeHuman fighters (tools/mpfb/build_fighter.py) carry their clothes in the model, with
+## materials named MI_Cloth_<slot>; each gets the character's fabric and outfit colour.
+func _dress_model_cloth(data: CharacterData, alt: bool) -> void:
+	for mesh: MeshInstance3D in skeleton.find_children("*", "MeshInstance3D", true, false):
+		for surface in mesh.mesh.get_surface_count():
+			var material := mesh.mesh.surface_get_material(surface)
+			if material == null or not material.resource_name.begins_with("MI_Cloth_"):
+				continue
+			var slot := ["main", "trim", "accent", "extra"].find(material.resource_name.trim_prefix("MI_Cloth_"))
+			mesh.set_surface_override_material(surface, _cloth_material(data, alt, maxi(slot, 0)))
 
 
 ## The textures build() loads by path for `data` (everything else comes with the
@@ -375,6 +395,13 @@ func _customize_materials(body_albedo: Texture2D, hair_color: Color, detailed: b
 			elif material.resource_name.begins_with("MI_Hair"):
 				var hair := material.duplicate() as StandardMaterial3D
 				hair.albedo_color = hair_color
+				if hair.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+					# MakeHuman hair, brows and lashes are textured cards: clip them and let
+					# MSAA soften the edges, instead of blending (which sorts badly).
+					hair.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+					hair.alpha_scissor_threshold = 0.35
+					hair.alpha_antialiasing_mode = BaseMaterial3D.ALPHA_ANTIALIASING_ALPHA_TO_COVERAGE
+					hair.cull_mode = BaseMaterial3D.CULL_DISABLED
 				if realistic:
 					hair.anisotropy_enabled = true
 					hair.anisotropy = HAIR_ANISOTROPY
