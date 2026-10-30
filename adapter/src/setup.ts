@@ -149,7 +149,6 @@ export interface MatchRequest {
   capture?: boolean;
   record?: boolean;
   mode?: Mode;
-  beatTicks?: number;
 }
 
 /** One corner of a request: a known fighter and a provider:model spec. */
@@ -174,10 +173,9 @@ function validateSettings(raw: any) {
   const effort = String(raw?.effort ?? "low") as Effort;
   if (!EFFORTS.includes(effort)) throw new Error("effort must be low, medium or high");
   const mode = String(raw?.mode ?? "coach") as Mode;
-  if (!["coach", "script", "beat"].includes(mode)) throw new Error("mode must be coach, script or beat");
-  const beatTicks = Math.floor(num("beatTicks", 60, 15, 600));
+  if (!["coach", "script"].includes(mode)) throw new Error("mode must be coach or script");
   const seed = raw?.seed === undefined || raw?.seed === null || raw?.seed === "" ? null : Math.floor(num("seed", 0, 0, 2 ** 31 - 1));
-  return { seed, cap: num("cap", 1, 0, 50), cadence: Math.floor(num("cadence", 2000, 500, 30000)), effort, capture: !!raw?.capture, record: !!raw?.record, mode, beatTicks };
+  return { seed, cap: num("cap", 1, 0, 50), cadence: Math.floor(num("cadence", 2000, 500, 30000)), effort, capture: !!raw?.capture, record: !!raw?.record, mode };
 }
 
 export function validateMatch(raw: any, fighters: Fighter[], stageIds: string[]): MatchRequest {
@@ -213,7 +211,6 @@ export function matchArgs(m: MatchRequest, logDir: string, captureDir: string): 
   if (m.capture) args.push("--capture", captureDir);
   if (m.record) args.push("--record", join(logDir, "match.mp4"));
   if (m.mode && m.mode !== "coach") args.push("--mode", m.mode);
-  if (m.mode === "beat") args.push("--beat-ticks", String(m.beatTicks ?? 60));
   return args;
 }
 
@@ -348,7 +345,6 @@ export function createSetupServer(runner = new Runner(), root = REPO_ROOT, fetch
           modes: [
             { id: "coach", name: "Coach", blurb: "the model adjusts its fighter's plan every couple of seconds" },
             { id: "script", name: "Self-coding", blurb: "the model writes rules before the match and rewrites them after every round; no calls during a round" },
-            { id: "beat", name: "Beat fighter", blurb: "the game pauses every beat until both models have chosen their moves" },
           ],
           defaults: { p1: { fighter: "jin", spec: "anthropic:claude-haiku-5-5" }, p2: { fighter: "kenji", spec: "openai:gpt-5.4-mini" }, stage: "rooftop", cap: 1, cadence: 2000, effort: "low" },
           tournament: { maxEntrants: MAX_ENTRANTS, rotate: ROTATE },

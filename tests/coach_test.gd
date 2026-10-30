@@ -142,29 +142,6 @@ func _initialize() -> void:
 	check("round summary counts p1's sweeps", p1_attacks.has("2HK") and int(p1_attacks["2HK"].hit) + int(p1_attacks["2HK"].blocked) + int(p1_attacks["2HK"].whiffed) + int(p1_attacks["2HK"].counter) >= 2, str(p1_attacks))
 	check("round summary has health left", summary.p2.health_left < summary.p2.max_health)
 
-	# beat mode: manual control, hold and resume
-	link._handle({type = "mode", mode = "beat", beat_ticks = 30})
-	check("beat mode makes both controllers manual", coach.manual and link.mode == "beat" and link.beat_ticks == 30)
-	coach.queued.clear()
-	var x_before := p1.position.x
-	step(40)
-	check("in manual mode the fighter does nothing by itself", is_equal_approx(p1.position.x, x_before) and p1.state == Fighter.State.IDLE, Fighter.State.keys()[p1.state])
-	coach.queue_moves(["LP"], p1)
-	var jabbed := false
-	for i in 30:
-		step()
-		if p1.state == Fighter.State.ATTACK and p1.current_move and p1.current_move.input == "LP":
-			jabbed = true
-			break
-	check("a queued move is performed in manual mode", jabbed)
-	link._hold()
-	check("a hold stops the simulation and sends a beat frame", link.holding and not m.is_physics_processing() and link.sent[-1].type == "beat" and link.sent[-1].n == 1)
-	link._handle({type = "resume", n = 1})
-	check("resume restarts the simulation", not link.holding and m.is_physics_processing())
-	m.set_physics_process(false) # the test drives ticks itself
-	link._handle({type = "mode", mode = "coach"})
-	check("back in coach mode", not coach.manual)
-
 	# policy frame applies plan and rules together
 	link._handle({type = "policy", side = "p1", plan_id = "pol-1", plan = {aggression = 0.4}, rules = [{name = "r", when = {range = "far"}, do = ["approach 20"]}]})
 	check("policy frame applies plan and rules", is_equal_approx(coach.aggression, 0.4) and coach.rules.size() == 1 and link.sent[-1].type == "applied" and link.sent[-1].ok)

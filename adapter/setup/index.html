@@ -127,7 +127,6 @@ video { width: 100%; max-width: 720px; border-radius: 6px; border: 1px solid var
     <h2><span class="n">3</span> Match <small>mode, stage, budget, pace</small></h2>
     <div class="row">
       <label>Mode <select id="mode"></select></label>
-      <label>Beat length, frames (beat mode) <input id="beat-ticks" type="number" min="15" max="600" step="15" value="60"></label>
     </div>
     <div class="note" id="mode-note"></div>
     <div class="row">
@@ -275,8 +274,7 @@ async function init() {
   fill($("stage"), setup.stages.map((s) => ({ value: s.id, label: s.name })), last.stage);
   fill($("effort"), setup.efforts.map((e) => ({ value: e, label: e })), last.effort);
   fill($("mode"), setup.modes.map((m) => ({ value: m.id, label: m.name })), last.mode || "coach");
-  $("beat-ticks").value = last.beatTicks ?? 60;
-  const modeNote = () => { const m = setup.modes.find((x) => x.id === $("mode").value); $("mode-note").textContent = m ? m.blurb : ""; $("beat-ticks").disabled = $("mode").value !== "beat"; };
+  const modeNote = () => { const m = setup.modes.find((x) => x.id === $("mode").value); $("mode-note").textContent = m ? m.blurb : ""; };
   $("mode").addEventListener("change", modeNote);
   modeNote();
   fill($("key-provider"), setup.providers.filter((p) => p !== "fake" && p !== "ollama").map((p) => ({ value: p, label: p })));
@@ -336,7 +334,7 @@ $("t-start").addEventListener("click", async () => {
   msg.className = "msg";
   const request = {
     name: $("t-name").value, entrants, legs: $("t-legs").value, stage: $("t-stage").value,
-    seed: $("seed").value, cap: $("cap").value, cadence: $("cadence").value, effort: $("effort").value, capture: $("capture").checked, record: $("record").checked, mode: $("mode").value, beatTicks: $("beat-ticks").value,
+    seed: $("seed").value, cap: $("cap").value, cadence: $("cadence").value, effort: $("effort").value, capture: $("capture").checked, record: $("record").checked, mode: $("mode").value,
   };
   try {
     const r = await api("/api/tournament", request);
@@ -404,7 +402,7 @@ $("start").addEventListener("click", async () => {
   const request = {
     p1: { fighter: $("p1-fighter").value, spec: spec("p1") },
     p2: { fighter: $("p2-fighter").value, spec: spec("p2") },
-    stage: $("stage").value, seed: $("seed").value, cap: $("cap").value, cadence: $("cadence").value, effort: $("effort").value, capture: $("capture").checked, record: $("record").checked, mode: $("mode").value, beatTicks: $("beat-ticks").value,
+    stage: $("stage").value, seed: $("seed").value, cap: $("cap").value, cadence: $("cadence").value, effort: $("effort").value, capture: $("capture").checked, record: $("record").checked, mode: $("mode").value,
   };
   try {
     const r = await api("/api/match", request);
@@ -467,7 +465,7 @@ function render(s) {
   const phase = live ? live.phase : "starting";
   if (s.match.exit != null && (!live || live.phase !== "over")) { status.className = "status error"; status.textContent = `adapter exited (${s.match.exit})`; }
   else { status.className = "status " + (phase === "live" ? "live" : phase === "over" ? "over" : "off"); status.textContent = { waiting: "Waiting for the game", starting: "Starting", between: "Between rounds", live: "Round live", over: "Match over" }[phase] || phase; }
-  $("live-sub").textContent = `${s.match.id}${s.match.request && s.match.request.mode && s.match.request.mode !== "coach" ? ` · ${s.match.request.mode === "beat" ? "beat fighter" : "self-coding"}` : ""}${cup && cup.current ? ` · ${cup.name}, match ${cup.current} of ${cup.total}` : ""}`;
+  $("live-sub").textContent = `${s.match.id}${s.match.request && s.match.request.mode && s.match.request.mode !== "coach" ? ` · self-coding` : ""}${cup && cup.current ? ` · ${cup.name}, match ${cup.current} of ${cup.total}` : ""}`;
   $("console").textContent = (s.console || []).join("\n");
   if (!live || !live.hello) return;
   names = { p1: live.hello.p1.name, p2: live.hello.p2.name };
@@ -534,7 +532,7 @@ async function refreshResults() {
     const side = (s) => `${esc(b.sides[s]?.fighter)} · <span class="key-hint">${esc(b.sides[s]?.model)}</span>`;
     const cost = (b.coaches.p1?.usd ?? 0) + (b.coaches.p2?.usd ?? 0);
     const logs = ["p1.md", "p2.md", "battle.json"].map((f) => `<a href="/api/log?id=${esc(b.id)}&file=${f}" target="_blank">${f}</a>`).join(" ") + (b.video ? ` <a href="/api/video/${esc(b.id)}.mp4" target="_blank">video</a>` : "");
-    return `<tr><td>${esc(b.at.replace("T", " ").slice(0, 16))}</td><td>${side("p1")}</td><td>${side("p2")}</td><td>${esc(b.stage)}</td><td>${esc(b.mode === "script" ? "self-coding" : b.mode === "beat" ? "beat" : "coach")}</td><td>${b.winner ? esc(b.sides[b.winner]?.fighter) + " (" + (b.winner === "p1" ? "corner 1" : "corner 2") + ")" : "draw"}</td><td class="num">${(b.wins || []).join("–")}</td><td class="num">${usd(cost)}</td><td>${logs}</td></tr>`;
+    return `<tr><td>${esc(b.at.replace("T", " ").slice(0, 16))}</td><td>${side("p1")}</td><td>${side("p2")}</td><td>${esc(b.stage)}</td><td>${esc(b.mode === "script" ? "self-coding" : b.mode === "beat" ? "beat (removed)" : "coach")}</td><td>${b.winner ? esc(b.sides[b.winner]?.fighter) + " (" + (b.winner === "p1" ? "corner 1" : "corner 2") + ")" : "draw"}</td><td class="num">${(b.wins || []).join("–")}</td><td class="num">${usd(cost)}</td><td>${logs}</td></tr>`;
   }).join("") || `<tr><td colspan="9" class="note">No matches yet.</td></tr>`;
   $("elo").querySelector("tbody").innerHTML = elo.map((r) => `<tr><td><span class="key-hint">${esc(r.model)}</span></td><td class="num">${r.rating}</td><td class="num">${r.wins}</td><td class="num">${r.losses}</td><td class="num">${r.draws}</td><td class="num">${usd(r.usd)}</td></tr>`).join("") || `<tr><td colspan="6" class="note">No ratings yet.</td></tr>`;
 }

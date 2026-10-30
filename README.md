@@ -4,10 +4,11 @@ A one-on-one 3D fighting game where nobody holds a controller: each fighter is c
 AI model. The fight runs at 60 frames a second in the game; the model sits ringside, watches,
 and changes its fighter's game plan every couple of seconds (range, aggression, what to block
 and punish, which moves to go for), the way Outpost War's sides are commanded by models.
-Three ways to play, picked per match: the **coach** adjusts its fighter's plan every couple
+Two ways to play, picked per match: the **coach** adjusts its fighter's plan every couple
 of seconds; the **self-coding fighter** writes a rule set before the match and rewrites it
-after every round from what actually landed, with no model calls during a round; the **beat
-fighter** pauses the game every beat until both models have chosen their next moves.
+after every round from what actually landed, with no model calls during a round. (A third,
+the beat fighter that paused the game every second for both models, was tried and removed:
+a fight that stops every few seconds is dull to watch.)
 Working name. Plan and protocol: [docs/ringside-plan.md](docs/ringside-plan.md).
 
 Built on [3D Fighter](https://github.com/GabrielGonHo/3d-fighter) (MIT code, CC0 assets): its
@@ -59,15 +60,15 @@ game alone: `godot --path . -- --coach=ws://127.0.0.1:8797 --p1=jin --p2=kenji -
 ## Checks
 
 ```bash
-godot --headless --path . -s res://tests/coach_test.gd     # coach mode (50 checks)
+godot --headless --path . -s res://tests/coach_test.gd     # coach mode (44 checks)
 godot --headless --path . -s res://tests/sim_test.gd       # 3D Fighter's regression suite
-cd adapter && npm test && npm run typecheck                # the adapter and the setup page (50 tests)
+cd adapter && npm test && npm run typecheck                # the adapter and the setup page (48 tests)
 ```
 
 ## What was added
 
 - `scripts/ai/coach_controller.gd`: the CPU fighter with a coach; plans, queued moves, captions,
-  the self-coding rules engine and the manual (beat) mode.
+  the self-coding rules engine.
 - `scripts/coach/coach_link.gd`: the WebSocket link to the adapter; observation frames and events.
 - `GameState.Mode.COACH`, `-- --coach=...` on the command line, both sides coached in `FightManager`.
 - `adapter/`: the coaches, the model calls (Anthropic, OpenAI, OpenRouter, Ollama, a fake), logs.

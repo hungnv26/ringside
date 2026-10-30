@@ -16,8 +16,10 @@ chances, reaction delay, and the weights of its options (poke, string, rush, das
 throw, grab, fireball, sidestep, wait, retreat, approach). The coach can also queue a specific
 move or combo and say a short caption that the HUD shows at its fighter's corner.
 
-Later modes (not in phase 1): the *beat fighter* (discrete beats where both models pick a move)
-and the *self-coding fighter* (the model rewrites its fighter's behaviour between rounds).
+A later mode (phase 4): the *self-coding fighter* (the model rewrites its fighter's behaviour
+between rounds). A *beat fighter* (the game paused every beat for both models to pick a move)
+was built and removed on 2026-10-30: a fight that stops every second or two is dull to watch,
+and the models mostly queued jabs and one-frame blocks.
 
 ## Phases
 
@@ -42,7 +44,7 @@ and the *self-coding fighter* (the model rewrites its fighter's behaviour betwee
    the page plays it and the results link to it. A slow machine renders slower than real
    time while recording, which slows the game, not the coaches.
 4. **Second modes and tournaments** (built 2026-10-30). Modes are picked per match on the setup page
-   (`--mode coach|script|beat`, sent to the game as a `mode` frame):
+   (`--mode coach|script`, sent to the game as a `mode` frame):
    - **Self-coding fighter** (`script`): the model takes one turn before the match and one
      after every round, with `set_policy`: a plan plus up to 12 rules `{name, when, do, weight}`.
      `when` tests range (close/mid/far), what the opponent is doing (idle, attacking,
@@ -53,13 +55,6 @@ and the *self-coding fighter* (the model rewrites its fighter's behaviour betwee
      the plan. The round-end event carries a summary per side (every attack with hit, counter,
      blocked and whiffed counts, throws, knockdowns, health left, the last rule that fired),
      which is the whole of the next prompt. No model calls during a round.
-   - **Beat fighter** (`beat`): the game pauses every `beat_ticks` frames (default 60) of a live
-     round, sends a `beat` frame (a state plus `n`), and waits for `resume {n}`; the adapter
-     resumes once both coaches have answered (a side out of budget answers at once; the game
-     resumes by itself after 45 s). Controllers are *manual*: nothing happens by itself, only
-     the queued moves, so the models choose blocks and movement too (`block N`,
-     `crouch_block N`, `approach N`, `retreat N`...). Cost scales with the number of beats: a
-     99-second round is about 100 calls per side at 60-frame beats.
    - **Tournaments** (`adapter/src/tournament.ts`): a round robin between 2 to 8 entrants (a
      fighter and its model), each pair once or twice with corners swapped, stage fixed or
      rotating, the match settings shared; played one match after another through the setup
@@ -125,18 +120,15 @@ Adapter → game:
   cost cap).
 - `models` `{type, p1, p2}`: each side's "provider:model", for the HUD's name plates.
 - `thinking` `{type, side, on}`: the side's coach is waiting for its model (HUD mark).
-- `mode` `{type, mode: coach|script|beat, beat_ticks}`: sent after hello; `beat` makes both
-  controllers manual.
+- `mode` `{type, mode: coach|script}`: sent after hello.
 - `policy` `{type, side, plan_id, plan?, rules?}`: self-coding mode; answered with `applied`.
-- `resume` `{type, n}`: beat mode; the game goes on after beat `n`.
 - `talk` `{type, side, text}`: the coach's corner talk (the first line of its reply, up to 140
   characters), shown under the caption at its corner for seven seconds.
 - `predict` `{type, side, plan_id, what}`: a read on the opponent: one of their move inputs or
   jump, throw, super, fireball, low, overhead, sweep, reversal, uppercut. One read per side at a
   time; a new one replaces the old, which counts as a miss. Answered with `applied`.
 
-Game → adapter, in addition: `beat` `{type, n, ...state}` when the game pauses at a beat;
-`round_end` carries `round` and `summary {p1, p2}` (attacks by input with hit/counter/blocked/
+Game → adapter, in addition: `round_end` carries `round` and `summary {p1, p2}` (attacks by input with hit/counter/blocked/
 whiffed counts, `totals`, throws, knockdowns, `supers {used, landed}`, `reads {made, right}`,
 health_left, max_health, rule_fired_last); and `read` `{side, what, right, actual}` when a
 side's read comes true (within 6 s), expires, is replaced or the round ends.

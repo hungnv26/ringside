@@ -39,14 +39,6 @@ export class FakeModelClient implements ModelClient {
         { id: `fake-${n}-say`, type: "function", function: { name: "say", arguments: JSON.stringify({ text: `Round plan ${n + 1}: ${3 + (n % 3)} rules.` }) } },
       ]);
     }
-    if (toolNames.length && !toolNames.includes("set_plan")) {
-      // Beat mode: cycle through approach, a poke, a block, a sweep.
-      const picks = [["approach 20"], ["HK"], ["crouch_block 20"], ["2HK"], ["LP", "HP"], ["throw"]];
-      return done([
-        { id: `fake-${n}-queue`, type: "function", function: { name: "queue", arguments: JSON.stringify({ moves: picks[n % picks.length] }) } },
-        ...(n % 4 === 0 ? [{ id: `fake-${n}-say`, type: "function", function: { name: "say", arguments: JSON.stringify({ text: CAPTIONS[n % CAPTIONS.length] }) } }] : []),
-      ]);
-    }
     const plan = { aggression: n % 2 === 0 ? 0.3 : 0.9, range: RANGES[n % 3] };
     const calls = [{ id: `fake-${n}-plan`, type: "function", function: { name: "set_plan", arguments: JSON.stringify(plan) } }];
     if (n % 3 === 2) calls.push({ id: `fake-${n}-queue`, type: "function", function: { name: "queue", arguments: JSON.stringify({ moves: has236K ? ["2HK", "236K"] : ["2HK"] }) } });

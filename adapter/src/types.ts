@@ -80,14 +80,9 @@ export interface Applied {
   error?: string;
 }
 
-/** Beat mode: the game is paused at beat `n` and waits for `resume`. The rest is a State. */
-export interface Beat extends Omit<State, "type"> {
-  type: "beat";
-  n: number;
-}
-export type GameFrame = Hello | State | GameEvent | Applied | Beat;
+export type GameFrame = Hello | State | GameEvent | Applied;
 
-export type Mode = "coach" | "script" | "beat";
+export type Mode = "coach" | "script";
 
 /** A self-coding rule: when the fight looks like `when`, do these moves. */
 export interface Rule {
@@ -147,7 +142,6 @@ export interface ThinkingFrame {
 export interface ModeFrame {
   type: "mode";
   mode: Mode;
-  beat_ticks?: number;
 }
 /** Self-coding mode: a plan and the rule set, applied together. */
 export interface PolicyFrame {
@@ -156,10 +150,6 @@ export interface PolicyFrame {
   plan_id: string;
   plan?: Plan;
   rules?: Rule[];
-}
-export interface ResumeFrame {
-  type: "resume";
-  n: number;
 }
 /** The coach's own line about what it sees and is changing (corner talk on the HUD). */
 export interface TalkFrame {
@@ -174,7 +164,7 @@ export interface PredictFrame {
   plan_id: string;
   what: string;
 }
-export type AdapterFrame = PlanFrame | QueueFrame | SayFrame | EndFrame | ModelsFrame | ThinkingFrame | ModeFrame | PolicyFrame | ResumeFrame | TalkFrame | PredictFrame;
+export type AdapterFrame = PlanFrame | QueueFrame | SayFrame | EndFrame | ModelsFrame | ThinkingFrame | ModeFrame | PolicyFrame | TalkFrame | PredictFrame;
 
 // Model calls, in the OpenAI chat format (the provider translation is models.ts's business).
 export interface ToolCall {

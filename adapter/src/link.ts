@@ -3,14 +3,13 @@
 // JSON text. The latest state is kept for the coaches' turns.
 import { EventEmitter } from "node:events";
 import { WebSocketServer, WebSocket } from "ws";
-import type { Beat, AdapterFrame, Applied, GameEvent, GameFrame, Hello, Side, State } from "./types.ts";
+import type { AdapterFrame, Applied, GameEvent, GameFrame, Hello, Side, State } from "./types.ts";
 
 export type LinkEvents = {
   hello: [Hello];
   state: [State];
   event: [GameEvent];
   applied: [Applied];
-  beat: [Beat];
   connected: [];
   disconnected: [];
 };
@@ -30,8 +29,6 @@ export function parseFrame(text: string): GameFrame | null {
       return f.p1 && f.p2 && typeof f.p1 === "object" && typeof f.p2 === "object" ? (f as unknown as Hello) : null;
     case "state":
       return typeof f.tick === "number" && f.p1 && f.p2 ? (f as unknown as State) : null;
-    case "beat":
-      return typeof f.n === "number" && f.p1 && f.p2 ? (f as unknown as Beat) : null;
     case "event":
       return typeof f.event === "string" ? (f as unknown as GameEvent) : null;
     case "applied":
@@ -106,10 +103,6 @@ export class Link extends EventEmitter<LinkEvents> implements GameLink {
       case "state":
         this.latest = frame;
         this.emit("state", frame);
-        break;
-      case "beat":
-        this.latest = { ...frame, type: "state" };
-        this.emit("beat", frame);
         break;
       case "event":
         if (frame.event === "round_start") this.roundLive = true;

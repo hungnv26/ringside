@@ -31,9 +31,6 @@ var queued: Array[String] = []
 ## {name, when: {range, opponent, opponent_cornered, cornered, meter_full, health_below,
 ## opponent_health_below}, do: [moves], weight}.
 var rules: Array[Dictionary] = []
-## Beat mode: nothing happens by itself; only queued moves are performed (no AI decisions,
-## no reactive blocking). The coach picks every move.
-var manual := false
 ## The last rule that fired (its name), for the observation.
 var last_rule := ""
 var _rule_tick := 0
@@ -63,11 +60,6 @@ func read(fighter: Fighter) -> int:
 	_rule_tick += 1
 	if _plan.is_empty() and not queued.is_empty() and fighter.is_actionable():
 		_queue_named(queued.pop_front(), fighter)
-	if manual:
-		# Beat mode: queued steps only; otherwise stand still.
-		if not _plan.is_empty():
-			return _without_accidental_dash(_next_plan_input())
-		return InputBuffer.pack(InputBuffer.NEUTRAL, 0)
 	if _plan.is_empty() and queued.is_empty() and not rules.is_empty() and fighter.is_actionable() 			and _rule_tick % RULE_INTERVAL == 0:
 		_apply_rules(fighter)
 	return super.read(fighter)

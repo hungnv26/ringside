@@ -226,7 +226,7 @@ export function mergePlan(current: Plan | null, next: Plan): Plan {
   return out;
 }
 
-// ---- phase 4: the self-coding fighter and the beat fighter ----
+// ---- phase 4: the self-coding fighter ----
 
 export const OPPONENT_STATES = ["idle", "attacking", "recovering", "blocking", "knocked_down", "jumping", "stunned"];
 
@@ -272,7 +272,6 @@ export const POLICY_TOOL: NonNullable<ChatBody["tools"]>[number] = {
 };
 
 export const SCRIPT_TOOLS: NonNullable<ChatBody["tools"]> = [POLICY_TOOL, TOOLS[2]];
-export const BEAT_TOOLS: NonNullable<ChatBody["tools"]> = [TOOLS[1], TOOLS[2]];
 
 export function buildScriptSystemPrompt(side: Side, hello: Hello): string {
   const me = hello[side];
@@ -314,37 +313,6 @@ export function buildScriptTurnMessage(side: Side, hello: Hello, events: GameEve
   return lines.join("\n");
 }
 
-export function buildBeatSystemPrompt(side: Side, hello: Hello, beatTicks: number): string {
-  const me = hello[side];
-  const them = hello[other(side)];
-  return `You fight as ${me.name} in a one-on-one 3D fighting game played in beats: every ${(beatTicks / 60).toFixed(1)} seconds the game pauses and both players choose their next moves; then it plays on with both choices. Choose with queue (one to four inputs, performed in order as soon as your fighter can act; nothing happens by itself, so choose blocks too) and optionally say a caption. Answer with the tools only.
-
-Your fighter, ${me.name}${me.archetype ? ` (${me.archetype})` : ""}:
-${movesText(me)}
-Shared basics: LP jab (4f, cancels), HP straight, LK mid kick, HK roundhouse (long), 2LP, 2LK low kick, 2HP uppercut (launcher, anti-air), 2HK sweep (low, knockdown), j.HK flying kick (overhead), throw (unblockable, techable, under 1 m). Movement: 'approach N' / 'retreat N' walk for N frames, dash, backdash, jump, 'block N' (stand, blocks highs and mids), 'crouch_block N' (blocks lows and mids), 'wait N'. Lows must be blocked crouching, overheads standing.
-
-Opponent: ${them.name}${them.archetype ? ` (${them.archetype})` : ""}, ${them.max_health} health. Their specials: ${them.moves
-    .filter((mv) => /^\d{3}/.test(mv.input))
-    .map((mv) => `${mv.input} ${mv.name}`)
-    .join(", ") || "none"}.
-
-Distance matters: at over 2.2 m only specials and walking reach; at 1.2 to 2.2 m long kicks and lunges; under 1.2 m everything, throws under 1 m. Read what they did last beat and answer it.`;
-}
-
-export function buildBeatMessage(side: Side, beat: State & { n?: number }, events: GameEvent[], lastResults: string[]): string {
-  const lines: string[] = [];
-  const me = beat[side];
-  const them = beat[other(side)];
-  lines.push(`Beat ${beat.n ?? "?"}, round ${beat.round}, ${beat.timer} s left, rounds won you ${beat.wins[side === "p1" ? 0 : 1]} - ${beat.wins[side === "p1" ? 1 : 0]} them. Distance ${m(beat.distance)}.`);
-  lines.push(sideText("You", me) + (me.queued && me.queued.length ? ` Still queued: ${me.queued.join(", ")}.` : ""));
-  lines.push(sideText("Opponent", them));
-  lines.push(events.length ? `Since the last beat: ${events.map((e) => eventText(e, side)).join(" ")}` : "Since the last beat: nothing landed.");
-  if (lastResults.length) lines.push(`Your last tools: ${lastResults.join("; ")}.`);
-  lines.push("Choose your moves for this beat with queue.");
-  return lines.join("\n");
-}
-
-/** The rules the model gave, cleaned for the game (which validates them again). */
 export function validateRules(raw: unknown): { rules: Rule[]; problems: string[] } {
   const problems: string[] = [];
   if (!Array.isArray(raw)) return { rules: [], problems: ["rules must be an array"] };

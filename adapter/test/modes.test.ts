@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Coach } from "../src/coach.ts";
 import { FakeModelClient } from "../src/fake.ts";
-import { BEAT_TOOLS, buildBeatMessage, buildScriptTurnMessage, SCRIPT_TOOLS, summaryText, validateRules } from "../src/prompt.ts";
-import type { Beat } from "../src/types.ts";
+import { buildScriptTurnMessage, SCRIPT_TOOLS, summaryText, validateRules } from "../src/prompt.ts";
 import { FakeLink, hello, state as makeState, settle } from "./helpers.ts";
 
 test("validateRules keeps good rules, clamps weights and drops bad conditions", () => {
@@ -34,15 +33,8 @@ test("the script turn message carries the round summary in words", () => {
   assert.match(summaryText("p1", null), /no summary/);
 });
 
-test("the beat message names the beat and the queued moves", () => {
-  const s = makeState();
-  const beat = { ...s, n: 7, p1: { ...s.p1, queued: ["LP", "HP"] } } as unknown as Beat;
-  const text = buildBeatMessage("p1", { ...beat, type: "state" } as never, [], []);
-  assert.match(text, /^Beat 7, round/);
-  assert.match(text, /Still queued: LP, HP/);
-  assert.match(text, /Choose your moves for this beat/);
+test("the script tools are set_policy and say", () => {
   assert.deepEqual(SCRIPT_TOOLS.map((t) => t.function.name), ["set_policy", "say"]);
-  assert.deepEqual(BEAT_TOOLS.map((t) => t.function.name), ["queue", "say"]);
 });
 
 test("script mode: a policy before the match and after each round, none during it", async () => {
@@ -65,34 +57,3 @@ test("script mode: a policy before the match and after each round, none during i
   assert.equal(link.sent.filter((f) => f.type === "policy").length, 2);
   c.stop();
 });
-
-test("beat mode: a beat frame makes both coaches pick, and the director hears from each", async () => {
-  const link = new FakeLink();
-  const done: string[] = [];
-  const coaches = (["p1", "p2"] as const).map((side) => new Coach(side, "fake:coach", new FakeModelClient(), link, hello, null, { mode: "beat", beatTicks: 30, onBeatDone: (s, n) => done.push(`${s}:${n}`) }));
-  link.feedEvent("round_start", { round: 1 });
-  await settle();
-  assert.deepEqual(coaches.map((c) => c.turns), [0, 0], "no turn on round start in beat mode");
-  link.feedBeat({ ...makeState(), type: "beat", n: 1 } as Beat);
-  await settle();
-  assert.deepEqual(coaches.map((c) => c.turns), [1, 1]);
-  assert.deepEqual(done.sort(), ["p1:1", "p2:1"]);
-  const queues = link.sent.filter((f) => f.type === "queue") as unknown as { side: string; moves: string[] }[];
-  assert.equal(queues.length, 2);
-  assert.ok(queues.every((q) => q.moves.length >= 1));
-  for (const c of coaches) c.stop();
-});
-
-test("beat mode: a coach out of budget still releases the beat", async () => {
-  const link = new FakeLink();
-  const done: string[] = [];
-  const c = new Coach("p1", "fake:coach", new FakeModelClient(), link, hello, null, { mode: "beat", capUsd: 0, onBeatDone: (s, n) => done.push(`${s}:${n}`) });
-  link.feedBeat({ ...makeState(), type: "beat", n: 1 } as Beat);
-  await settle();
-  assert.equal(c.status, "out of budget");
-  link.feedBeat({ ...makeState(), type: "beat", n: 2 } as Beat);
-  await settle();
-  assert.deepEqual(done, ["p1:1", "p1:2"]);
-  c.stop();
-});
-

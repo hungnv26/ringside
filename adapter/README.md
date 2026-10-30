@@ -61,8 +61,7 @@ the log folder, sends `end` to the game and exits 0. Ctrl-C ends the game too.
 | `--godot path` | `godot` (or `$GODOT`) | The Godot 4.7 binary |
 | `--quit` | | Pass `--quit-after-match` to the game |
 | `--log DIR` | `battle-logs/<time>-<p1>-vs-<p2>` | The exact log folder (the setup page chooses it); `live.json` in it is the status the page polls |
-| `--mode coach\|script\|beat` | `coach` | coach: a turn every cadence; script: the self-coding fighter (a policy of rules before the match and after each round); beat: the game pauses every beat until both models have chosen |
-| `--beat-ticks N` | `60` | Beat mode: frames per beat (15 to 600) |
+| `--mode coach\|script` | `coach` | coach: a turn every cadence; script: the self-coding fighter (a policy of rules before the match and after each round) |
 | `--record FILE.mp4` | | Record the match: Godot's movie writer at a fixed 60 fps, then ffmpeg encodes the .mp4 after the game closes (needs `ffmpeg` on the PATH) |
 | `--capture DIR` | | The game saves a screenshot every 10 s of the fight and one of the result to DIR |
 
@@ -97,7 +96,7 @@ same table as Outpost War's).
 ## Checks
 
 ```bash
-npm test            # 50 tests: prompt text, plan validation, the fake, the link over a socket, coach cadence/cap/errors, logs, CLI, the setup API, modes, tournaments, corner talk and reads
+npm test            # 48 tests: prompt text, plan validation, the fake, the link over a socket, coach cadence/cap/errors, logs, CLI, the setup API, modes, tournaments, corner talk and reads
 npm run typecheck
 ```
 

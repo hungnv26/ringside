@@ -14,8 +14,6 @@ const RECENT := 8
 const QUIT_AFTER_MATCH_TICKS := 30 * 60
 const QUIT_FLAG_TICKS := 5 * 60
 const SIDES := ["p1", "p2"]
-## A beat hold ends by itself after this long without `resume` (wall clock).
-const HOLD_TIMEOUT_MS := 45_000
 ## `-- --capture-dir=DIR` saves a screenshot this often during the fight (and at the result).
 const CAPTURE_EVERY := 10 * 60
 const LEVEL_NAMES := ["high", "mid", "low", "overhead"]
@@ -57,13 +55,8 @@ var _ticks := 0
 var _super_landed := [false, false]
 ## Model per side ("provider:model"), from the adapter's `models` frame; shown on the HUD.
 var models := ["", ""]
-## coach (default), script (self-coding: rules between rounds) or beat (the game pauses every
-## `beat_ticks` until both coaches have picked). From the adapter's `mode` frame.
+## coach (default) or script (self-coding: rules between rounds). From the adapter's `mode` frame.
 var mode := "coach"
-var beat_ticks := 60
-var beat_n := 0
-var holding := false
-var _hold_since_ms := 0
 ## Per side, per round: attacks by input -> {hit, counter, blocked, whiffed}, throws, knockdowns.
 var _tally := [{}, {}]
 var _capture_dir := ""
@@ -96,9 +89,6 @@ func setup(fight_manager: Node, link_url: String, coached: Array[CoachController
 
 
 func _process(_delta: float) -> void:
-	if holding and (Time.get_ticks_msec() - _hold_since_ms > HOLD_TIMEOUT_MS or _peer == null):
-		print("CoachLink: beat %d: no resume from the adapter; going on" % beat_n)
-		_resume()
 	if _peer == null:
 		return
 	_peer.poll()
@@ -256,10 +246,7 @@ func _handle(msg: Dictionary) -> void:
 			_show_models()
 		"mode":
 			mode = str(msg.get("mode", "coach"))
-			beat_ticks = clampi(int(msg.get("beat_ticks", 60)), 15, 600)
-			for controller in controllers:
-				controller.manual = mode == "beat"
-			print("CoachLink: mode ", mode, " (beat every %d ticks)" % beat_ticks if mode == "beat" else "")
+			print("CoachLink: mode ", mode)
 		"policy":
 			if side < 0:
 				return
@@ -269,9 +256,6 @@ func _handle(msg: Dictionary) -> void:
 			if msg.get("rules") is Array:
 				errors.append_array(controllers[side].set_rules(msg.rules, manager.fighters[side]))
 			_applied(side, msg, errors)
-		"resume":
-			if holding and int(msg.get("n", beat_n)) == beat_n:
-				_resume()
 		"thinking":
 			if side < 0:
 				return
@@ -298,7 +282,6 @@ func _on_ticked() -> void:
 			_tally = [{}, {}]
 			_predictions = [{}, {}]
 			_super_landed = [false, false]
-			beat_n = 0
 			_hide_card()
 			_event("round_start", {round = manager.round_number})
 			_send(state())
@@ -325,8 +308,6 @@ func _on_ticked() -> void:
 			_resolve(i, recent[-1], "whiffed")
 	if phase == manager.Phase.FIGHT and manager.phase_ticks % STATE_EVERY == 0:
 		_send(state())
-	if mode == "beat" and phase == manager.Phase.FIGHT and manager.phase_ticks % beat_ticks == 0 and _peer != null:
-		_hold()
 	if _capture_dir != "" and ((phase == manager.Phase.FIGHT and manager.phase_ticks % CAPTURE_EVERY == CAPTURE_EVERY - 1) or (phase == manager.Phase.ROUND_OVER and manager.phase_ticks == 90) or _match_over_ticks == 4 * 60):
 		_capture()
 	if _match_over_ticks >= 0:
@@ -509,8 +490,6 @@ func _on_super_started(fighter: Fighter, move: MoveData) -> void:
 
 
 func _on_round_ended(winner: Fighter, reason: String) -> void:
-	if holding:
-		_resume()
 	for i in 2:
 		if not _predictions[i].is_empty():
 			_resolve_read(i, false, "round over")
@@ -518,27 +497,6 @@ func _on_round_ended(winner: Fighter, reason: String) -> void:
 	_event("round_end", {winner = SIDES[manager.fighters.find(winner)] if winner else null, reason = reason,
 		round = manager.round_number, summary = summary})
 	_show_card(winner, reason, summary)
-
-
-# --- Beat mode ---------------------------------------------------------------------
-
-## Stops the simulation (the picture holds) and asks both coaches for their next moves.
-func _hold() -> void:
-	if holding:
-		return
-	holding = true
-	beat_n += 1
-	_hold_since_ms = Time.get_ticks_msec()
-	manager.set_physics_process(false)
-	var frame := state()
-	frame.type = "beat"
-	frame.n = beat_n
-	_send(frame)
-
-
-func _resume() -> void:
-	holding = false
-	manager.set_physics_process(true)
 
 
 # --- Corner stacks, chips, badges and the round card ------------------------------
