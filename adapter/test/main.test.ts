@@ -23,6 +23,9 @@ test("the CLI parses sides, stage and numbers, with fake defaults", () => {
   assert.equal(a.window, "1080p");
   assert.equal(parseCli(["--window", "fullscreen"]).window, "fullscreen");
   assert.throws(() => parseCli(["--window", "4k"]), /--window must be/);
+  assert.equal(a.graphics, "high");
+  assert.equal(parseCli(["--graphics", "showcase"]).graphics, "showcase");
+  assert.throws(() => parseCli(["--graphics", "ultra"]), /--graphics must be/);
   const d = parseCli([]);
   assert.deepEqual(d.sides, { p1: { fighter: "jin", spec: "fake:coach" }, p2: { fighter: "kenji", spec: "fake:coach" } });
   assert.throws(() => parseCli(["--p1", "jin"]), /fighter=provider:model/);

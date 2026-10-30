@@ -80,6 +80,9 @@ test("validateMatch accepts a good request and fills defaults", () => {
   assert.throws(() => validateMatch({ p1: { fighter: "jin", spec: "fake:coach" }, p2: { fighter: "kenji", spec: "fake:coach" }, stage: "beach", window: "4k" }, fighters, stageIds), /window must be/);
   const args = matchArgs(m, "/logs/x", "/logs/x/captures");
   assert.equal(args[args.indexOf("--window") + 1], "1080p");
+  assert.equal(m.graphics, "high");
+  assert.equal(args[args.indexOf("--graphics") + 1], "high");
+  assert.throws(() => validateMatch({ p1: { fighter: "jin", spec: "fake:coach" }, p2: { fighter: "kenji", spec: "fake:coach" }, stage: "beach", graphics: "ultra" }, fighters, stageIds), /graphics must be/);
   assert.deepEqual(args.slice(0, 4), ["--p1", "jin=fake:coach", "--p2", "kenji=anthropic:claude-haiku-5-5"]);
   assert.ok(args.includes("--quit") && args.includes("--log") && !args.includes("--seed") && !args.includes("--capture"));
   const withSeed = matchArgs({ ...m, seed: 7, capture: true }, "/logs/x", "/logs/x/captures");

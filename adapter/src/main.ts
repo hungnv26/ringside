@@ -29,9 +29,12 @@ interface Args {
   mode: Mode;
   /** The game window for this match: 720p, 900p, 1080p (default), 1440p or fullscreen. */
   window: string;
+  /** Picture quality: high (live, 60 fps and up) or showcase (native resolution, global illumination; for recordings). */
+  graphics: string;
 }
 
 export const WINDOWS = ["720p", "900p", "1080p", "1440p", "fullscreen"] as const;
+export const GRAPHICS = ["high", "showcase"] as const;
 
 export function parseCli(argv: string[]): Args {
   const get = (name: string, fallback?: string): string | undefined => {
@@ -52,6 +55,8 @@ export function parseCli(argv: string[]): Args {
   if (!["low", "medium", "high"].includes(effort)) throw new Error(`--effort must be low, medium or high`);
   const window = get("window", "1080p")!;
   if (!(WINDOWS as readonly string[]).includes(window)) throw new Error(`--window must be one of ${WINDOWS.join(", ")}`);
+  const graphics = get("graphics", "high")!;
+  if (!(GRAPHICS as readonly string[]).includes(graphics)) throw new Error(`--graphics must be one of ${GRAPHICS.join(", ")}`);
   return {
     sides: { p1: side("p1", "jin"), p2: side("p2", "kenji") },
     stage: get("stage", "rooftop")!,
@@ -68,6 +73,7 @@ export function parseCli(argv: string[]): Args {
     record: get("record", "") ?? "",
     mode,
     window,
+    graphics,
   };
 }
 
@@ -134,7 +140,7 @@ async function main(): Promise<void> {
 
   if (args.log) BattleLog.at(args.log).live({ at: new Date().toISOString(), phase: "waiting", sides: args.sides, stage: args.stage, seed: args.seed });
   if (args.launch) {
-    const godotArgs = ["--path", REPO_ROOT, "--", `--coach=ws://127.0.0.1:${args.port}`, `--p1=${args.sides.p1.fighter}`, `--p2=${args.sides.p2.fighter}`, `--stage=${args.stage}`, `--seed=${args.seed}`, `--window=${args.window}`];
+    const godotArgs = ["--path", REPO_ROOT, "--", `--coach=ws://127.0.0.1:${args.port}`, `--p1=${args.sides.p1.fighter}`, `--p2=${args.sides.p2.fighter}`, `--stage=${args.stage}`, `--seed=${args.seed}`, `--window=${args.window}`, `--graphics=${args.graphics}`];
     if (args.quit) godotArgs.push("--quit-after-match");
     if (args.capture) godotArgs.push(`--capture-dir=${args.capture}`);
     if (args.record) {

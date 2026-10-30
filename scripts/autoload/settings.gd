@@ -30,11 +30,16 @@ var resolution := 2
 ## Graphics preset (measured on an integrated GPU, 1280×720: render scale, MSAA and glow
 ## are the big costs; volumetric fog and reflection probes cost about nothing, and FSR
 ## upscaling cost more than it saved, so scaling is bilinear).
-## High: everything. Medium: 85% of the resolution, 2× MSAA, half the ambient particles,
-## one shadowed light. Low: 75% of the resolution, FXAA instead of MSAA, no glow, fog,
-## probes, ambient particles or extra shadows. Purely visual: the simulation never reads it.
-enum Graphics { LOW, MEDIUM, HIGH }
-const GRAPHICS_NAMES := ["Low", "Medium", "High"]
+## Showcase: the native resolution with ambient occlusion, indirect light, reflections and
+## real-time global illumination (StageLook); for recordings, which render every frame
+## whatever it costs (about 30 fps live on an M1 Pro at 3200×1800). High: everything but
+## the global illumination; on a Mac the 3D is upscaled with MetalFX, which paid for the
+## light (scripts/stages/stage_look.gd). Medium: 85% of the resolution, 2× MSAA, half the
+## ambient particles, one shadowed light. Low: 75% of the resolution, FXAA instead of MSAA,
+## no glow, fog, probes, ambient particles or extra shadows. Purely visual: the simulation
+## never reads it.
+enum Graphics { LOW, MEDIUM, HIGH, SHOWCASE }
+const GRAPHICS_NAMES := ["Low", "Medium", "High", "Showcase"]
 var graphics: Graphics = Graphics.HIGH
 ## Give gamepad 1 to Player 2 (useful with a single pad in Versus).
 var swap_pads := false
@@ -76,7 +81,7 @@ func load_settings() -> void:
 	display_mode = clampi(cfg.get_value("video", "display_mode", legacy_mode), DisplayMode.WINDOWED, DisplayMode.EXCLUSIVE) as DisplayMode
 	window_size = clampi(cfg.get_value("video", "window_size", window_size), 0, WINDOW_SIZES.size() - 1)
 	resolution = clampi(cfg.get_value("video", "resolution", resolution), 0, RESOLUTIONS.size() - 1)
-	graphics = clampi(cfg.get_value("video", "graphics", graphics), Graphics.LOW, Graphics.HIGH) as Graphics
+	graphics = clampi(cfg.get_value("video", "graphics", graphics), Graphics.LOW, Graphics.SHOWCASE) as Graphics
 	swap_pads = cfg.get_value("input", "swap_pads", swap_pads)
 	player_name = cfg.get_value("online", "player_name", player_name)
 	last_join_address = cfg.get_value("online", "last_join_address", last_join_address)
@@ -172,23 +177,38 @@ func render_scale(height: int) -> float:
 	var cap := 1.0
 	if RESOLUTIONS[resolution] > 0 and height > RESOLUTIONS[resolution]:
 		cap = float(RESOLUTIONS[resolution]) / height
-	return maxf(cap * [0.75, 0.85, 1.0][graphics], 0.25)
+	if graphics == Graphics.SHOWCASE:
+		return 1.0 # the full resolution, whatever the cap
+	return maxf(cap * [0.75, 0.85, 1.0, 1.0][graphics], 0.25)
 
 
 ## The preset's viewport side: anti-aliasing and render scale (resolution × preset).
 func apply_graphics(viewport: Viewport) -> void:
-	viewport.msaa_3d = [Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X][graphics]
+	viewport.msaa_3d = [Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X, Viewport.MSAA_4X][graphics]
 	viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA if graphics == Graphics.LOW else Viewport.SCREEN_SPACE_AA_DISABLED
-	viewport.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
 	var pixels: Vector2i = (viewport as Window).size if viewport is Window else (viewport as SubViewport).size # real pixels, not the stretched design size
 	viewport.scaling_3d_scale = render_scale(pixels.y)
+	# MetalFX's spatial upscaler is sharper than bilinear at about the same cost; its
+	# temporal one breaks with screen-space reflections, and FSR 2 cost more than it saved.
+	viewport.scaling_3d_mode = Viewport.SCALING_3D_MODE_METALFX_SPATIAL if graphics >= Graphics.HIGH and viewport.scaling_3d_scale < 0.99 and _metal() else Viewport.SCALING_3D_MODE_BILINEAR
+	if graphics == Graphics.SHOWCASE:
+		RenderingServer.directional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_SOFT_HIGH)
+		RenderingServer.positional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_SOFT_MEDIUM)
+	else:
+		RenderingServer.directional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_SOFT_LOW)
+		RenderingServer.positional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_SOFT_LOW)
+
+
+static func _metal() -> bool:
+	return RenderingServer.get_current_rendering_driver_name() == "metal"
 
 
 ## The preset's stage side, called by every Stage when it enters the tree. The
 ## environment is copied first: it's shared with the cached scene, and a later stage
 ## loaded at a higher setting must get the original back.
 func apply_graphics_to_stage(stage: Node) -> void:
-	if graphics == Graphics.HIGH:
+	if graphics >= Graphics.HIGH:
+		StageLook.apply(stage, graphics == Graphics.SHOWCASE)
 		return
 	var low := graphics == Graphics.LOW
 	for node in stage.find_children("*", "WorldEnvironment", true, false):

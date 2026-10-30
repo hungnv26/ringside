@@ -62,6 +62,7 @@ the log folder, sends `end` to the game and exits 0. Ctrl-C ends the game too.
 | `--quit` | | Pass `--quit-after-match` to the game |
 | `--log DIR` | `battle-logs/<time>-<p1>-vs-<p2>` | The exact log folder (the setup page chooses it); `live.json` in it is the status the page polls |
 | `--window 720p\|900p\|1080p\|1440p\|fullscreen` | `1080p` | The game window for this match, in screen points (3840×2160 pixels for 1080p on a 2× Retina screen); the 3D is drawn at the window's own resolution; a size that does not fit the screen falls back to the largest that does |
+| `--graphics high\|showcase` | `high` | Picture quality: High draws the 3D at 1080p and upscales it (MetalFX on a Mac) with ambient occlusion, indirect light and reflections, 74–92 fps on an M1 Pro; Showcase draws at the window's full resolution and adds global illumination, about 20–27 fps live, meant for `--record` |
 | `--mode coach\|script` | `coach` | coach: a turn every cadence; script: the self-coding fighter (a policy of rules before the match and after each round) |
 | `--record FILE.mp4` | | Record the match: Godot's movie writer at a fixed 60 fps, then ffmpeg encodes the .mp4 after the game closes (needs `ffmpeg` on the PATH) |
 | `--capture DIR` | | The game saves a screenshot every 10 s of the fight and one of the result to DIR |

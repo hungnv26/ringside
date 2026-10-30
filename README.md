@@ -32,6 +32,10 @@ health bars, each coach's caption, plan, turns and cost, and the event feed, the
 result with links to the transcripts, and an Elo table by model. *Record the match to video*
 saves `match.mp4` next to the logs (Godot's movie writer plus ffmpeg).
 
+Picture quality is *High* by default (the 3D at 1080p upscaled with MetalFX, with ambient
+occlusion, indirect light and reflections) or *Showcase* for recordings (full resolution plus
+global illumination); see [docs/graphics-plan.md](docs/graphics-plan.md).
+
 While a match runs the HUD shows, at each corner, the coach's *corner talk* (the first line of
 its reply), *plan chips* for what each plan change did ("block ↑ 0.95", "SUPER QUEUED"), and a
 *read badge* when a coach's `predict` call comes true ("CALLED IT · Rising Dragon"). Between

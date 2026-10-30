@@ -200,6 +200,9 @@ func start_coach(tree: SceneTree) -> bool:
 			if str(stage.path).get_file().get_basename() == str(args.stage) or stage.name.to_lower() == str(args.stage).to_lower():
 				stage_path = stage.path
 	match_seed = int(args.seed) if args.has("seed") else randi()
+	# `--graphics=high|showcase` (default high) for this run only, like the window.
+	var quality := ["low", "medium", "high", "showcase"].find(str(args.get("graphics", "high")))
+	Settings.graphics = (quality if quality >= 0 else Settings.Graphics.HIGH) as Settings.Graphics
 	_apply_coach_window(str(args.get("window", "1080p")), tree)
 	tree.change_scene_to_file.call_deferred("res://scenes/fight.tscn")
 	return true
@@ -214,7 +217,9 @@ func _apply_coach_window(choice: String, tree: SceneTree) -> void:
 	if DisplayServer.get_name() == "headless":
 		return
 	var names := ["720p", "900p", "1080p", "1440p"]
-	Settings.resolution = Settings.RESOLUTIONS.size() - 1 # native: no 3D cap below the window
+	# High draws the 3D at 1080p and upscales it to the window (MetalFX on a Mac), which pays
+	# for its light; Showcase and the lower presets keep their own scale over the native size.
+	Settings.resolution = Settings.RESOLUTIONS.find(1080) if Settings.graphics == Settings.Graphics.HIGH else Settings.RESOLUTIONS.size() - 1
 	if choice == "fullscreen":
 		Settings.display_mode = Settings.DisplayMode.BORDERLESS
 		Settings.apply_display()
@@ -239,7 +244,7 @@ func _apply_coach_window(choice: String, tree: SceneTree) -> void:
 		DisplayServer.window_set_position(area.position + (area.size - size) / 2)
 	Settings.apply_graphics(tree.root)
 	var size_now := DisplayServer.window_get_size()
-	print("coach: window %s, %dx%d pixels (screen %s at %.1fx)" % [["windowed", "minimized", "maximized", "fullscreen", "exclusive fullscreen"][DisplayServer.window_get_mode()], size_now.x, size_now.y, DisplayServer.screen_get_size(), DisplayServer.screen_get_scale()])
+	print("coach: window %s, %dx%d pixels (screen %s at %.1fx), graphics %s, 3D at %d%% (%s)" % [["windowed", "minimized", "maximized", "fullscreen", "exclusive fullscreen"][DisplayServer.window_get_mode()], size_now.x, size_now.y, DisplayServer.screen_get_size(), DisplayServer.screen_get_scale(), Settings.GRAPHICS_NAMES[Settings.graphics], roundi(tree.root.scaling_3d_scale * 100), ["bilinear", "FSR", "FSR 2", "MetalFX spatial", "MetalFX temporal"][tree.root.scaling_3d_mode]])
 
 
 func _character_by_id(id: String) -> CharacterData:
