@@ -32,6 +32,11 @@ const INTRO_TICKS := 110
 const ROUND_OVER_TICKS := 210
 ## Coached matches hold the round card on screen a little longer between rounds.
 const COACH_CARD_TICKS := 150
+## A K.O. round's round-over phase is this much longer, in every mode (so match timing and
+## saved replays stay the same everywhere): room for the K.O. replay (KOReplay).
+const KO_REPLAY_TICKS := 210
+## This round's round-over length (ROUND_OVER_TICKS, plus KO_REPLAY_TICKS after a K.O.).
+var round_over_ticks := ROUND_OVER_TICKS
 ## Winner switches to the victory pose this long after the round ends.
 const VICTORY_POSE_DELAY := 70
 ## After this many rounds a tie on round wins is a draw game.
@@ -67,6 +72,7 @@ var timer_ticks := 0
 var round_winner: Fighter
 var match_winner: Fighter
 var fx: FightFx
+var ko_replay: KOReplay
 var _cosmetic_rng := RandomNumberGenerator.new() # victory pose choice only; never gameplay
 ## Fighters knocked out this tick (both, for a double K.O.); resolved after the tick.
 var _knocked_out: Array[Fighter] = []
@@ -176,6 +182,10 @@ func _ready() -> void:
 	fx.name = "FightFx"
 	add_child(fx)
 	fx.setup(self)
+	ko_replay = KOReplay.new()
+	ko_replay.name = "KOReplay"
+	add_child(ko_replay)
+	ko_replay.setup(self)
 	_waiting_for_screen = not is_online() and DisplayServer.get_name() != "headless"
 	if _waiting_for_screen:
 		_start_when_on_screen()
@@ -293,6 +303,7 @@ func start_match() -> void:
 	match_winner = null
 	round_winner = null # (with last_hit_point: a rematch must start from the same state as a new match)
 	last_hit_point = Vector3.ZERO
+	round_over_ticks = ROUND_OVER_TICKS
 	hud.set_round_wins(round_wins)
 	hud.hide_result()
 	hud.end_cinematic()
@@ -370,7 +381,7 @@ func _tick_round() -> void:
 		Phase.ROUND_OVER:
 			if phase_ticks == VICTORY_POSE_DELAY and round_winner:
 				round_winner.victory = true
-			if phase_ticks >= ROUND_OVER_TICKS + (COACH_CARD_TICKS if is_coach() else 0):
+			if phase_ticks >= round_over_ticks + (COACH_CARD_TICKS if is_coach() else 0):
 				_after_round()
 		Phase.MATCH_OVER:
 			if match_winner and not resimulating:
@@ -402,6 +413,7 @@ func _end_round_by_time() -> void:
 func _finish_round(winner: Fighter, reason: String) -> void:
 	phase = Phase.ROUND_OVER
 	phase_ticks = 0
+	round_over_ticks = ROUND_OVER_TICKS + (KO_REPLAY_TICKS if reason.ends_with("K.O.") else 0)
 	round_winner = winner
 	for fighter in fighters:
 		fighter.input_locked = true
@@ -522,6 +534,8 @@ func _go_to(scene: String) -> void:
 
 func _reset_round() -> void:
 	ai.reset()
+	if ko_replay:
+		ko_replay.reset()
 	_set_freeze(0)
 	fighters[0].reset_to(stage.p1_spawn.global_position)
 	fighters[1].reset_to(stage.p2_spawn.global_position)
@@ -787,6 +801,7 @@ func save_state() -> Dictionary:
 		round_wins = round_wins.duplicate(), timer_ticks = timer_ticks,
 		round_winner = fighters.find(round_winner), match_winner = fighters.find(match_winner),
 		knocked_out = knocked, freeze_ticks = freeze_ticks, last_hit_point = last_hit_point,
+		round_over_ticks = round_over_ticks,
 		fighters = [fighters[0].save_state(), fighters[1].save_state()]}
 
 
@@ -804,6 +819,7 @@ func load_state(state: Dictionary) -> void:
 		_knocked_out.append(fighters[i])
 	freeze_ticks = state.freeze_ticks
 	last_hit_point = state.last_hit_point
+	round_over_ticks = state.get("round_over_ticks", ROUND_OVER_TICKS)
 	for i in 2:
 		fighters[i].load_state(state.fighters[i])
 	hud.set_round_wins(round_wins)

@@ -487,6 +487,35 @@ func _animate_cinematic(amount: float) -> void:
 	_cinematic_tween.tween_property(_score_label, "modulate:a", 0.0, 0.35)
 
 
+## The K.O. replay (KOReplay): letterbox bars in, the fight HUD out, a small "REPLAY" tag
+## in the top bar. `on` false puts the HUD back.
+func show_replay(on: bool) -> void:
+	if _replay_label == null:
+		_replay_label = Label.new()
+		_replay_label.name = "ReplayLabel"
+		_replay_label.text = "REPLAY"
+		_replay_label.add_theme_font_size_override("font_size", 34)
+		_replay_label.add_theme_color_override("font_color", Color(0.92, 0.92, 0.9))
+		_replay_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+		_replay_label.position = Vector2(48, 22)
+		add_child(_replay_label)
+	_replay_label.visible = on
+	announce("")
+	if on:
+		_animate_cinematic(1.0)
+	else:
+		if _cinematic_tween:
+			_cinematic_tween.kill()
+		_set_letterbox(0.0)
+		%Top.modulate.a = 1.0
+		debug_label.modulate.a = 1.0
+		_meter_root.modulate.a = 1.0
+		_score_label.modulate.a = 1.0
+
+
+var _replay_label: Label
+
+
 ## 0..1: bars cover 11% of the screen height each at 1.
 func _set_letterbox(amount: float) -> void:
 	var height := get_viewport().get_visible_rect().size.y * 0.11 * amount

@@ -438,3 +438,37 @@ neighbours), plus the old Phase 2 fighters.
 Flaky test found on the way: the Courtyard's "pigeons come back" check failed when the
 random jet flew over during its 22 s wait and scattered them again; the test now holds the
 jet off while it waits.
+
+### Phase 4: effects and motion (built 2026-10-31)
+
+- **Textures** (`tools/make_fx_art.py`, `assets/fx/`): a spark streak, a 16-frame impact
+  burst (hot core, uneven rays, a shock ring), a 16-frame smoke puff shaded from above,
+  and a footprint pressed into sand.
+- **Hits** (`scripts/fx/fight_fx.gd`): sparks are streaks on crossed quads stretched along
+  their flight and pulled into arcs; the impact burst is the flipbook, played over 0.2 s;
+  both scale with the move's damage (0.6 for a jab to 2.2), counters 1.25 times bigger.
+  Heavy hits and counters puff lit smoke.
+- **Impact frames** (`scripts/fx/screen_fx.gd`, `assets/fx/screen_fx.gdshader`, a
+  full-screen pass under the HUD that is hidden while idle): super finishers, K.O.s and
+  heavy counters get two frames of a hard two-tone frame and a heat-distortion shockwave;
+  other heavy hits and wall splats get the shockwave alone. Camera shake already scales
+  with the hit's hitstop.
+- **Supers**: the close-up is now a slow push-in through the freeze, everything but the
+  fighter darkens (a soft ellipse kept bright around them), and the finishing hit plays
+  in slow motion for a moment (not online).
+- **Dust and debris**: knockdowns and wall splats raise smoke-textured dust in the stage's
+  own colour (`Stage.dust_color`, set by each builder) and throw lit grit and pebbles. On
+  the Beach (`Stage.footprints`) the fighters leave footprints that fade over 12 s.
+- **K.O. replay** (`scripts/fx/ko_replay.gd`): the last 3.5 s of both skeletons are kept
+  in a ring buffer; after a K.O. and its fall, the moment from 1.4 s before the K.O. plays
+  at half speed, the camera orbiting low around it, letterboxed with a "REPLAY" tag, the
+  K.O. burst and impact frame firing again as it lands. Then the round card. K.O. rounds
+  hold `FightManager.KO_REPLAY_TICKS` (3.5 s) longer in every mode, part of the saved
+  state, so match timing, rollback and saved replays stay deterministic; no replay
+  shows online, in training, in replays or with the action camera off. The coach card
+  waits for the replay, and its screenshot moves with it.
+- The camera's Off mode also turns the screen effects off (the calmer setting).
+- `tools/render_fx_check.gd` fires each effect in a live CPU fight and saves frames:
+  `docs/look/phase4/`.
+- **Cost**: nothing measurable when idle (Ring 70 fps before and after in an A/B run).
+- **Not done**: no per-surface footprints on gravel (the Temple fights on stone).

@@ -299,7 +299,8 @@ func _initialize() -> void:
 	p2.health = 10
 	press(InputBuffer.LP); step(6)
 	check("KO on lethal hit", p2.state == Fighter.State.KO and m.phase == m.Phase.ROUND_OVER, state_name(p2))
-	step(m.ROUND_OVER_TICKS + 1)
+	check("Phase 4: a K.O. round holds longer for the K.O. replay", m.round_over_ticks == m.ROUND_OVER_TICKS + m.KO_REPLAY_TICKS)
+	step(m.round_over_ticks + 1)
 	check("round resets after KO", p2.health == p2.data.max_health and p2.is_actionable() and absf(p2.position.x - 2.0) < 0.01, "hp %d, %s" % [p2.health, state_name(p2)])
 
 	# Sidestep (away from camera = -Z) rotates the fight axis and the view follows
@@ -465,7 +466,7 @@ func round_tests() -> void:
 	p2.health = 10
 	press(InputBuffer.LP); step(6)
 	check("KO awards the round", m.phase == m.Phase.ROUND_OVER and m.round_wins == [1, 0], "%s %s" % [m.Phase.keys()[m.phase], m.round_wins])
-	step(m.ROUND_OVER_TICKS)
+	step(m.round_over_ticks)
 	check("next round starts", m.phase == m.Phase.INTRO and m.round_number == 2 and p2.health == p2.data.max_health)
 
 	# Time out: more health (as a share of max) wins; second win ends the match.
@@ -474,7 +475,7 @@ func round_tests() -> void:
 	m.timer_ticks = 2
 	step(3)
 	check("time out goes to the healthier fighter", m.round_wins == [2, 0], "%s" % [m.round_wins])
-	step(m.ROUND_OVER_TICKS)
+	step(m.round_over_ticks)
 	check("two round wins end the match", m.phase == m.Phase.MATCH_OVER and p1.victory)
 
 	# Double K.O. is a draw round.
@@ -536,6 +537,7 @@ func fx_tests() -> void:
 	var before: int = m.fx.spawned
 	press(InputBuffer.LP); step(6)
 	check("hits spawn effects", m.fx.spawned > before, "%d -> %d" % [before, m.fx.spawned])
+	_phase4_fx_tests(m)
 	check("audio buses exist", AudioServer.get_bus_index("Music") > 0 and AudioServer.get_bus_index("SFX") > 0 and AudioServer.get_bus_index("Voice") > 0
 		and AudioServer.get_bus_index("Ambience") > 0)
 	var limiters := range(AudioServer.get_bus_effect_count(0)).filter(func(i: int) -> bool: return AudioServer.get_bus_effect(0, i) is AudioEffectHardLimiter)
@@ -972,7 +974,7 @@ func arcade_tests() -> void:
 		press(InputBuffer.LP); step(8)
 		check("Arcade: round %d won, damage + bonus scored" % (round_index + 1), m.phase in [m.Phase.ROUND_OVER, m.Phase.MATCH_OVER] and gs.arcade.score > before + 100,
 			"score %d -> %d" % [before, gs.arcade.score])
-		step(m.ROUND_OVER_TICKS + 1)
+		step(m.round_over_ticks + 1)
 	check("Arcade: match won -> stage 2, Next Stage", m.phase == m.Phase.MATCH_OVER and gs.arcade.stage == 1
 		and m.hud.get_node("%RematchButton").text == "Next Stage" and not m.hud.get_node("%ResultSelectButton").visible)
 	m._on_rematch_pressed()
@@ -1443,6 +1445,28 @@ func _market_tests() -> void:
 	check("Market: standing locals on the street, real fruit, monobloc chairs",
 		crowd.people and crowd.people_kind == "pedestrian" and is_zero_approx(crowd.floor_y) and fruit >= 30 and chairs == 12, "fruit %d, chairs %d" % [fruit, chairs])
 	market.free()
+
+
+## Phase 4 effects (FightFx, ScreenFx, KOReplay): textured sparks, smoke and debris pools,
+## impact frames and shockwaves, the super's darkened background, the replay node.
+func _phase4_fx_tests(m: Node) -> void:
+	var fx = m.fx # untyped: this script compiles before the autoloads exist
+	var sparks_ok: bool = (fx._sparks[0].draw_pass_1 as Mesh).get_surface_count() == 2 \
+		and (fx._sparks[0].process_material as ParticleProcessMaterial).particle_flag_align_y
+	var smoke_mat: StandardMaterial3D = (fx._smoke[0].draw_pass_1 as QuadMesh).material as StandardMaterial3D
+	check("Phase 4: spark streaks along their flight, lit smoke flipbook, debris",
+		sparks_ok and smoke_mat.particles_anim_h_frames == 4 and smoke_mat.shading_mode == BaseMaterial3D.SHADING_MODE_PER_PIXEL
+		and fx._debris_pool.size() == 3)
+	var frames: int = fx.screen.impact_frames
+	fx.screen.impact_frame(Color.WHITE)
+	fx.screen.shockwave(Vector3(0, 1, 0), 1.0)
+	fx.screen.darken_on(m.fighters[0], 0.5)
+	fx.screen._process(1.0 / 60.0)
+	check("Phase 4: impact frame, shockwave and the super's darkened background", fx.screen.impact_frames == frames + 1 and fx.screen.active())
+	for i in 90:
+		fx.screen._process(1.0 / 60.0)
+	check("Phase 4: the screen effects clear and hide", not fx.screen.active())
+	check("Phase 4: the K.O. replay node is wired", m.ko_replay != null and m.ko_replay.manager == m and not m.ko_replay.playing())
 
 
 ## The Dojo's students are real people (Crowd.people, kind "student": MakeHuman students in

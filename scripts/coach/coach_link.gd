@@ -308,7 +308,7 @@ func _on_ticked() -> void:
 			_resolve(i, recent[-1], "whiffed")
 	if phase == manager.Phase.FIGHT and manager.phase_ticks % STATE_EVERY == 0:
 		_send(state())
-	if _capture_dir != "" and ((phase == manager.Phase.FIGHT and manager.phase_ticks % CAPTURE_EVERY == CAPTURE_EVERY - 1) or (phase == manager.Phase.ROUND_OVER and manager.phase_ticks == 90) or _match_over_ticks == 4 * 60):
+	if _capture_dir != "" and ((phase == manager.Phase.FIGHT and manager.phase_ticks % CAPTURE_EVERY == CAPTURE_EVERY - 1) or (phase == manager.Phase.ROUND_OVER and manager.phase_ticks == 90 + manager.round_over_ticks - manager.ROUND_OVER_TICKS) or _match_over_ticks == 4 * 60):
 		_capture()
 	if _match_over_ticks >= 0:
 		_match_over_ticks += 1
@@ -496,7 +496,12 @@ func _on_round_ended(winner: Fighter, reason: String) -> void:
 	var summary := round_summary()
 	_event("round_end", {winner = SIDES[manager.fighters.find(winner)] if winner else null, reason = reason,
 		round = manager.round_number, summary = summary})
-	_show_card(winner, reason, summary)
+	# After a K.O. the card waits for the replay (KOReplay) to finish.
+	var replay = manager.get("ko_replay") # untyped: this script loads without the fight's autoloads in tests
+	if reason.ends_with("K.O.") and replay and replay.call("_enabled"):
+		replay.finished.connect(_show_card.bind(winner, reason, summary), CONNECT_ONE_SHOT)
+	else:
+		_show_card(winner, reason, summary)
 
 
 # --- Corner stacks, chips, badges and the round card ------------------------------

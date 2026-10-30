@@ -89,6 +89,7 @@ func _initialize() -> void:
 	stage = Node3D.new()
 	stage.name = "Courtyard"
 	stage.set_script(load(STAGE_SCRIPT))
+	stage.set("dust_color", Color(0.7, 0.62, 0.56))
 	stage.set("rope_line", 50.0)
 	# Back wall at z -7, tenement fronts at x +-9.5 (balconies to +-8.6): hide a side once
 	# the camera is past these (Stage adds 0.3 m of hysteresis).

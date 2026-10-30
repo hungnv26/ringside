@@ -54,6 +54,7 @@ func _initialize() -> void:
 	stage = Node3D.new()
 	stage.name = "Temple"
 	stage.set_script(load(STAGE_SCRIPT))
+	stage.set("dust_color", Color(0.72, 0.66, 0.6)) # stone dust
 	stage.set("rope_line", 50.0) # nothing sits between the camera and the fight
 	stage.set("music", &"temple")
 

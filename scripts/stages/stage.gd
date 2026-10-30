@@ -18,6 +18,10 @@ func depth_limit() -> float:
 	return bounds_depth if bounds_depth > 0.0 else bounds_half_extent
 ## Fight music track (a key of Audio.MUSIC).
 @export var music: StringName = &"fight"
+## The colour of the dust a knockdown or wall splat raises (FightFx).
+@export var dust_color := Color(0.74, 0.72, 0.69)
+## Fighters leave footprints (sand; FightFx).
+@export var footprints := false
 
 @onready var p1_spawn: Marker3D = $P1Spawn
 @onready var p2_spawn: Marker3D = $P2Spawn

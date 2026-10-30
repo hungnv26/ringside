@@ -61,6 +61,7 @@ func _initialize() -> void:
 	stage = Node3D.new()
 	stage.name = "Train"
 	stage.set_script(load(STAGE_SCRIPT))
+	stage.set("dust_color", Color(0.62, 0.6, 0.58))
 	stage.set("rope_line", 50.0) # nothing to hide
 	stage.set("music", &"train")
 	stage.set("bounds_depth", 1.1) # the roof is 3 m wide

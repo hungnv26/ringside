@@ -57,6 +57,7 @@ func _initialize() -> void:
 	stage = Node3D.new()
 	stage.name = "Rooftop"
 	stage.set_script(load(STAGE_SCRIPT))
+	stage.set("dust_color", Color(0.62, 0.64, 0.7)) # spray off the wet deck
 	stage.set("rope_line", 50.0) # nothing sits between the camera and the fight
 	stage.set("music", &"rooftop")
 
