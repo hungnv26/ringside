@@ -409,6 +409,9 @@ func _on_throw(attacker: Fighter, defender: Fighter) -> void:
 ## which then counts as a miss.
 func set_prediction(side: int, what: String, plan_id: String) -> Array[String]:
 	var errors: Array[String] = []
+	if manager.phase != manager.Phase.FIGHT:
+		errors.append("no read: the round is not live")
+		return errors
 	var word := what.strip_edges()
 	var opponent: Fighter = manager.fighters[1 - side]
 	var known := word.to_lower() in READ_WORDS

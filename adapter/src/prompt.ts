@@ -213,8 +213,10 @@ export function validatePredict(raw: unknown): string {
 
 /** The first line of the reply text, for the HUD: the coach's corner talk. */
 export function talkOf(content: unknown): string {
-  const first = String(content ?? "").split("\n").map((l) => l.replace(/^[\s#*>\-•"“”]+|["“”]+$/g, "").trim()).find((l) => l.length > 0) ?? "";
-  return first.replace(/\s+/g, " ").slice(0, MAX_TALK);
+  const first = (String(content ?? "").split("\n").map((l) => l.replace(/^[\s#*>\-•"“”]+|["“”]+$/g, "").trim()).find((l) => l.length > 0) ?? "").replace(/\s+/g, " ");
+  if (first.length <= MAX_TALK) return first;
+  const cut = first.lastIndexOf(" ", MAX_TALK - 1); // whole words, then an ellipsis
+  return first.slice(0, cut > MAX_TALK / 2 ? cut : MAX_TALK - 1).trimEnd() + "…";
 }
 
 // Merges a plan into the plan in force (what the game does too).

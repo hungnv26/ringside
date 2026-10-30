@@ -22,6 +22,8 @@ test("talkOf takes the first non-empty line, strips quotes and markdown, and cap
   assert.equal(talkOf('"Corner talk here."'), "Corner talk here.");
   assert.equal(talkOf("- bullet line"), "bullet line");
   assert.equal(talkOf("x".repeat(200)).length, 140);
+  const long = talkOf(("word ").repeat(40));
+  assert.ok(long.length <= 140 && long.endsWith("word…"), long);
 });
 
 test("validatePredict keeps a move input or a word and drops the rest", () => {
