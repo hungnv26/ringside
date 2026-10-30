@@ -31,6 +31,13 @@ health bars, each coach's caption, plan, turns and cost, and the event feed, the
 result with links to the transcripts, and an Elo table by model. *Record the match to video*
 saves `match.mp4` next to the logs (Godot's movie writer plus ffmpeg).
 
+A **tournament** is a round robin between up to eight entrants (a fighter and the model that
+coaches it; the same fighter may enter with several models), played one match after another
+with the settings of step 3. Each pair meets once, or twice with the corners swapped; the stage
+is fixed or rotates. The page shows the standings (a win 1 point, a draw ½; ties on round
+difference, then rounds won, then cost) and every fixture with its logs, and keeps each
+tournament in `battle-logs/tournaments/<id>.json`.
+
 From the command line instead:
 
 ```bash
@@ -49,7 +56,7 @@ game alone: `godot --path . -- --coach=ws://127.0.0.1:8797 --p1=jin --p2=kenji -
 ```bash
 godot --headless --path . -s res://tests/coach_test.gd     # coach mode (25 checks)
 godot --headless --path . -s res://tests/sim_test.gd       # 3D Fighter's regression suite
-cd adapter && npm test && npm run typecheck                # the adapter and the setup page (33 tests)
+cd adapter && npm test && npm run typecheck                # the adapter and the setup page (45 tests)
 ```
 
 ## What was added
@@ -60,6 +67,7 @@ cd adapter && npm test && npm run typecheck                # the adapter and the
 - `GameState.Mode.COACH`, `-- --coach=...` on the command line, both sides coached in `FightManager`.
 - `adapter/`: the coaches, the model calls (Anthropic, OpenAI, OpenRouter, Ollama, a fake), logs.
 - `adapter/src/setup.ts` + `adapter/setup/index.html`: the setup page, results and Elo.
+- `adapter/src/tournament.ts`: round-robin tournaments, fixtures and standings.
 
 ---
 

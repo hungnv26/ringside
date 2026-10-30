@@ -41,7 +41,7 @@ and the *self-coding fighter* (the model rewrites its fighter's behaviour betwee
    MJPEG + wav) and encodes `battle-logs/<id>/match.mp4` with ffmpeg once the game closes;
    the page plays it and the results link to it. A slow machine renders slower than real
    time while recording, which slows the game, not the coaches.
-4. **Second modes** (built 2026-10-30; tournaments not yet). Picked per match on the setup page
+4. **Second modes and tournaments** (built 2026-10-30). Modes are picked per match on the setup page
    (`--mode coach|script|beat`, sent to the game as a `mode` frame):
    - **Self-coding fighter** (`script`): the model takes one turn before the match and one
      after every round, with `set_policy`: a plan plus up to 12 rules `{name, when, do, weight}`.
@@ -60,6 +60,12 @@ and the *self-coding fighter* (the model rewrites its fighter's behaviour betwee
      the queued moves, so the models choose blocks and movement too (`block N`,
      `crouch_block N`, `approach N`, `retreat N`...). Cost scales with the number of beats: a
      99-second round is about 100 calls per side at 60-frame beats.
+   - **Tournaments** (`adapter/src/tournament.ts`): a round robin between 2 to 8 entrants (a
+     fighter and its model), each pair once or twice with corners swapped, stage fixed or
+     rotating, the match settings shared; played one match after another through the setup
+     page's runner and saved in `battle-logs/tournaments/<id>.json`. Standings: a win 1, a draw
+     ½, ties on round difference, rounds won, then cost. A failed match is recorded and skipped;
+     *Stop tournament* ends the match in progress and skips the rest. Not built: brackets.
 
 ## Parts
 

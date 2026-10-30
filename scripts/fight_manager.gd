@@ -835,6 +835,8 @@ func _flat(v: Vector3) -> Vector3:
 # --- Debug / scene input ------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
+	if is_coach():
+		return # no human controls in a coached match: a stray Escape must not pause or leave it
 	if event.is_action_pressed("pause") and is_online():
 		netplay.toggle_leave_prompt() # an online match can't pause
 		get_viewport().set_input_as_handled()

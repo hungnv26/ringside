@@ -4,11 +4,13 @@
 // time by spawning the adapter (src/main.ts, which launches the game), relays its live.json and
 // console, and keeps results and an Elo table from battle-logs/*/battle.json. Local only.
 import { spawn, type ChildProcess } from "node:child_process";
+import { EventEmitter } from "node:events";
 import { createReadStream, existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { keyStatus, listModels, modelPrices, PROVIDERS, REPO_ROOT, saveKey, splitSpec, type Effort } from "./models.ts";
+import { MAX_ENTRANTS, ROTATE, TournamentRunner, type Entrant, type TournamentRequest } from "./tournament.ts";
 import type { Mode } from "./types.ts";
 
 export const DEFAULT_PORT = 8798;
@@ -150,21 +152,19 @@ export interface MatchRequest {
   beatTicks?: number;
 }
 
-export function validateMatch(raw: any, fighters: Fighter[], stageIds: string[]): MatchRequest {
-  const ids = new Set(fighters.map((f) => f.id));
-  const side = (name: string) => {
-    const s = raw?.[name] ?? {};
-    const fighter = String(s.fighter ?? "");
-    const spec = String(s.spec ?? "").trim();
-    if (!ids.has(fighter)) throw new Error(`${name}: unknown fighter "${fighter}"`);
-    const { provider, model } = splitSpec(spec);
-    if (!(PROVIDERS.includes(provider) || provider === "fake") || !model || /\s/.test(spec)) throw new Error(`${name}: the model must be provider:model (anthropic, openai, openrouter, ollama or fake)`);
-    return { fighter, spec };
-  };
-  const p1 = side("p1");
-  const p2 = side("p2");
-  const stage = String(raw?.stage ?? "");
-  if (!stageIds.includes(stage)) throw new Error(`unknown stage "${stage}"`);
+/** One corner of a request: a known fighter and a provider:model spec. */
+function validateEntrant(raw: any, name: string, fighters: Fighter[]): Entrant {
+  const s = raw ?? {};
+  const fighter = String(s.fighter ?? "");
+  const spec = String(s.spec ?? "").trim();
+  if (!fighters.some((f) => f.id === fighter)) throw new Error(`${name}: unknown fighter "${fighter}"`);
+  const { provider, model } = splitSpec(spec);
+  if (!(PROVIDERS.includes(provider) || provider === "fake") || !model || /\s/.test(spec)) throw new Error(`${name}: the model must be provider:model (anthropic, openai, openrouter, ollama or fake)`);
+  return { fighter, spec };
+}
+
+/** The settings every match shares: budget, pace, effort, mode, recording. */
+function validateSettings(raw: any) {
   const num = (key: string, fallback: number, min: number, max: number) => {
     if (raw?.[key] === undefined || raw[key] === null || raw[key] === "") return fallback;
     const v = Number(raw[key]);
@@ -177,7 +177,34 @@ export function validateMatch(raw: any, fighters: Fighter[], stageIds: string[])
   if (!["coach", "script", "beat"].includes(mode)) throw new Error("mode must be coach, script or beat");
   const beatTicks = Math.floor(num("beatTicks", 60, 15, 600));
   const seed = raw?.seed === undefined || raw?.seed === null || raw?.seed === "" ? null : Math.floor(num("seed", 0, 0, 2 ** 31 - 1));
-  return { p1, p2, stage, seed, cap: num("cap", 1, 0, 50), cadence: Math.floor(num("cadence", 2000, 500, 30000)), effort, capture: !!raw?.capture, record: !!raw?.record, mode, beatTicks };
+  return { seed, cap: num("cap", 1, 0, 50), cadence: Math.floor(num("cadence", 2000, 500, 30000)), effort, capture: !!raw?.capture, record: !!raw?.record, mode, beatTicks };
+}
+
+export function validateMatch(raw: any, fighters: Fighter[], stageIds: string[]): MatchRequest {
+  const p1 = validateEntrant(raw?.p1, "p1", fighters);
+  const p2 = validateEntrant(raw?.p2, "p2", fighters);
+  const stage = String(raw?.stage ?? "");
+  if (!stageIds.includes(stage)) throw new Error(`unknown stage "${stage}"`);
+  return { p1, p2, stage, ...validateSettings(raw) };
+}
+
+/** A tournament: 2 to 8 distinct entrants, one or two legs, a stage or "rotate", the match settings. */
+export function validateTournament(raw: any, fighters: Fighter[], stageIds: string[]): TournamentRequest {
+  const list = Array.isArray(raw?.entrants) ? raw.entrants : [];
+  if (list.length < 2 || list.length > MAX_ENTRANTS) throw new Error(`a tournament needs 2 to ${MAX_ENTRANTS} entrants`);
+  const entrants = list.map((e: unknown, i: number) => validateEntrant(e, `entrant ${i + 1}`, fighters));
+  const seen = new Set<string>();
+  for (const e of entrants) {
+    const key = `${e.fighter}=${e.spec}`;
+    if (seen.has(key)) throw new Error(`entrant ${key} is listed twice`);
+    seen.add(key);
+  }
+  const legs = Number(raw?.legs ?? 1);
+  if (legs !== 1 && legs !== 2) throw new Error("legs must be 1 or 2");
+  const stage = String(raw?.stage ?? ROTATE);
+  if (stage !== ROTATE && !stageIds.includes(stage)) throw new Error(`unknown stage "${stage}"`);
+  const name = String(raw?.name ?? "").trim().slice(0, 60) || `${entrants.length} entrants, ${legs === 2 ? "home and away" : "round robin"}`;
+  return { name, entrants, legs, stage, ...validateSettings(raw) };
 }
 
 export function matchArgs(m: MatchRequest, logDir: string, captureDir: string): string[] {
@@ -194,13 +221,15 @@ export function matchId(m: MatchRequest, now = new Date()): string {
   return `${now.toISOString().replace(/[:.]/g, "-").slice(0, 19)}-${m.p1.fighter}-vs-${m.p2.fighter}`;
 }
 
-export class Runner {
+/** Runs one match at a time; emits "exit" with the match record when the adapter exits. */
+export class Runner extends EventEmitter<{ exit: [{ id: string; dir: string; exit: number | null }] }> {
   child: ChildProcess | null = null;
   current: { id: string; dir: string; request: MatchRequest; startedAt: string; exit: number | null; console: string[] } | null = null;
   readonly command: string[]; // how the adapter is run (tests swap in a stub)
   readonly logRoot: string;
 
   constructor(command = [process.execPath, join(HERE, "main.ts")], logRoot = LOG_ROOT) {
+    super();
     this.command = command;
     this.logRoot = logRoot;
   }
@@ -226,13 +255,16 @@ export class Runner {
     };
     child.stdout?.on("data", take);
     child.stderr?.on("data", take);
+    const ended = (code: number) => {
+      if (current.exit !== null) return;
+      current.exit = code;
+      this.emit("exit", current);
+    };
     child.on("error", (e) => {
       current.console.push(`could not start the adapter: ${e.message}`);
-      current.exit = 1;
+      ended(1);
     });
-    child.on("exit", (code) => {
-      current.exit = code ?? 1;
-    });
+    child.on("exit", (code) => ended(code ?? 1));
     this.child = child;
     this.current = current;
     return { id };
@@ -295,7 +327,7 @@ const body = async (req: IncomingMessage): Promise<any> => {
   return raw ? JSON.parse(raw) : {};
 };
 
-export function createSetupServer(runner = new Runner(), root = REPO_ROOT, fetchFn: typeof fetch = fetch) {
+export function createSetupServer(runner = new Runner(), root = REPO_ROOT, fetchFn: typeof fetch = fetch, tournaments = new TournamentRunner(runner)) {
   const models = new Map<string, { at: number; ids: string[] }>(); // per provider, 15 min
   return createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", "http://127.0.0.1");
@@ -319,8 +351,22 @@ export function createSetupServer(runner = new Runner(), root = REPO_ROOT, fetch
             { id: "beat", name: "Beat fighter", blurb: "the game pauses every beat until both models have chosen their moves" },
           ],
           defaults: { p1: { fighter: "jin", spec: "anthropic:claude-haiku-5-5" }, p2: { fighter: "kenji", spec: "openai:gpt-5.4-mini" }, stage: "rooftop", cap: 1, cadence: 2000, effort: "low" },
+          tournament: { maxEntrants: MAX_ENTRANTS, rotate: ROTATE },
           running: runner.running,
         });
+      }
+      if (url.pathname === "/api/tournament" && req.method === "POST") {
+        const request = validateTournament(await body(req), roster(root), stages(root).map((s) => s.id));
+        const t = tournaments.start(request, roster(root), stages(root).map((s) => s.id));
+        return json(res, 200, { id: t.id, fixtures: t.fixtures.length });
+      }
+      if (url.pathname === "/api/tournament/stop" && req.method === "POST") return json(res, 200, { stopped: tournaments.stop() });
+      if (url.pathname === "/api/tournament") {
+        const t = tournaments.get(url.searchParams.get("id"));
+        return t ? json(res, 200, t) : json(res, 404, { error: "no such tournament" });
+      }
+      if (url.pathname === "/api/tournaments") {
+        return json(res, 200, { tournaments: tournaments.list().map((t) => ({ id: t.id, name: t.name, at: t.at, finishedAt: t.finishedAt, stopped: t.stopped, entrants: t.request.entrants.length, total: t.fixtures.length, done: t.fixtures.filter((f) => f.status === "done").length })) });
       }
       if (url.pathname === "/api/models") {
         const provider = url.searchParams.get("provider") ?? "";
@@ -339,10 +385,11 @@ export function createSetupServer(runner = new Runner(), root = REPO_ROOT, fetch
       }
       if (url.pathname === "/api/match" && req.method === "POST") {
         const request = validateMatch(await body(req), roster(root), stages(root).map((s) => s.id));
+        if (tournaments.active) throw new Error("a tournament is running; stop it first");
         return json(res, 200, runner.start(request));
       }
       if (url.pathname === "/api/stop" && req.method === "POST") return json(res, 200, { stopped: runner.stop() });
-      if (url.pathname === "/api/status") return json(res, 200, runner.status());
+      if (url.pathname === "/api/status") return json(res, 200, { ...runner.status(), tournament: tournaments.status() });
       if (url.pathname === "/api/results") {
         const all = results(runner.logRoot);
         return json(res, 200, { battles: all.slice(0, 100), elo: elo(all) });

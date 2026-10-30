@@ -16,6 +16,16 @@ npm run setup        # http://127.0.0.1:8798 (--port N, or $PORT)
 `--log battle-logs/<id> --quit`, and reads that folder's `live.json`, which `main.ts` rewrites
 every second and on every event. Bound to 127.0.0.1 only.
 
+Tournaments (`src/tournament.ts`): `POST /api/tournament` with `{name, entrants: [{fighter,
+spec}], legs: 1|2, stage: <id>|"rotate", ...the match settings}` schedules a round robin and
+plays it through the same runner, one match after another (two seconds between matches);
+`/api/tournament?id=` returns the fixtures and standings, `/api/tournaments` lists them,
+`POST /api/tournament/stop` ends the match in progress and skips the rest. `/api/status`
+carries `tournament` while one runs, and `POST /api/match` is refused meanwhile. Each
+tournament is saved as `battle-logs/tournaments/<id>.json`; one the server was restarted
+under is left as it was (its unplayed fixtures are not resumed). A match that exits without a
+`battle.json` is marked failed and the tournament goes on.
+
 ## Run a match
 
 ```bash
@@ -78,7 +88,7 @@ same table as Outpost War's).
 ## Checks
 
 ```bash
-npm test            # 24 tests: prompt text, plan validation, the fake, the link over a socket, coach cadence/cap/errors, logs, CLI
+npm test            # 45 tests: prompt text, plan validation, the fake, the link over a socket, coach cadence/cap/errors, logs, CLI, the setup API, modes, tournaments
 npm run typecheck
 ```
 
@@ -93,4 +103,6 @@ src/prompt.ts  system prompt, turn message, tools, plan validation
 src/coach.ts   one side's coach: cadence, triggers, tool calls to frames, budget
 src/log.ts     battle logs
 src/main.ts    CLI, game launch, status, result
+src/setup.ts   the setup page's server: roster, keys, models, the match runner, results, Elo
+src/tournament.ts  round robins: schedule, fixtures, standings, the tournament runner
 ```

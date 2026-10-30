@@ -144,11 +144,37 @@ video { width: 100%; max-width: 720px; border-radius: 6px; border: 1px solid var
       <span class="msg" id="match-msg"></span>
     </div>
   </section>
+
+  <section class="step">
+    <h2><span class="n">4</span> Tournament <small>a round robin between entrants, one match after another</small></h2>
+    <div class="note">An entrant is a fighter and the model that coaches it. Set one up in a corner card above and add it; the same fighter may enter with different models. Budget, pace, effort, mode, seed and recording are taken from step 3 when the tournament starts.</div>
+    <div class="buttons">
+      <button id="t-add-p1">Add corner 1</button>
+      <button id="t-add-p2">Add corner 2</button>
+      <span class="msg" id="t-entrants-msg"></span>
+    </div>
+    <div class="table"><table id="t-entrants"><thead><tr><th>#</th><th>Fighter</th><th>Model</th><th></th></tr></thead><tbody></tbody></table></div>
+    <div class="row">
+      <label>Name <input id="t-name" placeholder="optional" maxlength="60"></label>
+      <label>Legs <select id="t-legs"><option value="1">each pair meets once</option><option value="2">twice, corners swapped</option></select></label>
+      <label>Stage <select id="t-stage"></select></label>
+    </div>
+    <div class="buttons">
+      <button class="primary" id="t-start">Start tournament</button>
+      <button id="t-stop" disabled>Stop tournament</button>
+      <span class="msg" id="t-msg"></span>
+    </div>
+    <div id="t-board" hidden class="board">
+      <div class="score" style="grid-template-columns: 1fr auto"><div class="status off" id="t-status">—</div><label style="min-width:220px">Show <select id="t-pick"></select></label></div>
+      <div class="table"><table id="t-standings"><thead><tr><th>#</th><th>Entrant</th><th class="num">P</th><th class="num">W</th><th class="num">D</th><th class="num">L</th><th class="num">Rounds</th><th class="num">Pts</th><th class="num">Spent</th></tr></thead><tbody></tbody></table></div>
+      <details><summary class="note">Fixtures</summary><div class="table"><table id="t-fixtures"><thead><tr><th>#</th><th>Corner 1</th><th>Corner 2</th><th>Stage</th><th>Result</th><th>Logs</th></tr></thead><tbody></tbody></table></div></details>
+    </div>
+  </section>
 </div>
 
 <div class="col">
   <section class="step">
-    <h2><span class="n">4</span> Live <small id="live-sub">no match running</small></h2>
+    <h2><span class="n">5</span> Live <small id="live-sub">no match running</small></h2>
     <div class="board">
       <div class="status off" id="status">Idle</div>
       <div class="score">
@@ -169,7 +195,7 @@ video { width: 100%; max-width: 720px; border-radius: 6px; border: 1px solid var
   </section>
 
   <section class="step">
-    <h2><span class="n">5</span> Results <small>every finished match, newest first</small></h2>
+    <h2><span class="n">6</span> Results <small>every finished match, newest first</small></h2>
     <div class="table"><table id="results"><thead><tr><th>When</th><th>Corner 1</th><th>Corner 2</th><th>Stage</th><th>Mode</th><th>Winner</th><th class="num">Rounds</th><th class="num">Cost</th><th>Logs</th></tr></thead><tbody></tbody></table></div>
     <h2 style="font-size:16px"><span class="n">↕</span> Elo by model <small>K 32 from 1000, draws count half</small></h2>
     <div class="table"><table id="elo"><thead><tr><th>Model</th><th class="num">Rating</th><th class="num">W</th><th class="num">L</th><th class="num">D</th><th class="num">Spent</th></tr></thead><tbody></tbody></table></div>
@@ -256,8 +282,103 @@ async function init() {
   $("cap").value = last.cap ?? 1;
   $("cadence").value = last.cadence ?? 2000;
   renderKeys(setup.keys);
+  const cup = stored("tournament", { entrants: [], name: "", legs: "1", stage: setup.tournament.rotate });
+  entrants = cup.entrants || [];
+  renderEntrants();
+  $("t-name").value = cup.name || "";
+  $("t-legs").value = cup.legs || "1";
+  fill($("t-stage"), [{ value: setup.tournament.rotate, label: "rotate through every stage" }, ...setup.stages.map((s) => ({ value: s.id, label: s.name }))], cup.stage || setup.tournament.rotate);
   await refreshResults();
+  await refreshTournaments();
   poll();
+}
+
+// ---- tournament ----
+let entrants = [];
+let shownTournament = null; // id of the tournament on the board
+function fighterName(id) {
+  const f = (setup?.roster || []).find((x) => x.id === id);
+  return f ? f.name : id;
+}
+function renderEntrants() {
+  $("t-entrants").querySelector("tbody").innerHTML = entrants.map((e, i) => `<tr><td class="num">${i + 1}</td><td>${esc(fighterName(e.fighter))}</td><td><span class="key-hint">${esc(e.spec)}</span></td><td><button data-remove="${i}">Remove</button></td></tr>`).join("") || `<tr><td colspan="4" class="note">No entrants yet: add corner 1 and corner 2 to begin.</td></tr>`;
+  $("t-start").disabled = entrants.length < 2 || !!(lastStatus && (lastStatus.running || (lastStatus.tournament && lastStatus.tournament.active)));
+}
+function addEntrant(side) {
+  const msg = $("t-entrants-msg");
+  const e = { fighter: $(side + "-fighter").value, spec: spec(side) };
+  msg.className = "msg";
+  if (entrants.some((x) => x.fighter === e.fighter && x.spec === e.spec)) { msg.className = "msg err"; msg.textContent = `${fighterName(e.fighter)} with ${e.spec} is already in`; return; }
+  if (entrants.length >= setup.tournament.maxEntrants) { msg.className = "msg err"; msg.textContent = `at most ${setup.tournament.maxEntrants} entrants`; return; }
+  entrants.push(e);
+  msg.textContent = `${entrants.length} entrants · ${pairs(entrants.length)} matches per leg`;
+  renderEntrants();
+  rememberTournament();
+}
+const pairs = (n) => (n * (n - 1)) / 2;
+function rememberTournament() {
+  remember("tournament", { entrants, name: $("t-name").value, legs: $("t-legs").value, stage: $("t-stage").value });
+}
+$("t-add-p1").addEventListener("click", () => addEntrant("p1"));
+$("t-add-p2").addEventListener("click", () => addEntrant("p2"));
+$("t-entrants").addEventListener("click", (ev) => {
+  const b = ev.target.closest("button[data-remove]");
+  if (!b) return;
+  entrants.splice(Number(b.dataset.remove), 1);
+  $("t-entrants-msg").textContent = "";
+  renderEntrants();
+  rememberTournament();
+});
+for (const id of ["t-name", "t-legs", "t-stage"]) $(id).addEventListener("change", rememberTournament);
+$("t-start").addEventListener("click", async () => {
+  const msg = $("t-msg");
+  msg.className = "msg";
+  const request = {
+    name: $("t-name").value, entrants, legs: $("t-legs").value, stage: $("t-stage").value,
+    seed: $("seed").value, cap: $("cap").value, cadence: $("cadence").value, effort: $("effort").value, capture: $("capture").checked, record: $("record").checked, mode: $("mode").value, beatTicks: $("beat-ticks").value,
+  };
+  try {
+    const r = await api("/api/tournament", request);
+    rememberTournament();
+    msg.className = "msg ok";
+    msg.textContent = `started: ${r.fixtures} matches`;
+    shownTournament = r.id;
+    $("result").hidden = true;
+    await refreshTournaments();
+    poll(true);
+  } catch (e) {
+    msg.className = "msg err";
+    msg.textContent = e.message;
+  }
+});
+$("t-stop").addEventListener("click", async () => {
+  await api("/api/tournament/stop", {});
+  $("t-msg").className = "msg";
+  $("t-msg").textContent = "stopping: the match in progress ends, the rest are skipped";
+});
+$("t-pick").addEventListener("change", () => { shownTournament = $("t-pick").value; showTournament(shownTournament); });
+async function refreshTournaments() {
+  const { tournaments } = await api("/api/tournaments");
+  $("t-board").hidden = tournaments.length === 0;
+  if (!tournaments.length) return;
+  if (!shownTournament || !tournaments.some((t) => t.id === shownTournament)) shownTournament = tournaments[0].id;
+  fill($("t-pick"), tournaments.map((t) => ({ value: t.id, label: `${t.at.replace("T", " ").slice(0, 16)} · ${t.name} · ${t.done}/${t.total}${t.finishedAt ? "" : " · running"}` })), shownTournament);
+  await showTournament(shownTournament);
+}
+async function showTournament(id) {
+  const t = await api(`/api/tournament?id=${encodeURIComponent(id)}`);
+  const running = t.fixtures.find((f) => f.status === "running");
+  const done = t.fixtures.filter((f) => f.status !== "pending" && f.status !== "running").length;
+  const status = $("t-status");
+  status.className = "status " + (t.finishedAt ? (t.stopped ? "error" : "over") : "live");
+  status.textContent = t.finishedAt ? `${t.name}: ${t.stopped ? "stopped" : "finished"}, ${t.fixtures.filter((f) => f.status === "done").length} of ${t.fixtures.length} matches played` : `${t.name}: match ${running ? running.n : done + 1} of ${t.fixtures.length}`;
+  const label = (i) => `${esc(fighterName(t.request.entrants[i].fighter))} · <span class="key-hint">${esc(t.request.entrants[i].spec)}</span>`;
+  $("t-standings").querySelector("tbody").innerHTML = t.standings.map((r, i) => `<tr><td class="num">${i + 1}</td><td>${esc(r.fighter)} · <span class="key-hint">${esc(r.model)}</span></td><td class="num">${r.played}</td><td class="num">${r.wins}</td><td class="num">${r.draws}</td><td class="num">${r.losses}</td><td class="num">${r.roundsFor}–${r.roundsAgainst}</td><td class="num">${r.points}</td><td class="num">${usd(r.usd)}</td></tr>`).join("");
+  $("t-fixtures").querySelector("tbody").innerHTML = t.fixtures.map((f) => {
+    const result = f.status === "done" ? (f.winner ? `${esc(fighterName(t.request.entrants[f[f.winner]].fighter))} wins ${(f.wins || []).join("–")}` : `draw ${(f.wins || []).join("–")}`) : f.status === "failed" ? `failed: ${esc(f.reason || "")}` : f.status;
+    const logs = f.matchId && f.status !== "pending" ? (f.status === "done" ? ["p1.md", "p2.md", "battle.json"] : ["p1.md", "p2.md"]).map((n) => `<a href="/api/log?id=${esc(f.matchId)}&file=${n}" target="_blank">${n}</a>`).join(" ") : "";
+    return `<tr><td class="num">${f.n}</td><td>${label(f.p1)}</td><td>${label(f.p2)}</td><td>${esc(f.stage)}</td><td>${result}</td><td>${logs}</td></tr>`;
+  }).join("");
 }
 
 $("key-save").addEventListener("click", async () => {
@@ -306,17 +427,27 @@ $("stop").addEventListener("click", async () => {
 
 let pollTimer = null;
 let lastResultId = null;
+let lastStatus = null;
+let lastCupKey = "";
 async function poll(now) {
   clearTimeout(pollTimer);
   try {
     const s = await api("/api/status");
+    lastStatus = s;
     render(s);
     if (s.match && s.match.exit != null && s.match.id !== lastResultId) {
       lastResultId = s.match.id;
       await refreshResults();
       if (s.match.request.capture) showCaptures(s.match.id);
     }
-    pollTimer = setTimeout(poll, s.running || (s.live && s.live.video && !s.live.video.ready) ? 1000 : 4000);
+    const t = s.tournament;
+    const cupKey = t ? `${t.id}:${t.done}:${t.current}:${t.active}` : "";
+    if (cupKey !== lastCupKey) {
+      lastCupKey = cupKey;
+      if (t && (!shownTournament || shownTournament === t.id || t.active)) shownTournament = t.id;
+      await refreshTournaments();
+    }
+    pollTimer = setTimeout(poll, s.running || (t && t.active) || (s.live && s.live.video && !s.live.video.ready) ? 1000 : 4000);
   } catch (e) {
     $("status").className = "status error";
     $("status").textContent = "setup server unreachable";
@@ -324,15 +455,18 @@ async function poll(now) {
   }
 }
 function render(s) {
-  $("start").disabled = s.running;
-  $("stop").disabled = !s.running;
+  const cup = s.tournament && s.tournament.active ? s.tournament : null;
+  $("start").disabled = s.running || !!cup;
+  $("stop").disabled = !s.running || !!cup;
+  $("t-start").disabled = entrants.length < 2 || s.running || !!cup;
+  $("t-stop").disabled = !cup;
   const live = s.live;
   const status = $("status");
-  if (!s.match) { status.className = "status off"; status.textContent = "Idle"; $("live-sub").textContent = "no match running"; return; }
+  if (!s.match) { status.className = "status off"; status.textContent = cup ? "Tournament: next match starting" : "Idle"; $("live-sub").textContent = "no match running"; return; }
   const phase = live ? live.phase : "starting";
   if (s.match.exit != null && (!live || live.phase !== "over")) { status.className = "status error"; status.textContent = `adapter exited (${s.match.exit})`; }
   else { status.className = "status " + (phase === "live" ? "live" : phase === "over" ? "over" : "off"); status.textContent = { waiting: "Waiting for the game", starting: "Starting", between: "Between rounds", live: "Round live", over: "Match over" }[phase] || phase; }
-  $("live-sub").textContent = `${s.match.id}${s.match.request && s.match.request.mode && s.match.request.mode !== "coach" ? ` · ${s.match.request.mode === "beat" ? "beat fighter" : "self-coding"}` : ""}`;
+  $("live-sub").textContent = `${s.match.id}${s.match.request && s.match.request.mode && s.match.request.mode !== "coach" ? ` · ${s.match.request.mode === "beat" ? "beat fighter" : "self-coding"}` : ""}${cup && cup.current ? ` · ${cup.name}, match ${cup.current} of ${cup.total}` : ""}`;
   $("console").textContent = (s.console || []).join("\n");
   if (!live || !live.hello) return;
   names = { p1: live.hello.p1.name, p2: live.hello.p2.name };
