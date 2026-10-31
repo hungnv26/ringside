@@ -68,6 +68,7 @@ var _ring := []
 var _trace_left := 0
 var _tick := 0
 var close_camera: Camera3D
+var wide_camera := false # --wide: both fighters centred (the framing of the first reels)
 
 
 func _initialize() -> void:
@@ -82,7 +83,8 @@ func _initialize() -> void:
 		trace_change = args[args.find("--trace-change") + 1]
 	if args.has("--trace"):
 		trace_from = int(args[args.find("--trace") + 1])
-	var close := args.has("--close")
+	var close := args.has("--close") or args.has("--wide")
+	wide_camera = args.has("--wide")
 	var only := ""
 	if args.has("--only"):
 		only = args[args.find("--only") + 1]
@@ -164,7 +166,7 @@ func step(n := 1) -> void:
 
 ## Side on to the line between the fighters, on the game camera's side of it.
 func _aim_close_camera() -> void:
-	var mid := p1.global_position.lerp(p2.global_position, 0.12)
+	var mid := p1.global_position.lerp(p2.global_position, 0.5 if wide_camera else 0.12)
 	var across := (p2.global_position - p1.global_position)
 	across.y = 0.0
 	var side := Vector3.UP.cross(across.normalized()) if across.length() > 0.01 else Vector3.BACK
@@ -172,7 +174,7 @@ func _aim_close_camera() -> void:
 	if side.dot(game_camera.global_position - mid) < 0.0:
 		side = -side
 	var target := mid + Vector3.UP * 1.0
-	close_camera.global_position = target + side * 3.3 + Vector3.UP * 0.1
+	close_camera.global_position = target + side * (3.6 if wide_camera else 3.3) + Vector3.UP * (0.15 if wide_camera else 0.1)
 	close_camera.look_at(target)
 
 
