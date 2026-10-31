@@ -47,6 +47,7 @@ alt_outfit_colors = PackedColorArray(0.8, 0.79, 0.75, 1, 0.08, 0.08, 0.09, 1, 0.
 detailed_textures = true
 realistic_shading = true
 victory_animations = Array[StringName]([&"fight/victory_bow", &"fight/victory_fist_pump"])
+getup_animation = &"fight/getup_kip"
 placeholder_color = Color(0.2, 0.65, 0.5, 1)
 intro_animation = &"fight/intro_wing_chun"
 intro_lines = PackedStringArray("Strike first. I\'ll answer.", "Water takes the shape of your attack.", "Be patient. I will be.")

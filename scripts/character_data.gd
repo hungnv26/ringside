@@ -44,6 +44,8 @@ extends Resource
 ## The fighting stance looped while standing and moving (the feet are stepped by
 ## FighterMotion): fight/guard (calm), fight/guard_bounce or fight/guard_heavy.
 @export var stance_animation: StringName = &"fight/guard"
+## How the fighter gets up from a knockdown: fight/getup (a push-up) or fight/getup_kip.
+@export var getup_animation: StringName = &"fight/getup"
 ## Tint used for graybox stand-ins and UI until real models/portraits exist.
 @export var placeholder_color: Color = Color.WHITE
 

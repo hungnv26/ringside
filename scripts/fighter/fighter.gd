@@ -1374,7 +1374,10 @@ func _animation_request(frozen: bool) -> Array:
 		State.KNOCKDOWN:
 			return [&"fight/lying", -1.0, 1.0]
 		State.GETUP:
-			return [&"fight/getup", lerpf(0.35, model.clip_length(&"fight/getup"), f / GETUP_FRAMES), 1.0]
+			# The push-up starts 0.35 s in (the library clip opens with a pause on the floor).
+			var getup := data.getup_animation
+			var from := 0.35 if getup == &"fight/getup" else 0.0
+			return [getup, lerpf(from, model.clip_length(getup), f / GETUP_FRAMES), 1.0]
 		State.THROW:
 			# Grab connected: play through the heave. Whiffed: hold the reach.
 			if grab_move and grab_move.reversal:

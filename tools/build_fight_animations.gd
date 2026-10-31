@@ -65,6 +65,7 @@ func _initialize() -> void:
 	lib.add_animation("lying", build_lying(1.0))
 	lib.add_animation("ko_lying", build_lying(0.35))
 	lib.add_animation("getup", build_getup())
+	lib.add_animation("getup_kip", build_kip_up())
 	lib.add_animation("throw_break", build_throw_break())
 	lib.add_animation("front_kick", build_front_kick())
 	lib.add_animation("high_kick", build_high_kick())
@@ -329,6 +330,58 @@ func build_getup() -> Animation:
 		t += 1.0 / SAMPLE_FPS
 	keys.append([src.length + 0.2, guard])
 	return make_animation(keys, false)
+
+
+## Rotates a whole pose rigidly (every bone hangs off the pelvis) by `degrees` about a
+## model-space axis through `pivot`.
+func turn_body(pose: Dictionary, pivot: Vector3, axis: Vector3, degrees: float) -> void:
+	var q := Quaternion(axis.normalized(), deg_to_rad(degrees))
+	var pelvis := skeleton.find_bone("pelvis")
+	var root_basis := global_transform(pose, skeleton.get_bone_parent(pelvis)).basis
+	var at := global_origin(pose, "pelvis")
+	var moved := pivot + q * (at - pivot)
+	move_bone(pose, "pelvis", moved - at)
+	_apply_global_rotation(pose, pelvis, q)
+
+
+## Kip-up, for the agile fighters: from the back, knees snap to the chest and the hands go
+## by the head; the hips roll up over the shoulders; the legs whip forward and down as the
+## back arches and the hands push, flipping the body up; it lands crouched on its feet and
+## rises into the guard (1 s, played over the getup frames).
+func build_kip_up() -> Animation:
+	var knock := ual2.get_animation("Hit_Knockback")
+	var down := sample(knock, knock.length)
+	var shoulders := (global_origin(down, "upperarm_l") + global_origin(down, "upperarm_r")) * 0.5
+	var curl := duplicate_pose(down)
+	for side in ["l", "r"]:
+		var x := 0.14 if side == "l" else -0.14
+		var hip := global_origin(curl, "thigh_" + side)
+		solve_ik(curl, "thigh_" + side, "calf_" + side, "foot_" + side, hip + Vector3(x * 0.3, 0.28, 0.12), Vector3(0, 1, 0.3))
+		reach_arm(curl, side, shoulders + Vector3(x * 1.6, 0.04, -0.12))
+	rotate_bone(curl, "neck_01", Vector3.RIGHT, 18.0) # chin tucked
+	var roll := duplicate_pose(curl)
+	turn_body(roll, shoulders, Vector3.RIGHT, -75.0) # hips up over the shoulders
+	for side in ["l", "r"]:
+		var x := 0.14 if side == "l" else -0.14
+		reach_arm(roll, side, shoulders + Vector3(x * 1.6, 0.02, -0.1))
+	var whip := duplicate_pose(down)
+	turn_body(whip, shoulders, Vector3.RIGHT, -25.0)
+	lean(whip, -18.0, 0.0) # back arched as the legs drive down
+	for side in ["l", "r"]:
+		var x := 0.14 if side == "l" else -0.14
+		var hip := global_origin(whip, "thigh_" + side)
+		solve_ik(whip, "thigh_" + side, "calf_" + side, "foot_" + side, hip + Vector3(x * 0.2, -0.25, 0.55), Vector3(0, 1, 0))
+		reach_arm(whip, side, shoulders + Vector3(x * 1.8, -0.02, -0.05))
+	var land := duplicate_pose(crouch)
+	move_bone(land, "pelvis", Vector3(0, -0.08, 0.04))
+	lean(land, -14.0, 0.0)
+	for side in ["l", "r"]:
+		var x := 1.0 if side == "l" else -1.0
+		aim(land, "upperarm_" + side, "lowerarm_" + side, Vector3(x * 0.4, -0.6, 0.7)) # arms forward for balance
+		aim(land, "lowerarm_" + side, "hand_" + side, Vector3(x * 0.1, -0.2, 1.0))
+	var rise := blend_pose(land, guard, 0.6)
+	return make_animation([[0.0, down], [0.16, curl], [0.34, roll], [0.48, whip], [0.62, land],
+		[0.8, rise], [1.0, guard]], false)
 
 
 ## Breaking a throw: both arms drive out through the grip, the body leans away, then the
