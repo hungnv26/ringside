@@ -36,6 +36,24 @@ const WEIGHT_SPEED := 9.0 # how fast the footwork blends in and out (1/s)
 var mode := Mode.OFF
 var frozen := false ## hitstop: hold everything where it is
 var floor_y := 0.0
+## Phase 3: where to look (world; usually the opponent's head) and how much (0 = the clip's own).
+var look_target := Vector3.ZERO
+var look_weight := 0.0
+## 0 fresh .. 1 nearly out: deeper, quicker breathing and a lower guard in neutral.
+var fatigue := 0.0
+var neutral := false ## standing or moving in guard (fatigue shows only then)
+
+## Head tracking: the share of the turn each bone takes, how far, how fast.
+const LOOK_CHAIN := [["spine_03", 0.15], ["neck_01", 0.4], ["Head", 1.0]]
+const LOOK_LIMIT := deg_to_rad(55.0)
+const LOOK_SPEED := deg_to_rad(320.0) # the gaze direction turns at most this fast
+## Hip weight: the torso tilts into acceleration on a spring (rocks back when stopping).
+const LEAN_PER_ACCEL := 0.35 # degrees per m/s²
+const LEAN_MAX := 9.0
+const LEAN_STIFFNESS := 160.0
+const LEAN_DAMPING := 16.0
+const DIP_STIFFNESS := 220.0
+const DIP_DAMPING := 18.0
 
 var _skeleton: Skeleton3D
 var _bones := {} # name -> index
@@ -48,6 +66,18 @@ var _pelvis_drop := 0.0
 var _time := 0.0
 ## Diagnostics for tools/check_motion.gd: the world position of each foot after solving.
 var solved_feet := {}
+
+var _look_dir := Vector3.ZERO # smoothed gaze direction (world), zero until first used
+var _look_amount := 0.0
+var _prev_velocity := Vector3.ZERO
+var _lean := Vector3.ZERO # degrees about the world axis it points along (spring state)
+var _lean_vel := Vector3.ZERO
+var _dip := 0.0 # metres the pelvis sinks (spring state)
+var _dip_vel := 0.0
+var _was_airborne := false
+var _breath := 0.0 # phase of the extra fatigue breathing
+## Secondary motion (spring bones on hair and belt tails), built by SecondaryMotion.
+var springs: SpringBoneSimulator3D
 
 ## Transitions (phase 2): inertialization. When the clip changes, the new clip plays at
 ## once and the difference from the pose shown last is added on top, decaying to nothing
@@ -114,11 +144,13 @@ func _blend_transition(dt: float) -> void:
 			var off := (_last_rot[i] as Quaternion) * now.inverse()
 			if off.w < 0.0:
 				off = -off
-			var x0 := off.get_angle()
-			if x0 < 1e-4:
+			var xyz := Vector3(off.x, off.y, off.z)
+			var sin_half := xyz.length()
+			if sin_half < 1e-5:
 				_offsets[i] = null
 				continue
-			var axis := off.get_axis().normalized()
+			var axis := xyz / sin_half
+			var x0 := 2.0 * atan2(sin_half, off.w)
 			var prev := (_prev_rot[i] as Quaternion) * now.inverse()
 			if prev.w < 0.0:
 				prev = -prev
@@ -181,11 +213,19 @@ func _bone(bone_name: String) -> int:
 	return _bones[bone_name]
 
 
+## Cost of the layer, for tools/check_motion.gd: microseconds spent in solve() and calls.
+static var cost_usec := 0
+static var cost_calls := 0
+
+
 func _process_modification_with_delta(delta: float) -> void:
 	_skeleton = get_skeleton()
 	if _skeleton == null:
 		return
+	var started := Time.get_ticks_usec()
 	solve(delta)
+	cost_usec += Time.get_ticks_usec() - started
+	cost_calls += 1
 
 
 ## Everything below works in world space for plants and skeleton space for bones.
@@ -198,6 +238,8 @@ func solve(delta: float) -> void:
 	_time += dt
 	_blend_transition(dt)
 	_keep_feet_above_floor()
+	_body_dynamics(dt)
+	_look(delta)
 
 	# Body velocity from how the model moved (pushback, dashes, anything).
 	if _has_last and root_world.distance_to(_last_root) > TELEPORT:
@@ -218,11 +260,19 @@ func solve(delta: float) -> void:
 		_record_feet()
 		return
 
-	# Where the clip puts each foot this frame (world).
+	# Where the clip puts each foot this frame (world), and how high its sole is off the floor.
 	var anim := {}
+	var sole := {}
+	var scale := xf.basis.get_scale().y
 	for side: String in SIDES:
 		var g := sk.get_bone_global_pose(_bone("foot_" + side))
 		anim[side] = Transform3D(xf.basis.orthonormalized() * g.basis.orthonormalized(), xf * g.origin)
+		var h := INF
+		for part: String in ["foot_", "ball_"]:
+			var bone := _bone(part + side)
+			var y := (xf * sk.get_bone_global_pose(bone).origin).y
+			h = minf(h, y - floor_y - (sk.get_bone_global_rest(bone).origin.y + SOLE_BELOW_ORIGIN) * scale)
+		sole[side] = h
 
 	var speed := _velocity.length()
 	var step_time := lerpf(STEP_TIME_SLOW, STEP_TIME_FAST, clampf((speed - 1.2) / 3.0, 0.0, 1.0))
@@ -233,12 +283,12 @@ func solve(delta: float) -> void:
 		foot.rest = maxf(foot.rest - dt, 0.0)
 		if not foot.planted and not foot.swinging:
 			# Following the clip (or just switched on): plant where it comes down.
-			if not foot.lifted or a.origin.y < _clip_floor(side, a) + LAND_HEIGHT:
+			if not foot.lifted or float(sole[side]) < LAND_HEIGHT:
 				_plant(foot, a)
 			continue
 		if foot.planted:
 			# The clip lifting the foot (a kick, a jump squat's push) takes it.
-			if a.origin.y > foot.pos.y + LIFT_HEIGHT:
+			if float(sole[side]) > LIFT_HEIGHT:
 				foot.planted = false
 				foot.lifted = true
 				continue
@@ -346,11 +396,113 @@ func _reset_feet() -> void:
 	for side: String in SIDES:
 		_feet[side] = _new_foot()
 	_velocity = Vector3.ZERO
+	_prev_velocity = Vector3.ZERO
+	_lean = Vector3.ZERO
+	_lean_vel = Vector3.ZERO
+	_dip = 0.0
+	_dip_vel = 0.0
+	if springs:
+		springs.reset()
 
 
-## Height the clip's foot has when it stands on the floor (its planted height).
-func _clip_floor(_side: String, a: Transform3D) -> float:
-	return minf(a.origin.y, floor_y + 0.12)
+## A jolt that sinks the pelvis (landing, a hit): metres per second downward.
+func add_dip(speed: float) -> void:
+	_dip_vel += speed
+
+
+## Weight: the torso tilts into acceleration and rocks back when the body stops, the pelvis
+## sinks on landing, and a tired fighter breathes harder with the guard lower.
+func _body_dynamics(dt: float) -> void:
+	if dt <= 0.0:
+		return
+	var sk := _skeleton
+	var xf := sk.global_transform
+	var airborne := mode == Mode.OFF and xf.origin.y > floor_y + 0.02
+	if _was_airborne and not airborne and mode != Mode.OFF:
+		add_dip(0.9)
+	_was_airborne = airborne
+	var accel := (_velocity - _prev_velocity) / dt
+	_prev_velocity = _velocity
+	var on_ground := mode != Mode.OFF
+	var target := Vector3.ZERO
+	if on_ground:
+		target = accel.limit_length(LEAN_MAX / LEAN_PER_ACCEL) * LEAN_PER_ACCEL
+	_lean_vel += (LEAN_STIFFNESS * (target - _lean) - LEAN_DAMPING * _lean_vel) * dt
+	_lean += _lean_vel * dt
+	_dip_vel += (-DIP_STIFFNESS * _dip - DIP_DAMPING * _dip_vel) * dt
+	_dip = clampf(_dip + _dip_vel * dt, -0.03, 0.12)
+	var inv_basis := xf.basis.orthonormalized().inverse()
+	if _lean.length() > 0.05:
+		# Tilt toward the acceleration: about the horizontal axis across it.
+		var axis_world := Vector3.UP.cross(_lean.normalized())
+		var axis := (inv_basis * axis_world).normalized()
+		var degrees := _lean.length()
+		_rotate_global(_bone("spine_01"), axis, deg_to_rad(degrees * 0.6))
+		_rotate_global(_bone("spine_02"), axis, deg_to_rad(degrees * 0.4))
+	if absf(_dip) > 0.0005:
+		var pelvis := _bone("pelvis")
+		var up_local: Vector3 = sk.get_bone_global_pose(sk.get_bone_parent(pelvis)).basis.inverse() * Vector3.UP
+		sk.set_bone_pose_position(pelvis, sk.get_bone_pose_position(pelvis) - up_local * (_dip / xf.basis.get_scale().y))
+	if neutral and fatigue > 0.01:
+		_breath += dt * TAU / lerpf(1.6, 0.9, fatigue)
+		var heave := (0.5 + 0.5 * sin(_breath)) * fatigue
+		_rotate_global(_bone("spine_03"), Vector3.RIGHT, deg_to_rad(-2.2 * heave))
+		_rotate_global(_bone("clavicle_l"), Vector3.BACK, deg_to_rad(2.0 * heave))
+		_rotate_global(_bone("clavicle_r"), Vector3.BACK, deg_to_rad(-2.0 * heave))
+		for side: String in SIDES:
+			_rotate_global(_bone("upperarm_" + side), Vector3.RIGHT, deg_to_rad(8.0 * fatigue))
+			_rotate_global(_bone("lowerarm_" + side), Vector3.RIGHT, deg_to_rad(5.0 * fatigue))
+
+
+## The head (and a little of the neck and upper spine) turns toward look_target, the turn
+## limited and its direction moving at a human speed.
+func _look(delta: float) -> void:
+	var sk := _skeleton
+	var xf := sk.global_transform
+	_look_amount = move_toward(_look_amount, look_weight, delta * 4.0)
+	if _look_amount <= 0.001:
+		_look_dir = Vector3.ZERO
+		return
+	var head := _bone("Head")
+	var head_world := xf * sk.get_bone_global_pose(head).origin
+	var want := look_target - head_world
+	if want.length_squared() < 0.01:
+		return
+	want = want.normalized()
+	if _look_dir == Vector3.ZERO:
+		_look_dir = want
+	else:
+		var angle := _look_dir.angle_to(want)
+		if angle > 1e-4:
+			var axis := _look_dir.cross(want)
+			if axis.length_squared() > 1e-10:
+				_look_dir = _look_dir.rotated(axis.normalized(), minf(angle, LOOK_SPEED * delta)).normalized()
+			else:
+				_look_dir = want
+	var inv_basis := xf.basis.orthonormalized().inverse()
+	var to_target := (inv_basis * _look_dir).normalized()
+	# The face's direction in the head bone's own frame, from the rest pose (+Z is forward).
+	var face_local := sk.get_bone_global_rest(head).basis.orthonormalized().inverse() * Vector3.BACK
+	for link: Array in LOOK_CHAIN:
+		var bone := _bone(link[0])
+		var face := (sk.get_bone_global_pose(head).basis.orthonormalized() * face_local).normalized()
+		var angle := face.angle_to(to_target)
+		if angle < 1e-4:
+			break
+		var axis := face.cross(to_target)
+		if axis.length_squared() < 1e-10:
+			break
+		var allowed := minf(angle, LOOK_LIMIT)
+		_rotate_global(bone, axis.normalized(), allowed * float(link[1]) * _look_amount)
+
+
+## Rotates a bone (and so its children) by `angle` about a skeleton-space axis.
+func _rotate_global(bone: int, axis: Vector3, angle: float) -> void:
+	var sk := _skeleton
+	var parent_bone := sk.get_bone_parent(bone)
+	var parent := sk.get_bone_global_pose(parent_bone).basis.orthonormalized().get_rotation_quaternion() if parent_bone >= 0 else Quaternion.IDENTITY
+	var global := sk.get_bone_global_pose(bone).basis.orthonormalized().get_rotation_quaternion()
+	sk.set_bone_pose_rotation(bone, (parent.inverse() * (Quaternion(axis, angle) * global)).normalized())
 
 
 ## Where a foot belongs: its place in the stance, a little ahead in the direction of travel.

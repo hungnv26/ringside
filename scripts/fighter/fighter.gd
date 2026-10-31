@@ -1198,6 +1198,11 @@ func _update_model(delta: float) -> void:
 	_shown_state = state
 	model.motion.mode = motion_mode()
 	model.motion.frozen = hitstop > 0
+	model.motion.look_weight = look_weight()
+	if opponent and opponent.model:
+		model.motion.look_target = opponent.model.eye_position() + Vector3.DOWN * 0.12
+	model.motion.fatigue = clampf(1.0 - float(health) / float(data.max_health), 0.0, 1.0)
+	model.motion.neutral = state in NEUTRAL_STATES and not victory and intro_clip == &""
 	# The face keeps moving through hitstop, so the reaction lands with the impact.
 	model.set_face(face_expression(), delta)
 	model.set_gaze(gaze_target(), delta)
@@ -1243,6 +1248,27 @@ func transition_to(next: State) -> float:
 	if intro_clip != &"" or victory:
 		return 0.35
 	return 0.15
+
+
+## Clips whose head turns away on purpose (spins): the head isn't pulled to the opponent.
+const LOOK_AWAY_CLIPS := [&"fight/spin_sweep", &"fight/tornado_kick", &"fight/hurricane_kicks",
+	&"fight/spin_back_kick", &"fight/flip_kick", &"fight/backfist"]
+
+## How much the head and upper spine track the opponent (FighterMotion.look_weight). Cosmetic.
+func look_weight() -> float:
+	if intro_clip != &"" or victory or opponent == null:
+		return 0.0
+	match state:
+		State.IDLE, State.WALK_FWD, State.WALK_BACK, State.CROUCH, State.DASH, State.BACKDASH, \
+				State.SIDESTEP, State.BLOCKSTUN, State.JUMP_SQUAT, State.LANDING, State.TECH:
+			return 1.0
+		State.JUMP:
+			return 0.6
+		State.ATTACK:
+			return 0.0 if current_move == null or LOOK_AWAY_CLIPS.has(current_move.animation) else 0.5
+		State.THROW:
+			return 0.5
+	return 0.0
 
 
 ## Logic → how the procedural layer treats the feet (FighterMotion.Mode). Cosmetic.

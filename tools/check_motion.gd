@@ -115,6 +115,8 @@ func _initialize() -> void:
 
 	var report := _report()
 	print(report.text)
+	if FighterMotion.cost_calls > 0:
+		print("motion layer: %.0f µs per fighter per frame (%d frames)" % [float(FighterMotion.cost_usec) / FighterMotion.cost_calls, FighterMotion.cost_calls])
 	ok = report.ok
 
 	var reach := _measure_reach(roster, only)
@@ -284,12 +286,12 @@ func _sample(f: Fighter) -> void:
 		print("T%d %s clip=%s  %s" % [_tick, Fighter.State.keys()[f.state], f.model._clip, "  ".join(parts)])
 	if f == p1:
 		_tick += 1
-	if debug_feet and f == p1 and f.state in [Fighter.State.DASH, Fighter.State.BACKDASH, Fighter.State.SIDESTEP]:
+	if debug_feet and f == p1 and f.state in [Fighter.State.DASH, Fighter.State.BACKDASH, Fighter.State.SIDESTEP, Fighter.State.BLOCKSTUN]:
 		var mo := f.model.motion
 		var line := "%s f%d v=%.2f" % [Fighter.State.keys()[f.state], f.state_frame, mo._velocity.length()]
 		for side in ["l", "r"]:
 			var ft: Dictionary = mo._feet[side]
-			line += "  %s:%s%s u=%.2f lift=%s" % [side, "P" if ft.planted else "-", "S" if ft.swinging else "-", ft.u, ft.lifted]
+			line += "  %s:%s%s u=%.2f lift=%s y=%.3f" % [side, "P" if ft.planted else "-", "S" if ft.swinging else "-", ft.u, ft.lifted, (mo.solved_feet.get(side, Vector3.ZERO) as Vector3).y]
 		print(line)
 	var state_name: String = Fighter.State.keys()[f.state]
 	if not stats.has(state_name):

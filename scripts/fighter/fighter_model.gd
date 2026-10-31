@@ -183,6 +183,7 @@ func build(data: CharacterData, alt: bool = false) -> void:
 	motion = FighterMotion.new()
 	motion.name = "Motion"
 	skeleton.add_child(motion)
+	motion.springs = SecondaryMotion.add_to(skeleton)
 	_keep_materials("%s/%s/%s" % [data.id, alt, realistic])
 
 
