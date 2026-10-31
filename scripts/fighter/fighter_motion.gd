@@ -20,6 +20,7 @@ enum Mode {
 const SIDES := ["l", "r"]
 const LIFT_HEIGHT := 0.045 # clip foot this far above where it was planted: it is lifted
 const LAND_HEIGHT := 0.02
+const SWEEP_SPEED := 1.5 # m/s: an attack moving a foot this fast along the floor moves it
 const GAIT_STEP := 0.12 # metres a planted foot may lag behind its place in the stance
 const CLIP_STEP := 0.30
 const STEP_TURN := deg_to_rad(28.0) # a planted foot twisted this far off the stance steps
@@ -41,7 +42,26 @@ var look_target := Vector3.ZERO
 var look_weight := 0.0
 ## 0 fresh .. 1 nearly out: deeper, quicker breathing and a lower guard in neutral.
 var fatigue := 0.0
-var neutral := false ## standing or moving in guard (fatigue shows only then)
+var neutral := false ## standing or moving in guard (fatigue and posture show only then)
+var attacking := false ## in a low attack: a foot the clip sweeps along the floor isn't pinned
+
+## Movement character (phase 6), from CharacterData by configure().
+var stance_width := 0.0
+var posture := 0.0
+var guard_height := 0.0
+var step_tempo := 1.0
+var step_height := 1.0
+var settle := 1.0
+var _neutral_amount := 0.0
+
+
+func configure(data: CharacterData) -> void:
+	stance_width = data.stance_width
+	posture = data.posture
+	guard_height = data.guard_height
+	step_tempo = maxf(data.step_tempo, 0.3)
+	step_height = data.step_height
+	settle = maxf(data.settle, 0.3)
 
 ## Head tracking: the share of the turn each bone takes, how far, how fast.
 const LOOK_CHAIN := [["spine_03", 0.15], ["neck_01", 0.4], ["Head", 1.0]]
@@ -80,6 +100,8 @@ var _lean_vel := Vector3.ZERO
 var _dip := 0.0 # metres the pelvis sinks (spring state)
 var _dip_vel := 0.0
 var _was_airborne := false
+var _last_clip_foot := {} # side -> the clip's foot position last frame (skeleton space)
+var _clip_foot_speed := {} # side -> m/s the clip moves the foot relative to the body
 var _just_landed := false
 var _breath := 0.0 # phase of the extra fatigue breathing
 var _recoil := {} # bone name -> [angle Vector3 (deg, world axis-angle), velocity Vector3]
@@ -243,6 +265,13 @@ func solve(delta: float) -> void:
 	var target_weight := 0.0 if mode == Mode.OFF else 1.0
 	var dt := 0.0 if frozen else delta
 	_time += dt
+	# How fast the clip itself moves each foot relative to the body (before this layer
+	# touches the pose): a sweep drags a foot along the floor fast.
+	for side: String in SIDES:
+		var raw := sk.get_bone_global_pose(_bone("foot_" + side)).origin
+		var last: Vector3 = _last_clip_foot.get(side, raw)
+		_clip_foot_speed[side] = raw.distance_to(last) * xf.basis.get_scale().y / dt if dt > 0.0 else 0.0
+		_last_clip_foot[side] = raw
 	_blend_transition(dt)
 	_keep_feet_above_floor()
 	_body_dynamics(dt)
@@ -274,6 +303,7 @@ func solve(delta: float) -> void:
 	# Where the clip puts each foot this frame (world), and how high its sole is off the floor.
 	var anim := {}
 	var sole := {}
+	var sweep := {}
 	var scale := xf.basis.get_scale().y
 	for side: String in SIDES:
 		var g := sk.get_bone_global_pose(_bone("foot_" + side))
@@ -284,9 +314,10 @@ func solve(delta: float) -> void:
 			var y := (xf * sk.get_bone_global_pose(bone).origin).y
 			h = minf(h, y - floor_y - (sk.get_bone_global_rest(bone).origin.y + SOLE_BELOW_ORIGIN) * scale)
 		sole[side] = h
+		sweep[side] = _clip_foot_speed.get(side, 0.0)
 
 	var speed := _velocity.length()
-	var step_time := lerpf(STEP_TIME_SLOW, STEP_TIME_FAST, clampf((speed - 1.2) / 3.0, 0.0, 1.0))
+	var step_time := lerpf(STEP_TIME_SLOW, STEP_TIME_FAST, clampf((speed - 1.2) / 3.0, 0.0, 1.0)) / step_tempo
 	if mode == Mode.OFF:
 		# Airborne or lying: the clip has the feet (the IK fades out onto them); each foot
 		# is planted again where it next comes down.
@@ -301,16 +332,18 @@ func solve(delta: float) -> void:
 		foot.rest = maxf(foot.rest - dt, 0.0)
 		if not foot.planted and not foot.swinging:
 			# Following the clip (or just switched on): plant where it comes down.
-			if mode != Mode.OFF and (not foot.lifted or float(sole[side]) < LAND_HEIGHT):
-				_plant(foot, a)
+			var swept := attacking and float(sweep[side]) > SWEEP_SPEED
+			if mode != Mode.OFF and not swept and (not foot.lifted or float(sole[side]) < LAND_HEIGHT):
+				_plant(foot, Transform3D(a.basis, a.origin + _width_offset(side)))
 			continue
 		if foot.planted:
-			# The clip lifting the foot (a kick, a jump squat's push) takes it.
-			if float(sole[side]) > LIFT_HEIGHT:
+			# The clip lifting the foot (a kick, a jump squat's push) or sweeping it along the
+			# floor takes it.
+			if float(sole[side]) > LIFT_HEIGHT or (attacking and float(sweep[side]) > SWEEP_SPEED):
 				foot.planted = false
 				foot.lifted = true
 				continue
-			var home := _home(a, speed)
+			var home := _home(a, speed) + _width_offset(side)
 			var lag := Vector2(home.x - foot.pos.x, home.z - foot.pos.z).length()
 			var twist := _yaw_between(foot.basis, a.basis)
 			var limit := GAIT_STEP if mode == Mode.GAIT else CLIP_STEP
@@ -329,7 +362,7 @@ func solve(delta: float) -> void:
 			foot.duration = minf(foot.duration, step_time)
 			foot.u = minf(foot.u + dt / foot.duration, 1.0)
 			if foot.u >= 1.0:
-				var land: Vector3 = foot.land if foot.has("land") else _landing(a, foot, speed)
+				var land: Vector3 = foot.land if foot.has("land") else _landing(a, foot, speed) + _width_offset(side)
 				land.y = a.origin.y
 				foot.erase("land")
 				foot.swinging = false
@@ -350,12 +383,12 @@ func solve(delta: float) -> void:
 			swing_any = true
 			# The landing spot is chosen while the foot travels and fixed once it comes down.
 			if foot.u < 0.85 or not foot.has("land"):
-				foot.land = _landing(a, foot, speed)
+				foot.land = _landing(a, foot, speed) + _width_offset(side)
 			var land: Vector3 = foot.land
 			# Across in the first 85% of the step, then straight down onto the floor.
 			var e := smoothstep(0.0, 1.0, minf(foot.u / 0.85, 1.0))
 			var p: Vector3 = foot.from.lerp(land, e)
-			p.y += STEP_HEIGHT * pow(sin(PI * foot.u), 0.6) * clampf(0.4 + speed * 0.25, 0.4, 1.0)
+			p.y += STEP_HEIGHT * step_height * pow(sin(PI * foot.u), 0.6) * clampf(0.4 + speed * 0.25, 0.4, 1.0)
 			var b: Basis = (foot.from_basis as Basis).slerp(a.basis, e)
 			# Toe up a little mid-step.
 			targets[side] = Transform3D(b, p)
@@ -474,7 +507,7 @@ func _apply_recoil(dt: float) -> void:
 		var angle: Vector3 = r[0]
 		var vel: Vector3 = r[1]
 		if dt > 0.0:
-			vel += (-RECOIL_STIFFNESS * angle - RECOIL_DAMPING * vel) * dt
+			vel += (-RECOIL_STIFFNESS * settle * angle - RECOIL_DAMPING * sqrt(settle) * vel) * dt
 			angle = (angle + vel * dt).limit_length(RECOIL_MAX)
 			r[0] = angle
 			r[1] = vel
@@ -510,7 +543,7 @@ func _body_dynamics(dt: float) -> void:
 	var target := Vector3.ZERO
 	if on_ground:
 		target = accel.limit_length(LEAN_MAX / LEAN_PER_ACCEL) * LEAN_PER_ACCEL
-	_lean_vel += (LEAN_STIFFNESS * (target - _lean) - LEAN_DAMPING * _lean_vel) * dt
+	_lean_vel += (LEAN_STIFFNESS * settle * (target - _lean) - LEAN_DAMPING * sqrt(settle) * _lean_vel) * dt
 	_lean += _lean_vel * dt
 	_dip_vel += (-DIP_STIFFNESS * _dip - DIP_DAMPING * _dip_vel) * dt
 	_dip = clampf(_dip + _dip_vel * dt, -0.03, 0.12)
@@ -526,6 +559,14 @@ func _body_dynamics(dt: float) -> void:
 		var pelvis := _bone("pelvis")
 		var up_local: Vector3 = sk.get_bone_global_pose(sk.get_bone_parent(pelvis)).basis.inverse() * Vector3.UP
 		sk.set_bone_pose_position(pelvis, sk.get_bone_pose_position(pelvis) - up_local * (_dip / xf.basis.get_scale().y))
+	_neutral_amount = move_toward(_neutral_amount, 1.0 if neutral else 0.0, dt * 5.0)
+	if _neutral_amount > 0.001 and (posture != 0.0 or guard_height != 0.0):
+		var n := _neutral_amount
+		_rotate_global(_bone("spine_01"), Vector3.RIGHT, deg_to_rad(posture * 0.6 * n))
+		_rotate_global(_bone("spine_02"), Vector3.RIGHT, deg_to_rad(posture * 0.4 * n))
+		_rotate_global(_bone("neck_01"), Vector3.RIGHT, deg_to_rad(-posture * 0.7 * n)) # eyes stay level
+		for side: String in SIDES:
+			_rotate_global(_bone("upperarm_" + side), Vector3.RIGHT, deg_to_rad(-guard_height * n))
 	if neutral and fatigue > 0.01:
 		_breath += dt * TAU / lerpf(1.6, 0.9, fatigue)
 		var heave := (0.5 + 0.5 * sin(_breath)) * fatigue
@@ -591,6 +632,14 @@ func _rotate_global(bone: int, axis: Vector3, angle: float) -> void:
 ## Where a foot belongs: its place in the stance, a little ahead in the direction of travel.
 func _home(a: Transform3D, _speed: float) -> Vector3:
 	return a.origin + _velocity * 0.05
+
+
+## The fighter's own stance width, sideways from where the clip puts the foot (neutral only).
+func _width_offset(side: String) -> Vector3:
+	if mode != Mode.GAIT or stance_width == 0.0:
+		return Vector3.ZERO
+	var across := _skeleton.global_transform.basis.x.normalized() # the model's left
+	return across * (stance_width if side == "l" else -stance_width)
 
 
 func _landing(a: Transform3D, foot: Dictionary, _speed: float) -> Vector3:

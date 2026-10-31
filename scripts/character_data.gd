@@ -44,6 +44,19 @@ extends Resource
 ## The fighting stance looped while standing and moving (the feet are stepped by
 ## FighterMotion): fight/guard (calm), fight/guard_bounce or fight/guard_heavy.
 @export var stance_animation: StringName = &"fight/guard"
+## Movement character (cosmetic, read by FighterMotion; docs/movement-plan.md phase 6).
+## Metres added to each foot's distance from the centre line (wider is planted, heavier).
+@export var stance_width: float = 0.0
+## Degrees the trunk leans forward in guard (negative: upright, leaning back).
+@export var posture: float = 0.0
+## Degrees the guard is carried higher (negative: lower, looser hands).
+@export var guard_height: float = 0.0
+## Footwork rhythm: above 1 quicker steps, below 1 slower ones.
+@export var step_tempo: float = 1.0
+## How high the feet lift when stepping (1 = normal).
+@export var step_height: float = 1.0
+## How fast the body settles after a lean or a blow: above 1 snappier, below 1 heavier.
+@export var settle: float = 1.0
 ## How the fighter gets up from a knockdown: fight/getup (a push-up) or fight/getup_kip.
 @export var getup_animation: StringName = &"fight/getup"
 ## Tint used for graybox stand-ins and UI until real models/portraits exist.

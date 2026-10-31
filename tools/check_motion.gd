@@ -58,6 +58,8 @@ var pops := PackedFloat32Array() # cm/tick a bone's speed changed in the tick it
 var steady := PackedFloat32Array() # and in ticks without a change, for scale
 var _last_clip := {}
 var _last_state := {}
+var _last_pos := {}
+var _states_seen := {}
 var pops_by := {} # "FROM>TO" -> PackedFloat32Array
 var debug_feet := false
 var trace_from := -1
@@ -201,6 +203,10 @@ func fresh() -> void:
 	_prev_soles.clear()
 	_pose_history.clear()
 	await step(2)
+	# The reset lands on the first tick: start the histories after it.
+	_prev_soles.clear()
+	_pose_history.clear()
+	_last_clip.clear()
 
 
 func dist() -> float:
@@ -310,7 +316,9 @@ func _sample(f: Fighter) -> void:
 		var bone := sk.find_bone(bone_name)
 		var p := xf * sk.get_bone_global_pose(bone).origin
 		var rest_y := sk.get_bone_global_rest(bone).origin.y * scale
-		if p.y - rest_y < CONTACT_HEIGHT:
+		var side_name := String(bone_name).right(1)
+		var swept: bool = f.model.motion.attacking and not f.model.motion._feet[side_name].planted
+		if p.y - rest_y < CONTACT_HEIGHT and not swept:
 			now[bone_name] = p
 			if prev.has(bone_name) and f.hitstop == 0 and not f.frozen:
 				var q: Vector3 = prev[bone_name]
@@ -318,6 +326,17 @@ func _sample(f: Fighter) -> void:
 				if debug_feet and f == p1 and state_name == "LANDING":
 					print("  skate LANDING f%d %s %.1f cm/s" % [f.state_frame, bone_name, Vector2(p.x - q.x, p.z - q.z).length() / DT * 100.0])
 	_prev_soles[f] = now
+	# A reset (new round) teleports the fighter: start its history again.
+	var at := f.global_position
+	if _last_pos.has(f) and (_last_pos[f] as Vector3).distance_to(at) > 0.5:
+		_pose_history.erase(f)
+		_last_clip.erase(f)
+	_last_pos[f] = at
+	var ring: Array = _states_seen.get(f, [])
+	ring.append("%s/%s/f%d/h%d" % [Fighter.State.keys()[f.state], String(f.model._clip).get_file(), f.state_frame, f.hitstop])
+	if ring.size() > 6:
+		ring.pop_front()
+	_states_seen[f] = ring
 	# Held pose: nothing moved more than HELD_MOVE over the last HELD_WINDOW ticks.
 	var pose := PackedVector3Array()
 	for bone_name: StringName in POSE_BONES:
@@ -338,6 +357,15 @@ func _sample(f: Fighter) -> void:
 		(pops if changed else steady).append(jump * 100.0)
 		if changed:
 			var key := "%s>%s" % [Fighter.State.keys()[_last_state.get(f, 0)], Fighter.State.keys()[f.state]]
+			if jump > 0.3 and debug_feet:
+				var worst := 0
+				for i in pose.size():
+					var dd: Vector3 = (pose[i] - history[-2][i]) - (history[-2][i] - history[-3][i])
+					var dw: Vector3 = (pose[worst] - history[-2][worst]) - (history[-2][worst] - history[-3][worst])
+					if dd.length() > dw.length():
+						worst = i
+				print("  states: ", _states_seen.get(f, []))
+				print("POP %s %s %.1f cm/tick at %s, positions %s -> %s -> %s | phase %s frame %d hitstop %d pos %s mode %s planted %s" % [f.data.id, key, jump * 100.0, POSE_BONES[worst], history[-3][worst], history[-2][worst], pose[worst], m.phase, f.state_frame, f.hitstop, f.global_position, f.model.motion.mode, f.model.motion._feet["r"]])
 			if not pops_by.has(key):
 				pops_by[key] = PackedFloat32Array()
 			pops_by[key].append(jump * 100.0)

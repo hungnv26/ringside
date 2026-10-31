@@ -1205,6 +1205,8 @@ func _update_model(delta: float) -> void:
 		model.motion.look_target = opponent.model.eye_position() + Vector3.DOWN * 0.12
 	model.motion.fatigue = clampf(1.0 - float(health) / float(data.max_health), 0.0, 1.0)
 	model.motion.neutral = state in NEUTRAL_STATES and not victory and intro_clip == &""
+	# Sweeps and low kicks drag a foot along the floor: the motion layer mustn't pin it.
+	model.motion.attacking = state == State.ATTACK and current_move != null and current_move.hit_level == MoveData.HitLevel.LOW
 	_watch_impacts()
 	# The face keeps moving through hitstop, so the reaction lands with the impact.
 	model.set_face(face_expression(), delta)
