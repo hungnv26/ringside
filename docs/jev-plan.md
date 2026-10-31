@@ -164,18 +164,41 @@ Built, on the `jev` branch:
 - `adapter/src/probe.ts`: phase 0, runnable against the fake or Jev.
 - Tests: 70 in the adapter (22 new), 45 checks in `tests/coach_test.gd`.
 
-Not done, because no Jev or DigitalOcean key exists on this machine: every live call. The probe
-and the pilot ran with the fake, which proves the pipeline and nothing about Jev. To finish:
+Live Jev runs through TypeSafe's API (a console.typesafe.ai key in `infra/keys/jev.key`,
+`JEV_URL=https://api.typesafe.ai/v1/systemone` in the environment of the setup server or the
+CLI; the DigitalOcean key failed on tier, see Keys above). Step 2, the probe, ran on 2026-10-31
+and passes, narrowly (below). Still to do:
 
-1. Save a key as `infra/keys/jev.key` (or on the setup page under Keys, provider `jev`): a
-   DigitalOcean model access key on a Tier 3+ account, or a TypeSafe key from console.typesafe.ai
-   with `JEV_URL=https://api.typesafe.ai/v1/systemone` in the environment. A DigitalOcean key on a
-   Tier 1 or 2 account lists Jev but every call answers 403 "not available for your subscription
-   tier" (seen 2026-10-31).
-2. `cd adapter && node src/probe.ts --root ../battle-logs` and read the precision table; go on
-   only if reads at 0.6 beat the LLM coaches' reads in the same logs.
 3. The round robin: Haiku, Opus, `jev:jev`, `anthropic:claude-haiku-5-5+jev`,
-   `anthropic:claude-opus-5-5+jev` on fixed seeds, two legs.
+   `anthropic:claude-opus-5-5+jev` on fixed seeds, two legs, with the read threshold at 0.7 and
+   the gate threshold at 0.8 (the probe's numbers, not the defaults).
+
+### Phase 0 with Jev (2026-10-31, model jev-1.14.0 through TypeSafe)
+
+400 logged turns from 12 matches, 355 reads judged against what the opponent then did within
+6 s. Latency p50 259 ms, p95 374 ms (the first call of a session took 2.7 s, a cold start);
+1,979 input tokens a call; $0.033 for the whole probe.
+
+| threshold | reads fired | came true | precision | coverage of turns |
+|---|---|---|---|---|
+| 0.5 | 182 | 67 | 37% | 46% |
+| 0.6 | 125 | 49 | 39% | 31% |
+| 0.7 | 86 | 38 | 44% | 22% |
+| 0.8 | 54 | 23 | 43% | 14% |
+
+Gates at 0.7: plan failing on 23% of turns, window open on 25%, pattern changed never. By word:
+super 29/47, 236K 37/80, sweep 36/87, 236P 11/34, uppercut 10/38; 623P, jump, reversal and
+throw never came true, on samples of one to four. The LLM coaches' reads in the same logs:
+Haiku 1/12, GPT-5.4 mini 5/10, the fake coaches 36/88 together.
+
+So at 0.6 Jev matches the fake coaches (39% against 41%) and beats the real brains (27%); at
+0.7 it beats both at 44% while still reading a fifth of all turns. The go/no-go passes, with
+two corrections to the defaults: read at 0.7, not 0.6, and raise the gate threshold to 0.8,
+because the two health gates fire on a quarter of turns at 0.7 (the 4 s cooldown caps the
+damage, but every wake is a brain call). Two caveats: most judged turns come from fake-coach
+matches, whose fighters follow scripted patterns, and the fake's own probe (next section) scored
+28% on the same kind of logs, so part of Jev's margin is the base rate of repeated attacks. The
+round robin against real brains is the real test.
 
 ### Phase 0 with the fake (pipeline check only)
 
