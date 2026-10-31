@@ -51,7 +51,7 @@ func _initialize() -> void:
 	lib.add_animation("guard_heavy", build_stance("heavy"))
 	lib.add_animation("walk_guard", resample_merged(ual1.get_animation("Walk"), LOWER_BODY, true))
 	lib.add_animation("crouch_guard", build_crouch_stance())
-	lib.add_animation("crouch_jab", build_crouch_jab())
+	lib.add_animation("crouch_jab", strike(0.12, build_crouch_jab))
 	lib.add_animation("block_stand", build_block(guard))
 	lib.add_animation("block_crouch", build_block(crouch))
 	# Reactions (docs/movement-plan.md, phase 4): played over the stun, so the fighter is
@@ -67,14 +67,14 @@ func _initialize() -> void:
 	lib.add_animation("getup", build_getup())
 	lib.add_animation("getup_kip", build_kip_up())
 	lib.add_animation("throw_break", build_throw_break())
-	lib.add_animation("front_kick", build_front_kick())
-	lib.add_animation("high_kick", build_high_kick())
-	lib.add_animation("sweep", build_sweep())
-	lib.add_animation("uppercut", build_uppercut())
-	lib.add_animation("spin_sweep", build_spin_sweep())
-	lib.add_animation("jump_punch", build_jump_punch())
-	lib.add_animation("jump_kick", build_jump_kick())
-	lib.add_animation("throw", build_throw())
+	lib.add_animation("front_kick", strike(0.2, build_front_kick))
+	lib.add_animation("high_kick", strike(0.26, build_high_kick))
+	lib.add_animation("sweep", strike(0.18, build_sweep))
+	lib.add_animation("uppercut", strike(0.22, build_uppercut))
+	lib.add_animation("spin_sweep", strike(0.2, build_spin_sweep))
+	lib.add_animation("jump_punch", strike(0.1, build_jump_punch))
+	lib.add_animation("jump_kick", strike(0.12, build_jump_kick))
+	lib.add_animation("throw", strike(0.08, build_throw))
 	lib.add_animation("thrown", build_thrown())
 	lib.add_animation("victory_bow", build_victory_bow())
 	lib.add_animation("victory_fist_pump", build_victory_fist_pump())
@@ -90,25 +90,25 @@ func _initialize() -> void:
 	lib.add_animation("intro_wing_chun", build_intro_wing_chun())
 	lib.add_animation("rushing_hook", build_in_place([ual2.get_animation("Melee_Hook"), ual2.get_animation("Melee_Hook_Rec")]))
 	# Specials and supers
-	lib.add_animation("palm_blast", build_palm_blast())
-	lib.add_animation("rising_uppercut", build_rising_uppercut())
-	lib.add_animation("punch_flurry", build_punch_flurry())
-	lib.add_animation("kick_flurry", build_kick_flurry())
-	lib.add_animation("rising_kick", build_rising_kick())
-	lib.add_animation("ground_pound", build_ground_pound())
-	lib.add_animation("axe_kick", build_axe_kick())
-	lib.add_animation("spin_back_kick", build_spin_back_kick())
-	lib.add_animation("tornado_kick", build_tornado_kick())
-	lib.add_animation("hurricane_kicks", build_hurricane_kicks())
-	lib.add_animation("lariat", build_lariat())
-	lib.add_animation("knee_lift", build_knee_lift())
-	lib.add_animation("backfist", build_backfist())
-	lib.add_animation("flip_kick", build_flip_kick())
-	lib.add_animation("dive_kick", build_dive_kick())
+	lib.add_animation("palm_blast", strike(0.2, build_palm_blast))
+	lib.add_animation("rising_uppercut", strike(0.09, build_rising_uppercut))
+	lib.add_animation("punch_flurry", strike(-1.0, build_punch_flurry))
+	lib.add_animation("kick_flurry", strike(-1.0, build_kick_flurry))
+	lib.add_animation("rising_kick", strike(0.09, build_rising_kick))
+	lib.add_animation("ground_pound", strike(0.33, build_ground_pound))
+	lib.add_animation("axe_kick", strike(0.3, build_axe_kick))
+	lib.add_animation("spin_back_kick", strike(0.22, build_spin_back_kick))
+	lib.add_animation("tornado_kick", strike(-1.0, build_tornado_kick))
+	lib.add_animation("hurricane_kicks", strike(-1.0, build_hurricane_kicks))
+	lib.add_animation("lariat", strike(-1.0, build_lariat))
+	lib.add_animation("knee_lift", strike(0.16, build_knee_lift))
+	lib.add_animation("backfist", strike(0.12, build_backfist))
+	lib.add_animation("flip_kick", strike(0.12, build_flip_kick))
+	lib.add_animation("dive_kick", strike(0.08, build_dive_kick))
 	lib.add_animation("focus_stance", build_focus_stance())
 	lib.add_animation("counter_stance", build_counter_stance())
-	lib.add_animation("chain_punch", build_chain_punch(12))
-	lib.add_animation("chain_punch_short", build_chain_punch(3))
+	lib.add_animation("chain_punch", strike(-1.0, build_chain_punch.bind(12)))
+	lib.add_animation("chain_punch_short", strike(-1.0, build_chain_punch.bind(3)))
 	lib.add_animation("reversal_throw", build_reversal_throw())
 	lib.add_animation("reversed", build_reversed())
 	lib.add_animation("wall_splat", build_wall_splat())
@@ -1850,7 +1850,146 @@ func arm_bones() -> Array:
 
 
 ## keys: Array of [time, pose]. Position track for the pelvis, rotation tracks for all bones.
+# --- Strikes (docs/movement-plan.md, phase 5) ---------------------------------------
+
+## Set while a strike's builder runs: make_animation then bakes it with strike timing.
+var _strike_impact := -2.0
+const STRIKE_FPS := 60.0
+## Bone tiers from the core out: into a strike the hips lead and the hand or foot arrives
+## last (the whip); out of it the limb leaves first and the body follows through.
+const TIERS := [
+	["root", "pelvis", "spine_01"],
+	["spine_02", "spine_03", "thigh_l", "thigh_r"],
+	["neck_01", "clavicle_l", "clavicle_r", "upperarm_l", "upperarm_r", "calf_l", "calf_r"],
+	["Head", "lowerarm_l", "lowerarm_r", "foot_l", "foot_r"],
+]
+## [start, end] of each tier's motion within a segment (the rest: hands, fingers, balls).
+const INTO_WINDOWS := [[0.0, 0.72], [0.06, 0.8], [0.12, 0.88], [0.18, 0.95], [0.24, 1.0]]
+const OUT_WINDOWS := [[0.24, 1.0], [0.18, 0.93], [0.12, 0.86], [0.06, 0.78], [0.0, 0.7]]
+const FLURRY_WINDOWS := [[0.0, 0.85], [0.03, 0.9], [0.06, 0.94], [0.09, 0.97], [0.12, 1.0]]
+const ANTICIPATION := -0.12 # the body coils this far back before a slower strike
+
+
+## Builds a strike clip whose impact lands `impact` seconds in (-1: several hits).
+func strike(impact: float, builder: Callable) -> Animation:
+	_strike_impact = impact
+	var anim: Animation = builder.call()
+	_strike_impact = -2.0
+	return anim
+
+
+func _tier_of(bone_name: String) -> int:
+	for i in TIERS.size():
+		if TIERS[i].has(bone_name):
+			return i
+	return TIERS.size()
+
+
+## Bakes keyed poses at 60 fps with strike timing instead of one cubic curve through all
+## of them. Every key pose is still reached at its own time, so the impact pose (and the
+## reach the hit boxes were drawn for) is unchanged; between keys each bone tier moves in
+## its own window, the segment into the impact accelerates (a strike doesn't slow down
+## before it lands), the coil before a slower strike goes back first, and the last segment
+## overshoots the guard a touch and settles.
+func _bake_strike(keys: Array, impact: float) -> Animation:
+	var source := _make_cubic(keys, false)
+	keys = keys.duplicate()
+	# The impact must be a key (a pose between keys would move under the new timing).
+	if impact > 0.0:
+		var found := false
+		for k: Array in keys:
+			if absf(float(k[0]) - impact) < 0.002:
+				found = true
+		if not found:
+			var at := 0
+			while at < keys.size() and float(keys[at][0]) < impact:
+				at += 1
+			keys.insert(at, [impact, sample(source, impact)])
+	# The coil: before a strike whose first move takes 0.1 s or more.
+	if impact >= 0.1 and keys.size() >= 2 and float(keys[1][0]) >= 0.1:
+		var coil := _blend_tiers(keys[0][1], keys[1][1], ANTICIPATION, 3)
+		keys.insert(1, [float(keys[1][0]) * 0.35, coil])
+	var tier_of := {}
+	for i in skeleton.get_bone_count():
+		tier_of[i] = _tier_of(skeleton.get_bone_name(i))
+	var pelvis := skeleton.find_bone("pelvis")
+	var anim := Animation.new()
+	var length: float = keys[-1][0]
+	anim.length = length
+	anim.loop_mode = Animation.LOOP_NONE
+	var pos_track := anim.add_track(Animation.TYPE_POSITION_3D)
+	anim.track_set_path(pos_track, NodePath(TRACK_PREFIX + "pelvis"))
+	anim.track_set_interpolation_type(pos_track, Animation.INTERPOLATION_LINEAR)
+	var rot_tracks := []
+	for i in skeleton.get_bone_count():
+		var track := anim.add_track(Animation.TYPE_ROTATION_3D)
+		anim.track_set_path(track, NodePath(TRACK_PREFIX + skeleton.get_bone_name(i)))
+		anim.track_set_interpolation_type(track, Animation.INTERPOLATION_LINEAR)
+		rot_tracks.append(track)
+	var times := []
+	var t := 0.0
+	while t < length - 0.0001:
+		times.append(t)
+		t += 1.0 / STRIKE_FPS
+	for k: Array in keys:
+		times.append(float(k[0]))
+	times.sort()
+	var last := -1.0
+	for time: float in times:
+		if time - last < 0.002:
+			continue
+		last = time
+		var seg := 0
+		while seg < keys.size() - 2 and float(keys[seg + 1][0]) <= time:
+			seg += 1
+		var t0: float = keys[seg][0]
+		var t1: float = keys[seg + 1][0]
+		var u := clampf((time - t0) / maxf(t1 - t0, 1e-5), 0.0, 1.0)
+		var a: Dictionary = keys[seg][1]
+		var b: Dictionary = keys[seg + 1][1]
+		var into := impact > 0.0 and t1 <= impact + 0.002
+		var to_impact := impact > 0.0 and absf(t1 - impact) < 0.002
+		var last_seg := seg == keys.size() - 2
+		var windows: Array = FLURRY_WINDOWS if impact < 0.0 else (INTO_WINDOWS if into else OUT_WINDOWS)
+		for i in skeleton.get_bone_count():
+			var tier: int = tier_of[i]
+			var win: Array = windows[tier]
+			var v := clampf((u - float(win[0])) / (float(win[1]) - float(win[0])), 0.0, 1.0)
+			var w: float
+			if to_impact:
+				w = pow(v, 1.7) # accelerating into the blow
+			elif last_seg and tier <= 1:
+				w = _ease_out_back(v, 0.9) # the body settles past the guard and back
+			else:
+				w = v * v * (3.0 - 2.0 * v)
+			var q := (a[i][1] as Quaternion).slerp(b[i][1], w)
+			anim.rotation_track_insert_key(rot_tracks[i], time, q)
+			if i == pelvis:
+				anim.position_track_insert_key(pos_track, time, (a[i][0] as Vector3).lerp(b[i][0], w))
+	return anim
+
+
+func _ease_out_back(x: float, s: float) -> float:
+	var y := x - 1.0
+	return 1.0 + y * y * ((s + 1.0) * y + s)
+
+
+## Each bone of the tiers up to `max_tier` part way from `a` toward `b` (negative: away).
+func _blend_tiers(a: Dictionary, b: Dictionary, w: float, max_tier: int) -> Dictionary:
+	var out := duplicate_pose(a)
+	for i in a:
+		if _tier_of(skeleton.get_bone_name(i)) < max_tier:
+			out[i] = [(a[i][0] as Vector3).lerp(b[i][0], w), (a[i][1] as Quaternion).slerp(b[i][1], w)]
+	return out
+
+
 func make_animation(keys: Array, loop: bool) -> Animation:
+	if _strike_impact > -2.0 and not loop:
+		return _bake_strike(keys, _strike_impact)
+	return _make_cubic(keys, loop)
+
+
+func _make_cubic(keys: Array, loop: bool) -> Animation:
 	var anim := Animation.new()
 	anim.length = keys[-1][0]
 	anim.loop_mode = Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE
