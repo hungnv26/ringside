@@ -214,6 +214,8 @@ var last_hit_level: MoveData.HitLevel = MoveData.HitLevel.MID
 ## Skinned character model, or null for a graybox capsule.
 var model: FighterModel
 var _shown_state: State = State.IDLE # the state the model last showed (cosmetic)
+var _seen_health := -1 # cosmetic: what the model last saw, to spot new hits and blocks
+var _seen_stun := 0
 ## Alternate costume (mirror match P2).
 var alt := false
 ## Training mode: health never drops below 1, so there are no K.O.s.
@@ -1203,6 +1205,7 @@ func _update_model(delta: float) -> void:
 		model.motion.look_target = opponent.model.eye_position() + Vector3.DOWN * 0.12
 	model.motion.fatigue = clampf(1.0 - float(health) / float(data.max_health), 0.0, 1.0)
 	model.motion.neutral = state in NEUTRAL_STATES and not victory and intro_clip == &""
+	_watch_impacts()
 	# The face keeps moving through hitstop, so the reaction lands with the impact.
 	model.set_face(face_expression(), delta)
 	model.set_gaze(gaze_target(), delta)
@@ -1279,7 +1282,7 @@ func motion_mode() -> FighterMotion.Mode:
 		State.IDLE, State.WALK_FWD, State.WALK_BACK, State.CROUCH, State.DASH, State.BACKDASH, \
 				State.SIDESTEP, State.BLOCKSTUN, State.HITSTUN, State.TECH:
 			return FighterMotion.Mode.GAIT
-		State.ATTACK, State.THROW, State.JUMP_SQUAT, State.LANDING:
+		State.ATTACK, State.THROW, State.JUMP_SQUAT, State.LANDING, State.GETUP:
 			return FighterMotion.Mode.CLIP
 	if intro_clip != &"" or victory:
 		return FighterMotion.Mode.CLIP
@@ -1357,17 +1360,21 @@ func _animation_request(frozen: bool) -> Array:
 		State.ATTACK:
 			return [current_move.animation, _attack_clip_time(f), 1.0]
 		State.BLOCKSTUN:
-			return [&"fight/block_crouch" if crouching else &"fight/block_stand", 0.0, 1.0]
+			var block_clip := &"fight/block_crouch_recoil" if crouching else &"fight/block_stand_recoil"
+			return [block_clip, _over_stun(block_clip, f), 1.0]
 		State.HITSTUN:
-			if crouching:
-				return [&"fight/crouch_guard", 0.0, 1.0]
-			return [&"ual1/Hit_Head" if last_hit_level == MoveData.HitLevel.HIGH else &"ual1/Hit_Chest", t, 1.0]
-		State.AIR_HIT, State.KO:
+			var hit_clip := hit_animation()
+			return [hit_clip, _over_stun(hit_clip, f), 1.0]
+		State.AIR_HIT:
 			return [&"ual2/Hit_Knockback", t, 1.0]
+		State.KO:
+			if position.y > 0.02 or t < model.clip_length(&"ual2/Hit_Knockback"):
+				return [&"ual2/Hit_Knockback", t, 1.0]
+			return [&"fight/ko_lying", -1.0, 1.0]
 		State.KNOCKDOWN:
-			return [&"ual2/Hit_Knockback", model.clip_length(&"ual2/Hit_Knockback"), 1.0]
+			return [&"fight/lying", -1.0, 1.0]
 		State.GETUP:
-			return [&"ual2/LayToIdle", lerpf(0.35, model.clip_length(&"ual2/LayToIdle"), f / GETUP_FRAMES), 1.0]
+			return [&"fight/getup", lerpf(0.35, model.clip_length(&"fight/getup"), f / GETUP_FRAMES), 1.0]
 		State.THROW:
 			# Grab connected: play through the heave. Whiffed: hold the reach.
 			if grab_move and grab_move.reversal:
@@ -1378,7 +1385,7 @@ func _animation_request(frozen: bool) -> Array:
 				return [&"fight/reversed", t, 1.0]
 			return [&"fight/thrown", t, 1.0]
 		State.TECH:
-			return [&"fight/block_stand", 0.0, 1.0]
+			return [&"fight/throw_break", model.clip_length(&"fight/throw_break") * minf(f / TECH_FRAMES, 1.0), 1.0]
 		State.WALL_SPLAT:
 			return [&"fight/wall_splat", t, 1.0]
 	if intro_clip != &"":
@@ -1388,6 +1395,59 @@ func _animation_request(frozen: bool) -> Array:
 	if victory:
 		return [&"ual2/Idle_FoldArms", -1.0, 1.0]
 	return [data.stance_animation, -1.0, 1.0]
+
+
+## Cosmetic: a hit or block landed since the last frame drives a recoil in the motion layer,
+## away from where the attacker's fist or foot actually is, as hard as the damage.
+func _watch_impacts() -> void:
+	var hit := _seen_health >= 0 and health < _seen_health and state in [State.HITSTUN, State.AIR_HIT, State.KO, State.WALL_SPLAT]
+	var blocked := state == State.BLOCKSTUN and (_shown_state != State.BLOCKSTUN or stun > _seen_stun)
+	if (hit or blocked) and opponent and opponent.model:
+		var center := global_position + Vector3.UP * 1.1
+		var strike := _nearest_limb(opponent, center)
+		var push := opponent.forward
+		var across := forward.cross(Vector3.UP).normalized()
+		var side := signf((strike - center).dot(across))
+		var height := clampf((strike.y - global_position.y) / (STAND_HEIGHT * data.model_scale), 0.0, 1.0)
+		var strength := clampf(float(_seen_health - health) / 80.0, 0.25, 1.5) if hit else 0.4
+		model.motion.add_hit(push, side, height, strength, blocked)
+	_seen_health = health
+	_seen_stun = stun
+
+
+## The attacker's hand or foot closest to `point` (world): where a blow landed.
+func _nearest_limb(attacker: Fighter, point: Vector3) -> Vector3:
+	var sk := attacker.model.skeleton
+	var best := attacker.global_position + Vector3.UP * 1.2
+	var best_d := INF
+	for bone_name in [&"hand_l", &"hand_r", &"ball_l", &"ball_r", &"calf_l", &"calf_r"]:
+		var bone := sk.find_bone(bone_name)
+		if bone < 0:
+			continue
+		var p := sk.global_transform * sk.get_bone_global_pose(bone).origin
+		var d := p.distance_to(point)
+		if d < best_d:
+			best_d = d
+			best = p
+	return best
+
+
+## The reaction clip for the hit just taken: by its height, or the crouching one.
+func hit_animation() -> StringName:
+	if crouching:
+		return &"fight/hit_crouch"
+	match last_hit_level:
+		MoveData.HitLevel.LOW:
+			return &"fight/hit_low"
+		MoveData.HitLevel.MID:
+			return &"fight/hit_body"
+	return &"fight/hit_high"
+
+
+## A reaction clip stretched over the whole stun, so it ends back in guard as the stun does.
+func _over_stun(clip: StringName, f: float) -> float:
+	var total := maxf(float(state_frame + stun), 1.0)
+	return model.clip_length(clip) * clampf(f / total, 0.0, 1.0)
 
 
 ## Maps the move's frame onto clip time: startup covers [0, impact], so the strike lands

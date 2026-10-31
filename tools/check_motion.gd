@@ -41,6 +41,8 @@ const POSE_BONES := [&"pelvis", &"spine_02", &"Head", &"upperarm_l", &"lowerarm_
 const SOLE_BONES := [&"foot_l", &"ball_l", &"foot_r", &"ball_r"]
 const EFFECTORS := [&"hand_l", &"hand_r", &"ball_leaf_l", &"ball_leaf_r"]
 const HELD_EXEMPT := ["KO"]
+## The whole body slides in these (knocked flying, lying, thrown): no feet to plant.
+const SKATE_EXEMPT := ["AIR_HIT", "KNOCKDOWN", "KO", "THROWN", "WALL_SPLAT"]
 
 var m
 var p1: Fighter
@@ -286,7 +288,7 @@ func _sample(f: Fighter) -> void:
 		print("T%d %s clip=%s  %s" % [_tick, Fighter.State.keys()[f.state], f.model._clip, "  ".join(parts)])
 	if f == p1:
 		_tick += 1
-	if debug_feet and f == p1 and f.state in [Fighter.State.DASH, Fighter.State.BACKDASH, Fighter.State.SIDESTEP, Fighter.State.BLOCKSTUN]:
+	if debug_feet and f == p1 and f.state in [Fighter.State.DASH, Fighter.State.BACKDASH, Fighter.State.SIDESTEP, Fighter.State.LANDING, Fighter.State.JUMP_SQUAT, Fighter.State.JUMP]:
 		var mo := f.model.motion
 		var line := "%s f%d v=%.2f" % [Fighter.State.keys()[f.state], f.state_frame, mo._velocity.length()]
 		for side in ["l", "r"]:
@@ -313,6 +315,8 @@ func _sample(f: Fighter) -> void:
 			if prev.has(bone_name) and f.hitstop == 0 and not f.frozen:
 				var q: Vector3 = prev[bone_name]
 				s.skate.append(Vector2(p.x - q.x, p.z - q.z).length() / DT * 100.0)
+				if debug_feet and f == p1 and state_name == "LANDING":
+					print("  skate LANDING f%d %s %.1f cm/s" % [f.state_frame, bone_name, Vector2(p.x - q.x, p.z - q.z).length() / DT * 100.0])
 	_prev_soles[f] = now
 	# Held pose: nothing moved more than HELD_MOVE over the last HELD_WINDOW ticks.
 	var pose := PackedVector3Array()
@@ -360,7 +364,7 @@ func _report() -> Dictionary:
 		var p50: float = sorted[int(sorted.size() * 0.5)] if sorted else 0.0
 		var p90: float = sorted[int(sorted.size() * 0.9)] if sorted else 0.0
 		var flags := ""
-		if p90 > SKATE_TARGET:
+		if p90 > SKATE_TARGET and not SKATE_EXEMPT.has(state_name):
 			flags += " SKATE"
 			ok = false
 		if s.held > HELD_TARGET and not HELD_EXEMPT.has(state_name):

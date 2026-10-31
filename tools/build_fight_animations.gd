@@ -54,6 +54,18 @@ func _initialize() -> void:
 	lib.add_animation("crouch_jab", build_crouch_jab())
 	lib.add_animation("block_stand", build_block(guard))
 	lib.add_animation("block_crouch", build_block(crouch))
+	# Reactions (docs/movement-plan.md, phase 4): played over the stun, so the fighter is
+	# back in guard as the stun ends. The game adds a directional recoil on top.
+	lib.add_animation("hit_high", build_hit("high"))
+	lib.add_animation("hit_body", build_hit("body"))
+	lib.add_animation("hit_low", build_hit("low"))
+	lib.add_animation("hit_crouch", build_hit("crouch"))
+	lib.add_animation("block_stand_recoil", build_block_recoil(guard))
+	lib.add_animation("block_crouch_recoil", build_block_recoil(crouch))
+	lib.add_animation("lying", build_lying(1.0))
+	lib.add_animation("ko_lying", build_lying(0.35))
+	lib.add_animation("getup", build_getup())
+	lib.add_animation("throw_break", build_throw_break())
 	lib.add_animation("front_kick", build_front_kick())
 	lib.add_animation("high_kick", build_high_kick())
 	lib.add_animation("sweep", build_sweep())
@@ -201,6 +213,135 @@ func _stance_pose(base: Dictionary, style: String, t: float) -> Dictionary:
 	rotate_bone(pose, "neck_01", Vector3.UP, 2.0 * _wave(t, 4.8, 0.6))
 	rotate_bone(pose, "Head", Vector3.RIGHT, 1.0 * _wave(t, 2.4, 0.4))
 	return pose
+
+
+## A pose part way between two poses (rotations slerped, positions lerped).
+func blend_pose(a: Dictionary, b: Dictionary, w: float) -> Dictionary:
+	var out := {}
+	for i in a:
+		out[i] = [(a[i][0] as Vector3).lerp(b[i][0], w), (a[i][1] as Quaternion).slerp(b[i][1], w)]
+	return out
+
+
+## A hit taken in guard. high: the head snaps back and the guard is knocked open; body:
+## the torso folds over the blow, hips back, head down; low: the lead knee buckles and
+## the body drops toward it; crouch: knocked back on the heels from the crouch. Each
+## comes back to its guard by the end (0.5 s), stretched over the stun by the game.
+func build_hit(kind: String) -> Animation:
+	var base := crouch if kind == "crouch" else guard
+	var impact := duplicate_pose(base)
+	var s := rear_sign()
+	match kind:
+		"high":
+			move_bone(impact, "pelvis", Vector3(0, -0.015, -0.05))
+			lean(impact, 9.0, 0.0)
+			rotate_bone(impact, "neck_01", Vector3.RIGHT, -14.0)
+			rotate_bone(impact, "Head", Vector3.RIGHT, -10.0)
+			for side in ["l", "r"]:
+				var x := 1.0 if side == "l" else -1.0
+				rotate_bone(impact, "upperarm_" + side, Vector3.BACK, x * 14.0) # elbows thrown out
+				rotate_bone(impact, "lowerarm_" + side, Vector3.RIGHT, -12.0)
+		"body":
+			move_bone(impact, "pelvis", Vector3(0, -0.03, -0.07))
+			lean(impact, -14.0, 0.0)
+			rotate_bone(impact, "spine_03", Vector3.RIGHT, 8.0)
+			rotate_bone(impact, "neck_01", Vector3.RIGHT, 10.0)
+			for side in ["l", "r"]:
+				var x := 1.0 if side == "l" else -1.0
+				rotate_bone(impact, "upperarm_" + side, Vector3.BACK, -x * 10.0) # elbows in over the body
+				rotate_bone(impact, "upperarm_" + side, Vector3.RIGHT, 12.0)
+		"low":
+			move_bone(impact, "pelvis", Vector3(0, -0.09, -0.02))
+			lean(impact, -7.0, 7.0)
+			rotate_bone(impact, "pelvis", Vector3.BACK, s * 5.0)
+			rotate_bone(impact, "neck_01", Vector3.RIGHT, 6.0)
+			for side in ["l", "r"]:
+				rotate_bone(impact, "upperarm_" + side, Vector3.RIGHT, 9.0)
+		"crouch":
+			move_bone(impact, "pelvis", Vector3(0, -0.03, -0.06))
+			lean(impact, 12.0, 0.0)
+			rotate_bone(impact, "neck_01", Vector3.RIGHT, -12.0)
+			for side in ["l", "r"]:
+				var x := 1.0 if side == "l" else -1.0
+				rotate_bone(impact, "upperarm_" + side, Vector3.BACK, x * 10.0)
+	var reel := blend_pose(base, impact, 0.75)
+	var recover := blend_pose(base, impact, 0.3)
+	return make_animation([[0.0, base], [0.045, impact], [0.12, reel], [0.3, recover], [0.5, base]], false)
+
+
+## A blocked hit: the forearms are driven back toward the face, the body gives a little,
+## and the guard settles again (0.3 s, stretched over the blockstun by the game).
+func build_block_recoil(base: Dictionary) -> Animation:
+	var block := duplicate_pose(base)
+	for side in ["l", "r"]:
+		var x := 0.25 if side == "l" else -0.25
+		aim(block, "upperarm_" + side, "lowerarm_" + side, Vector3(x * 0.6, -0.35, 1.0))
+		aim(block, "lowerarm_" + side, "hand_" + side, Vector3(-x * 0.8, 1.0, 0.35))
+	rotate_bone(block, "spine_01", Vector3.RIGHT, 8.0)
+	var pushed := duplicate_pose(block)
+	move_bone(pushed, "pelvis", Vector3(0, -0.02, -0.04))
+	lean(pushed, 6.0, 0.0)
+	for side in ["l", "r"]:
+		rotate_bone(pushed, "upperarm_" + side, Vector3.RIGHT, -7.0) # elbows driven back
+		rotate_bone(pushed, "lowerarm_" + side, Vector3.RIGHT, -6.0)
+	rotate_bone(pushed, "neck_01", Vector3.RIGHT, 6.0) # chin tucked behind the arms
+	return make_animation([[0.0, block], [0.04, pushed], [0.12, blend_pose(block, pushed, 0.6)], [0.3, block]], false)
+
+
+## Down on the back after a knockdown: the chest rises and falls, the head rolls a little,
+## a knee draws up and slides back. `life` scales it (the K.O. barely breathes).
+func build_lying(life: float) -> Animation:
+	var knock := ual2.get_animation("Hit_Knockback")
+	var down := sample(knock, knock.length)
+	var keys := []
+	var length := 3.2
+	var steps := int(length * SAMPLE_FPS)
+	var s := rear_sign()
+	for i in steps + 1:
+		var t := float(i) / SAMPLE_FPS
+		var pose := duplicate_pose(down)
+		var breath := (0.5 + 0.5 * _wave(t, 1.6)) * life
+		rotate_bone(pose, "spine_02", Vector3.RIGHT, -2.5 * breath)
+		rotate_bone(pose, "spine_03", Vector3.RIGHT, -2.0 * breath)
+		rotate_bone(pose, "neck_01", Vector3.UP, 6.0 * life * _wave(t, 3.2, 0.2))
+		var knee := (0.5 - 0.5 * cos(TAU * t / length)) * life
+		rotate_bone(pose, "thigh_" + rear, Vector3.RIGHT, -14.0 * knee)
+		rotate_bone(pose, "calf_" + rear, Vector3.RIGHT, 22.0 * knee)
+		rotate_bone(pose, "upperarm_" + lead, Vector3.BACK, s * 4.0 * life * _wave(t, 3.2, 0.6))
+		keys.append([t, pose])
+	return make_animation(keys, true)
+
+
+## Getting up: the library's push-up from the back, with the hands coming up into the guard
+## as the body rises instead of hanging, ending in the guard.
+func build_getup() -> Animation:
+	var src := ual2.get_animation("LayToIdle")
+	var arms := arm_bones() + bone_indices(["neck_01", "Head"])
+	var keys := []
+	var t := 0.0
+	while t <= src.length + 0.001:
+		var pose := sample(src, t)
+		var w := smoothstep(src.length * 0.45, src.length * 0.9, t)
+		if w > 0.0:
+			var guarded := merge(pose, guard, arms)
+			pose = blend_pose(pose, guarded, w)
+		keys.append([t, pose])
+		t += 1.0 / SAMPLE_FPS
+	keys.append([src.length + 0.2, guard])
+	return make_animation(keys, false)
+
+
+## Breaking a throw: both arms drive out through the grip, the body leans away, then the
+## guard comes back (0.3 s, stretched over the tech by the game).
+func build_throw_break() -> Animation:
+	var out := duplicate_pose(guard)
+	for side in ["l", "r"]:
+		var x := 1.0 if side == "l" else -1.0
+		aim(out, "upperarm_" + side, "lowerarm_" + side, Vector3(x * 0.75, -0.05, 0.65))
+		aim(out, "lowerarm_" + side, "hand_" + side, Vector3(x * 0.55, 0.1, 0.8))
+	lean(out, 10.0, 0.0)
+	move_bone(out, "pelvis", Vector3(0, -0.02, -0.05))
+	return make_animation([[0.0, guard], [0.06, out], [0.14, out], [0.3, guard]], false)
 
 
 ## Forearms raised in front of the face.

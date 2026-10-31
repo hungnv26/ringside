@@ -54,6 +54,11 @@ const LEAN_STIFFNESS := 160.0
 const LEAN_DAMPING := 16.0
 const DIP_STIFFNESS := 220.0
 const DIP_DAMPING := 18.0
+## Hit recoil (phase 4): bones knocked by a blow spring back (degrees, world axis-angle).
+const RECOIL_STIFFNESS := 280.0
+const RECOIL_DAMPING := 17.0
+const RECOIL_MAX := 28.0
+const RECOIL_SNAP := 0.035 # seconds of the kick shown at once (the pose holds through hitstop)
 
 var _skeleton: Skeleton3D
 var _bones := {} # name -> index
@@ -75,7 +80,9 @@ var _lean_vel := Vector3.ZERO
 var _dip := 0.0 # metres the pelvis sinks (spring state)
 var _dip_vel := 0.0
 var _was_airborne := false
+var _just_landed := false
 var _breath := 0.0 # phase of the extra fatigue breathing
+var _recoil := {} # bone name -> [angle Vector3 (deg, world axis-angle), velocity Vector3]
 ## Secondary motion (spring bones on hair and belt tails), built by SecondaryMotion.
 var springs: SpringBoneSimulator3D
 
@@ -240,6 +247,7 @@ func solve(delta: float) -> void:
 	_keep_feet_above_floor()
 	_body_dynamics(dt)
 	_look(delta)
+	_apply_recoil(dt)
 
 	# Body velocity from how the model moved (pushback, dashes, anything).
 	if _has_last and root_world.distance_to(_last_root) > TELEPORT:
@@ -251,6 +259,9 @@ func solve(delta: float) -> void:
 	_last_root = root_world
 	_has_last = true
 
+	# Landing (or getting up) plants the feet at once; other changes blend.
+	if target_weight > 0.0 and _just_landed:
+		_weight = target_weight
 	_weight = move_toward(_weight, target_weight, WEIGHT_SPEED * delta)
 	if _weight <= 0.0:
 		for side: String in SIDES:
@@ -276,6 +287,13 @@ func solve(delta: float) -> void:
 
 	var speed := _velocity.length()
 	var step_time := lerpf(STEP_TIME_SLOW, STEP_TIME_FAST, clampf((speed - 1.2) / 3.0, 0.0, 1.0))
+	if mode == Mode.OFF:
+		# Airborne or lying: the clip has the feet (the IK fades out onto them); each foot
+		# is planted again where it next comes down.
+		for side: String in SIDES:
+			_feet[side].planted = false
+			_feet[side].swinging = false
+			_feet[side].lifted = true
 	for side: String in SIDES:
 		var foot: Dictionary = _feet[side]
 		var other: Dictionary = _feet["r" if side == "l" else "l"]
@@ -283,7 +301,7 @@ func solve(delta: float) -> void:
 		foot.rest = maxf(foot.rest - dt, 0.0)
 		if not foot.planted and not foot.swinging:
 			# Following the clip (or just switched on): plant where it comes down.
-			if not foot.lifted or float(sole[side]) < LAND_HEIGHT:
+			if mode != Mode.OFF and (not foot.lifted or float(sole[side]) < LAND_HEIGHT):
 				_plant(foot, a)
 			continue
 		if foot.planted:
@@ -405,6 +423,70 @@ func _reset_feet() -> void:
 		springs.reset()
 
 
+## A blow: `push` is the attacker's direction of travel (world), `side` -1/1 which side of
+## the body it landed on (the fighter's right is -1), `height` 0 feet .. 1 head, `strength`
+## about 0.3 (a jab) to 1.5 (a heavy counter). Head blows snap the head back and away and
+## twist it off the side hit, body blows fold the torso over the blow, low ones buckle the
+## knees; a block drives the arms back and barely moves the body.
+func add_hit(push: Vector3, side: float, height: float, strength: float, blocked: bool) -> void:
+	push.y = 0.0
+	if push.length_squared() < 1e-6:
+		return
+	push = push.normalized()
+	var back := Vector3.UP.cross(push) # rotating about this tips the top of a bone along push
+	var s := strength * (0.35 if blocked else 1.0)
+	if blocked:
+		for arm: String in ["upperarm_l", "upperarm_r"]:
+			_kick(arm, back * 260.0 * strength)
+		_kick("spine_03", back * 90.0 * s)
+		add_dip(0.25 * s)
+		return
+	if height > 0.72:
+		_kick("Head", back * 520.0 * s + Vector3.UP * side * 380.0 * s)
+		_kick("neck_01", back * 260.0 * s + Vector3.UP * side * 150.0 * s)
+		_kick("spine_03", back * 120.0 * s)
+	elif height > 0.35:
+		_kick("spine_01", -back * 260.0 * s + push * side * 120.0 * s)
+		_kick("spine_03", -back * 160.0 * s)
+		_kick("Head", -back * 160.0 * s)
+		add_dip(0.35 * s)
+	else:
+		_kick("pelvis", push * side * 150.0 * s)
+		_kick("spine_01", -back * 140.0 * s)
+		add_dip(0.9 * s)
+
+
+func _kick(bone_name: String, velocity: Vector3) -> void:
+	var r: Array = _recoil.get(bone_name, [Vector3.ZERO, Vector3.ZERO])
+	r[1] = (r[1] as Vector3) + velocity
+	r[0] = ((r[0] as Vector3) + velocity * RECOIL_SNAP).limit_length(RECOIL_MAX)
+	_recoil[bone_name] = r
+
+
+## Springs every recoiling bone back and applies it.
+func _apply_recoil(dt: float) -> void:
+	if _recoil.is_empty():
+		return
+	var inv_basis := _skeleton.global_transform.basis.orthonormalized().inverse()
+	var done := []
+	for bone_name: String in _recoil:
+		var r: Array = _recoil[bone_name]
+		var angle: Vector3 = r[0]
+		var vel: Vector3 = r[1]
+		if dt > 0.0:
+			vel += (-RECOIL_STIFFNESS * angle - RECOIL_DAMPING * vel) * dt
+			angle = (angle + vel * dt).limit_length(RECOIL_MAX)
+			r[0] = angle
+			r[1] = vel
+		if angle.length() < 0.05 and vel.length() < 1.0:
+			done.append(bone_name)
+			continue
+		var axis := (inv_basis * angle.normalized()).normalized()
+		_rotate_global(_bone(bone_name), axis, deg_to_rad(angle.length()))
+	for bone_name: String in done:
+		_recoil.erase(bone_name)
+
+
 ## A jolt that sinks the pelvis (landing, a hit): metres per second downward.
 func add_dip(speed: float) -> void:
 	_dip_vel += speed
@@ -418,7 +500,8 @@ func _body_dynamics(dt: float) -> void:
 	var sk := _skeleton
 	var xf := sk.global_transform
 	var airborne := mode == Mode.OFF and xf.origin.y > floor_y + 0.02
-	if _was_airborne and not airborne and mode != Mode.OFF:
+	_just_landed = _was_airborne and not airborne and mode != Mode.OFF
+	if _just_landed:
 		add_dip(0.9)
 	_was_airborne = airborne
 	var accel := (_velocity - _prev_velocity) / dt
