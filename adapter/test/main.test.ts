@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BattleLog, battleId } from "../src/log.ts";
-import { clientFor, makeVideo, parseCli, reflexClientFor } from "../src/main.ts";
+import { clientFor, gameClock, makeVideo, movieSize, parseCli, reflexClientFor } from "../src/main.ts";
 import { FakeJevClient, JevClient } from "../src/jev.ts";
 import { FakeModelClient } from "../src/fake.ts";
 import { ProviderClient } from "../src/models.ts";
@@ -106,4 +106,60 @@ test("makeVideo keeps the sound Godot's movie writer puts inside the .avi", asyn
   const probe = spawnSync("ffprobe", ["-v", "error", "-show_entries", "stream=codec_type", "-of", "csv=p=0", mp4]);
   assert.deepEqual(String(probe.stdout).trim().split("\n").sort(), ["audio", "video"]);
   assert.equal(existsSync(avi), false);
+});
+
+test("the CLI takes motion blur and film-quality recording", () => {
+  assert.equal(parseCli([]).motionBlur, "cinematic");
+  assert.equal(parseCli([]).film, false);
+  const a = parseCli(["--motion-blur", "subtle", "--film", "--record", "x.mp4"]);
+  assert.equal(a.motionBlur, "subtle");
+  assert.equal(a.film, true);
+  assert.throws(() => parseCli(["--motion-blur", "max"]), /--motion-blur/);
+});
+
+test("gameClock waits game ticks, not wall time, and restarts on a new round", async () => {
+  const link = { latest: { tick: 100 } as { tick: number } | null };
+  const clock = gameClock(link, 2);
+  let fired = 0;
+  clock.setTimer(() => fired++, 1000); // 60 ticks
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(fired, 0); // no game time has passed
+  link.latest = { tick: 130 };
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(fired, 0);
+  link.latest = { tick: 5 }; // a new round: the count restarts from here
+  await new Promise((r) => setTimeout(r, 20));
+  link.latest = { tick: 64 };
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(fired, 0);
+  link.latest = { tick: 65 };
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(fired, 1);
+  const h = clock.setTimer(() => fired++, 10);
+  clock.clearTimer(h);
+  link.latest = { tick: 500 };
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(fired, 1);
+});
+
+test("makeVideo blends a film-quality movie: 240 rendered frames a second into 60", async (t) => {
+  if (spawnSync("ffmpeg", ["-version"]).status !== 0) return t.skip("no ffmpeg");
+  const dir = mkdtempSync(join(tmpdir(), "ringside-film-"));
+  const movie = join(dir, "match.avi");
+  const mp4 = join(dir, "match.mp4");
+  // One second at 240 fps: the blend keeps one frame in four.
+  const made = spawnSync("ffmpeg", ["-loglevel", "error", "-f", "lavfi", "-i", "testsrc=s=64x36:d=1:r=240", "-f", "lavfi", "-i", "sine=f=440:d=1", "-c:v", "mjpeg", "-c:a", "pcm_s16le", movie]);
+  assert.equal(made.status, 0, String(made.stderr));
+  await makeVideo(movie, mp4, () => {}, true);
+  const probe = spawnSync("ffprobe", ["-v", "error", "-count_frames", "-select_streams", "v", "-show_entries", "stream=r_frame_rate,nb_read_frames", "-of", "csv=p=0", mp4]);
+  const [rate, frames] = String(probe.stdout).trim().split(",");
+  assert.equal(rate, "60/1");
+  assert.ok(Math.abs(Number(frames) - 60) <= 1, `frames ${frames}`);
+});
+
+test("a recording is the chosen window's size in pixels", () => {
+  assert.equal(movieSize("720p"), "1280x720");
+  assert.equal(movieSize("1080p"), "1920x1080");
+  assert.equal(movieSize("1440p"), "2560x1440");
+  assert.equal(movieSize("fullscreen"), "1920x1080");
 });

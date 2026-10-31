@@ -127,6 +127,10 @@ var _intro_time := 0.0
 func setup(fight_manager: Node) -> void:
 	manager = fight_manager
 	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	# Looked up at run time: tests compile this class before the autoloads exist.
+	var settings := get_tree().root.get_node_or_null("Settings")
+	if settings:
+		settings.apply_motion_blur(self)
 	_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	_noise.frequency = 1.0
 	manager.hit_landed.connect(manager.cosmetic(_on_hit_landed))

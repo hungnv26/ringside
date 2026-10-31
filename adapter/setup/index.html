@@ -139,6 +139,7 @@ video { width: 100%; max-width: 720px; border-radius: 6px; border: 1px solid var
       <label>Thinking effort <select id="effort"></select></label>
       <label>Game window <select id="window"></select></label>
       <label>Picture quality <select id="graphics"></select></label>
+      <label>Motion blur <select id="motion-blur"></select></label>
     </div>
     <details>
       <summary class="note">Reflexes (corners with Jev)</summary>
@@ -151,6 +152,7 @@ video { width: 100%; max-width: 720px; border-radius: 6px; border: 1px solid var
     </details>
     <label class="check"><input type="checkbox" id="capture"> Save a screenshot every 10 s of the fight</label>
     <label class="check"><input type="checkbox" id="record"> Record the match to video (every frame rendered at 60 fps, then encoded with ffmpeg; the game runs slower on a slow machine)</label>
+    <label class="check" style="margin-left:24px"><input type="checkbox" id="film"> Film-quality motion blur in the video (240 frames a second blended into each 60, at High picture quality; about 4× the render time; the coaches keep the fight's pace)</label>
     <div class="buttons">
       <button class="primary" id="start">Start match</button>
       <button id="stop" disabled>Stop</button>
@@ -309,7 +311,12 @@ async function init() {
   // An older setup server (started before the page last changed) sends no presets; offer High.
   fill($("graphics"), (setup.graphics || [{ id: "high", name: "High" }]).map((g) => ({ value: g.id, label: g.name })), last.graphics || setup.defaults.graphics || "high");
   // A recording renders every frame whatever it costs, so it can afford Showcase.
-  $("record").addEventListener("change", () => { if ($("record").checked) $("graphics").value = "showcase"; });
+  $("record").addEventListener("change", () => { if ($("record").checked) $("graphics").value = "showcase"; $("film").disabled = !$("record").checked; });
+  fill($("motion-blur"), (setup.motionBlur || [{ id: "cinematic", name: "Cinematic" }]).map((b) => ({ value: b.id, label: b.name })), last.motionBlur || setup.defaults.motionBlur || "cinematic");
+  $("film").checked = !!last.film;
+  // 240 frames a second at Showcase would take about ten times as long: film records at High.
+  $("film").addEventListener("change", () => { if ($("film").checked) $("graphics").value = "high"; });
+  $("film").disabled = !$("record").checked;
   fill($("mode"), setup.modes.map((m) => ({ value: m.id, label: m.name })), last.mode || "coach");
   const modeNote = () => { const m = setup.modes.find((x) => x.id === $("mode").value); $("mode-note").textContent = m ? m.blurb : ""; };
   $("mode").addEventListener("change", modeNote);
@@ -373,7 +380,7 @@ $("t-start").addEventListener("click", async () => {
   msg.className = "msg";
   const request = {
     name: $("t-name").value, entrants, legs: $("t-legs").value, stage: $("t-stage").value,
-    seed: $("seed").value, cap: $("cap").value, cadence: $("cadence").value, effort: $("effort").value, capture: $("capture").checked, record: $("record").checked, mode: $("mode").value, window: $("window").value, graphics: $("graphics").value,
+    seed: $("seed").value, cap: $("cap").value, cadence: $("cadence").value, effort: $("effort").value, capture: $("capture").checked, record: $("record").checked, mode: $("mode").value, window: $("window").value, graphics: $("graphics").value, motionBlur: $("motion-blur").value, film: $("film").checked && $("record").checked,
     reflexRate: $("reflex-rate").value, readThreshold: $("read-threshold").value, gateThreshold: $("gate-threshold").value,
   };
   try {
@@ -442,7 +449,7 @@ $("start").addEventListener("click", async () => {
   const request = {
     p1: { fighter: $("p1-fighter").value, spec: spec("p1") },
     p2: { fighter: $("p2-fighter").value, spec: spec("p2") },
-    stage: $("stage").value, seed: $("seed").value, cap: $("cap").value, cadence: $("cadence").value, effort: $("effort").value, capture: $("capture").checked, record: $("record").checked, mode: $("mode").value, window: $("window").value, graphics: $("graphics").value,
+    stage: $("stage").value, seed: $("seed").value, cap: $("cap").value, cadence: $("cadence").value, effort: $("effort").value, capture: $("capture").checked, record: $("record").checked, mode: $("mode").value, window: $("window").value, graphics: $("graphics").value, motionBlur: $("motion-blur").value, film: $("film").checked && $("record").checked,
     reflexRate: $("reflex-rate").value, readThreshold: $("read-threshold").value, gateThreshold: $("gate-threshold").value,
   };
   try {

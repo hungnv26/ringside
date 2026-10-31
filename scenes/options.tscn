@@ -197,6 +197,17 @@ custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 theme_override_font_sizes/font_size = 24
 
+[node name="MotionBlurLabel" type="Label" parent="Center/Panel/VBox/Grid"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "Motion Blur"
+
+[node name="MotionBlurOption" type="OptionButton" parent="Center/Panel/VBox/Grid"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+
 [node name="SwapLabel" type="Label" parent="Center/Panel/VBox/Grid"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 28

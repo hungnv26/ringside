@@ -41,6 +41,9 @@ var resolution := 2
 enum Graphics { LOW, MEDIUM, HIGH, SHOWCASE }
 const GRAPHICS_NAMES := ["Low", "Medium", "High", "Showcase"]
 var graphics: Graphics = Graphics.HIGH
+## Motion blur on the fight camera (MotionBlur, docs/motion-blur-plan.md): fast limbs smear
+## like film with a 180° shutter (Cinematic) or half of that (Subtle). Low draws none.
+var motion_blur: MotionBlur.Level = MotionBlur.Level.SUBTLE
 ## Give gamepad 1 to Player 2 (useful with a single pad in Versus).
 var swap_pads := false
 ## Online: the name shown to opponents, and the last address joined.
@@ -82,6 +85,7 @@ func load_settings() -> void:
 	window_size = clampi(cfg.get_value("video", "window_size", window_size), 0, WINDOW_SIZES.size() - 1)
 	resolution = clampi(cfg.get_value("video", "resolution", resolution), 0, RESOLUTIONS.size() - 1)
 	graphics = clampi(cfg.get_value("video", "graphics", graphics), Graphics.LOW, Graphics.SHOWCASE) as Graphics
+	motion_blur = clampi(cfg.get_value("video", "motion_blur", motion_blur), MotionBlur.Level.OFF, MotionBlur.Level.CINEMATIC) as MotionBlur.Level
 	swap_pads = cfg.get_value("input", "swap_pads", swap_pads)
 	player_name = cfg.get_value("online", "player_name", player_name)
 	last_join_address = cfg.get_value("online", "last_join_address", last_join_address)
@@ -104,6 +108,7 @@ func save_settings() -> void:
 	cfg.set_value("video", "window_size", window_size)
 	cfg.set_value("video", "resolution", resolution)
 	cfg.set_value("video", "graphics", graphics)
+	cfg.set_value("video", "motion_blur", motion_blur)
 	cfg.set_value("input", "swap_pads", swap_pads)
 	cfg.set_value("online", "player_name", player_name)
 	cfg.set_value("online", "last_join_address", last_join_address)
@@ -147,6 +152,9 @@ func apply() -> void:
 	InputSetup.apply(swap_pads)
 	apply_display()
 	apply_graphics(get_tree().root)
+	var camera := get_tree().root.get_camera_3d()
+	if camera:
+		apply_motion_blur(camera)
 
 
 func apply_display() -> void:
@@ -197,6 +205,15 @@ func apply_graphics(viewport: Viewport) -> void:
 	else:
 		RenderingServer.directional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_SOFT_LOW)
 		RenderingServer.positional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_SOFT_LOW)
+
+
+## Motion blur on `camera` at the chosen level (none at Low, or without RenderingDevice:
+## the Compatibility renderer and headless runs have no compute shaders).
+func apply_motion_blur(camera: Camera3D) -> void:
+	var level := motion_blur
+	if graphics == Graphics.LOW or RenderingServer.get_rendering_device() == null:
+		level = MotionBlur.Level.OFF
+	MotionBlur.attach(camera, level)
 
 
 static func _metal() -> bool:

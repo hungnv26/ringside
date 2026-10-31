@@ -203,6 +203,10 @@ func start_coach(tree: SceneTree) -> bool:
 	# `--graphics=high|showcase` (default high) for this run only, like the window.
 	var quality := ["low", "medium", "high", "showcase"].find(str(args.get("graphics", "high")))
 	Settings.graphics = (quality if quality >= 0 else Settings.Graphics.HIGH) as Settings.Graphics
+	# `--motion-blur=off|subtle|cinematic` (default cinematic: coached matches are watched);
+	# `film` for a film-quality recording (240 rendered frames a second, blended by the adapter).
+	var blur := ["off", "subtle", "cinematic", "film"].find(str(args.get("motion-blur", "cinematic")))
+	Settings.motion_blur = (blur if blur >= 0 else MotionBlur.Level.CINEMATIC) as MotionBlur.Level
 	_apply_coach_window(str(args.get("window", "1080p")), tree)
 	tree.change_scene_to_file.call_deferred("res://scenes/fight.tscn")
 	return true
@@ -232,7 +236,9 @@ func _apply_coach_window(choice: String, tree: SceneTree) -> void:
 		Settings.window_size = index
 		Settings.apply_display()
 		var screen := DisplayServer.window_get_current_screen()
-		var scale := maxf(1.0, DisplayServer.screen_get_scale(screen))
+		# A film-quality recording renders four times the frames: its window is the size in
+		# pixels, not screen points (1080p, not 4K on a Retina screen), to keep the movie small.
+		var scale := 1.0 if Settings.motion_blur == MotionBlur.Level.FILM else maxf(1.0, DisplayServer.screen_get_scale(screen))
 		var area := DisplayServer.screen_get_usable_rect(screen)
 		var size := Vector2i(Settings.WINDOW_SIZES[0] * scale)
 		for i in range(index, -1, -1):

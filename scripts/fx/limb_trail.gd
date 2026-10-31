@@ -8,6 +8,12 @@ extends MeshInstance3D
 ## camera (a straight punch, moving along its own arm, still shows) and tapers as it ages.
 ## It stops ageing during hitstop and the super freeze, so the swoosh hangs in the air
 ## through the impact. A flurry that switches limbs starts a new strip.
+##
+## With motion blur on the camera (MotionBlur, docs/motion-blur-plan.md phase 2) it is a
+## smear instead: the blur stops at its longest streak, and a limb that travels further than
+## that in one frame (the fastest kicks and hooks) leaves a soft strip over the gap, as
+## strong as the gap is uncovered, gone within SMEAR_LIFE. Slower strikes get none: the
+## blur alone covers them.
 
 const LIFE := 0.16 # seconds a sample stays visible (not counting hitstop)
 const LEAD_FRAMES := 8 # starts this many frames before the active frames (the wind-up)...
@@ -18,6 +24,9 @@ const SUPER_COLOR := Color(1.0, 0.82, 0.3) # supers and their finishers (FightFx
 ## [bone, ribbon width (m)]: fists, then the balls of the feet.
 const LIMBS := [["hand_l", 0.1], ["hand_r", 0.1], ["ball_l", 0.13], ["ball_r", 0.13]]
 const MIN_STEP := 0.004 # a sample closer than this to the last one isn't added
+const SMEAR_LIFE := 3.0 / 60.0
+const SMEAR_ALPHA := 0.55
+const SMEAR_LEAD_FRAMES := 2
 
 var fighter: Fighter
 var color := Color.WHITE
@@ -27,6 +36,9 @@ var _samples: Array = [] # [position, age, strip, colour, width]
 var _strip := 0
 var _limb := -1
 var _mesh := ImmediateMesh.new()
+## The camera's motion blur while it is on (smear mode), else null.
+var _blur: MotionBlur
+var _last_tip := Vector3.INF
 
 
 func _init(owner_fighter: Fighter, trail_color: Color) -> void:
@@ -56,12 +68,19 @@ static func wants(move: MoveData) -> bool:
 
 
 func update(delta: float) -> void:
-	var held := fighter.hitstop > 0 or fighter.frozen
+	_blur = _camera_blur()
+	var life := SMEAR_LIFE if _blur else LIFE
+	# A smear ages in real time, through hitstop too: the frozen limb is sharp.
+	var held := (fighter.hitstop > 0 or fighter.frozen) and _blur == null
 	if not held:
 		for sample: Array in _samples:
-			sample[1] += delta
-		while not _samples.is_empty() and _samples[0][1] > LIFE:
+			sample[1] += delta / maxf(Engine.time_scale, 0.01) if _blur else delta
+		while not _samples.is_empty() and _samples[0][1] > life:
 			_samples.pop_front()
+	if _blur:
+		_update_smear()
+		_draw()
+		return
 	if _skeleton and not held and _sampling():
 		var skeleton_xform := _skeleton.get_global_transform_interpolated()
 		var move := fighter.current_move
@@ -84,6 +103,59 @@ func update(delta: float) -> void:
 	elif not held:
 		_limb = -1
 	_draw()
+
+
+## The enabled MotionBlur on the current camera, or null.
+func _camera_blur() -> MotionBlur:
+	var camera := get_viewport().get_camera_3d() if is_inside_tree() else null
+	if camera == null or camera.compositor == null:
+		return null
+	for effect in camera.compositor.compositor_effects:
+		if effect is MotionBlur and effect.enabled and effect.shutter > 0.0 and effect.debug_view == 0:
+			return effect
+	return null
+
+
+## Smear mode: one strip per frame from the striking limb's last position to this one, as
+## opaque as the blur leaves that gap uncovered.
+func _update_smear() -> void:
+	var move := fighter.current_move
+	var striking := _skeleton != null and fighter.state == Fighter.State.ATTACK and move != null \
+			and move.hitbox_radius > 0.0 and move.projectile_speed <= 0.0 and not move.command_grab \
+			and fighter.state_frame >= move.startup - SMEAR_LEAD_FRAMES and fighter.state_frame <= move.startup + move.active + TAIL_FRAMES \
+			and fighter.hitstop == 0 and not fighter.frozen
+	if not striking:
+		_limb = -1
+		_last_tip = Vector3.INF
+		return
+	var skeleton_xform := _skeleton.get_global_transform_interpolated()
+	var hitbox: Vector3 = fighter.get_global_transform_interpolated() * move.hitbox_offset
+	var nearest := 0
+	var best := INF
+	for i in _bones.size():
+		var d := (skeleton_xform * _skeleton.get_bone_global_pose(_bones[i]).origin).distance_to(hitbox)
+		if d < best:
+			best = d
+			nearest = i
+	var tip := skeleton_xform * _skeleton.get_bone_global_pose(_bones[nearest]).origin
+	if nearest != _limb or not _last_tip.is_finite():
+		_limb = nearest
+		_strip += 1
+		_last_tip = tip
+		return
+	var camera := get_viewport().get_camera_3d()
+	var lines := 1080.0 / maxf(get_viewport().get_visible_rect().size.y, 1.0)
+	var gap := (camera.unproject_position(tip) - camera.unproject_position(_last_tip)).length() * lines
+	# The blur's own streak over this frame (MotionBlur: motion × exposure, capped).
+	var streak := minf(gap * _blur.shutter / maxf(_blur.frame_seconds, 0.001), _blur.max_blur_1080)
+	var uncovered := clampf((gap * 0.5 - streak) / maxf(streak, 1.0), 0.0, 1.0)
+	if uncovered > 0.0:
+		_strip += 1
+		var tint := SUPER_COLOR if move.super_move or move.input.begins_with("~") else color
+		var strength := Color(tint, uncovered * SMEAR_ALPHA)
+		_samples.append([_last_tip, 0.0, _strip, strength, LIMBS[nearest][1]])
+		_samples.append([tip, 0.0, _strip, strength, LIMBS[nearest][1]])
+	_last_tip = tip
 
 
 func _sampling() -> bool:
@@ -110,12 +182,18 @@ func _draw() -> void:
 		var side := (pb - pa).cross(eye - pb).normalized()
 		if not side.is_finite() or side == Vector3.ZERO:
 			continue
-		var life_a: float = 1.0 - a[1] / LIFE
-		var life_b: float = 1.0 - b[1] / LIFE
+		var life := SMEAR_LIFE if _blur else LIFE
+		var life_a: float = 1.0 - a[1] / life
+		var life_b: float = 1.0 - b[1] / life
 		var wa: float = a[4] * 0.5 * life_a
 		var wb: float = b[4] * 0.5 * life_b
 		var ca := Color(a[3], pow(life_a, 1.5) * ALPHA)
 		var cb := Color(b[3], pow(life_b, 1.5) * ALPHA)
+		if _blur: # a smear: full width, fading toward the old end and with age
+			wa = a[4] * 0.5
+			wb = b[4] * 0.5
+			ca = Color(a[3], (a[3] as Color).a * life_a * 0.35)
+			cb = Color(b[3], (b[3] as Color).a * life_b)
 		vertices.append_array([[pa + side * wa, ca], [pa - side * wa, ca], [pb - side * wb, cb],
 			[pa + side * wa, ca], [pb - side * wb, cb], [pb + side * wb, cb]])
 	if vertices.is_empty():

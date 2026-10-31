@@ -23,6 +23,7 @@ const STAGE_NAMES: Record<string, string> = { ring: "Boxing Ring", dojo: "Dojo",
 const EFFORTS: Effort[] = ["low", "medium", "high"];
 const WINDOWS = ["720p", "900p", "1080p", "1440p", "fullscreen"];
 const GRAPHICS = ["high", "showcase"];
+const MOTION_BLUR = ["off", "subtle", "cinematic"];
 const ELO_K = 32;
 const ELO_START = 1000;
 
@@ -159,6 +160,8 @@ export interface MatchRequest {
   mode?: Mode;
   window?: string;
   graphics?: string;
+  motionBlur?: string;
+  film?: boolean;
   reflexRate?: number;
   readThreshold?: number;
   gateThreshold?: number;
@@ -201,10 +204,12 @@ function validateSettings(raw: any) {
   if (!WINDOWS.includes(window)) throw new Error(`window must be one of ${WINDOWS.join(", ")}`);
   const graphics = String(raw?.graphics ?? "high");
   if (!GRAPHICS.includes(graphics)) throw new Error(`graphics must be one of ${GRAPHICS.join(", ")}`);
+  const motionBlur = String(raw?.motionBlur ?? "cinematic");
+  if (!MOTION_BLUR.includes(motionBlur)) throw new Error(`motionBlur must be one of ${MOTION_BLUR.join(", ")}`);
   const seed = raw?.seed === undefined || raw?.seed === null || raw?.seed === "" ? null : Math.floor(num("seed", 0, 0, 2 ** 31 - 1));
   const reflexRate = num("reflexRate", DEFAULT_REFLEX_RATE, 2, 4);
   if (!(REFLEX_RATES as readonly number[]).includes(reflexRate)) throw new Error(`reflexRate must be one of ${REFLEX_RATES.join(", ")}`);
-  return { seed, cap: num("cap", 1, 0, 50), cadence: Math.floor(num("cadence", 2000, 500, 30000)), effort, capture: !!raw?.capture, record: !!raw?.record, mode, window, graphics, reflexRate, readThreshold: num("readThreshold", DEFAULT_READ_THRESHOLD, 0.3, 0.95), gateThreshold: num("gateThreshold", DEFAULT_GATE_THRESHOLD, 0.3, 0.95) };
+  return { seed, cap: num("cap", 1, 0, 50), cadence: Math.floor(num("cadence", 2000, 500, 30000)), effort, capture: !!raw?.capture, record: !!raw?.record, mode, window, graphics, motionBlur, film: !!raw?.film && !!raw?.record, reflexRate, readThreshold: num("readThreshold", DEFAULT_READ_THRESHOLD, 0.3, 0.95), gateThreshold: num("gateThreshold", DEFAULT_GATE_THRESHOLD, 0.3, 0.95) };
 }
 
 /** The fighter or stage choice that is rolled when the match starts. */
@@ -264,6 +269,8 @@ export function matchArgs(m: MatchRequest, logDir: string, captureDir: string, l
   if (m.mode && m.mode !== "coach") args.push("--mode", m.mode);
   if (m.window) args.push("--window", m.window);
   if (m.graphics) args.push("--graphics", m.graphics);
+  if (m.motionBlur) args.push("--motion-blur", m.motionBlur);
+  if (m.film && m.record) args.push("--film");
   if (m.reflexRate) args.push("--reflex-rate", String(m.reflexRate));
   if (m.readThreshold != null) args.push("--read-threshold", String(m.readThreshold));
   if (m.gateThreshold != null) args.push("--gate-threshold", String(m.gateThreshold));
@@ -411,7 +418,12 @@ export function createSetupServer(runner = new Runner(), root = REPO_ROOT, fetch
             { id: "coach", name: "Coach", blurb: "the model adjusts its fighter's plan every couple of seconds" },
             { id: "script", name: "Self-coding", blurb: "the model writes rules before the match and rewrites them after every round; no calls during a round" },
           ],
-          defaults: { p1: { fighter: RANDOM, spec: "anthropic:claude-haiku-5-5" }, p2: { fighter: RANDOM, spec: "openai:gpt-5.4-mini" }, stage: RANDOM, cap: 1, cadence: 2000, effort: "low", window: "1080p", graphics: "high", reflexRate: DEFAULT_REFLEX_RATE, readThreshold: DEFAULT_READ_THRESHOLD, gateThreshold: DEFAULT_GATE_THRESHOLD },
+          defaults: { p1: { fighter: RANDOM, spec: "anthropic:claude-haiku-5-5" }, p2: { fighter: RANDOM, spec: "openai:gpt-5.4-mini" }, stage: RANDOM, cap: 1, cadence: 2000, effort: "low", window: "1080p", graphics: "high", motionBlur: "cinematic", film: false, reflexRate: DEFAULT_REFLEX_RATE, readThreshold: DEFAULT_READ_THRESHOLD, gateThreshold: DEFAULT_GATE_THRESHOLD },
+          motionBlur: [
+            { id: "cinematic", name: "Cinematic (a film camera's 180° shutter)" },
+            { id: "subtle", name: "Subtle (half of that)" },
+            { id: "off", name: "Off (every frame sharp)" },
+          ],
           tournament: { maxEntrants: MAX_ENTRANTS, rotate: ROTATE },
           random: RANDOM,
           running: runner.running,

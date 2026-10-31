@@ -114,6 +114,19 @@ test("validateMatch and matchArgs carry the reflexes: +jev specs, jev alone, the
   assert.equal(table.find((r) => r.model === "jev:fake")?.usd, 0.04);
 });
 
+test("validateMatch and matchArgs carry motion blur, and film only with a recording", () => {
+  const base = { p1: { fighter: "jin", spec: "fake:coach" }, p2: { fighter: "kenji", spec: "fake:coach" }, stage: "beach" };
+  const m = validateMatch(base, fighters, stageIds);
+  assert.equal(m.motionBlur, "cinematic");
+  assert.equal(m.film, false);
+  const film = validateMatch({ ...base, motionBlur: "subtle", film: true, record: true }, fighters, stageIds);
+  const args = matchArgs(film, "/tmp/log", "/tmp/cap");
+  assert.deepEqual(args.slice(args.indexOf("--motion-blur"), args.indexOf("--motion-blur") + 2), ["--motion-blur", "subtle"]);
+  assert.ok(args.includes("--film"));
+  assert.equal(validateMatch({ ...base, film: true }, fighters, stageIds).film, false); // no recording, no film
+  assert.throws(() => validateMatch({ ...base, motionBlur: "max" }, fighters, stageIds), /motionBlur/);
+});
+
 test("resolveRandom rolls random fighters and stages, never a mirror for a random corner", () => {
   const ids = fighters.map((f) => f.id);
   const seen = { p1: new Set<string>(), p2: new Set<string>(), stage: new Set<string>() };

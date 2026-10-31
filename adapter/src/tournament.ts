@@ -30,6 +30,8 @@ export interface TournamentRequest {
   mode: Mode;
   window: string;
   graphics: string;
+  motionBlur?: string;
+  film?: boolean;
   capture: boolean;
   record: boolean;
   reflexRate?: number;
@@ -198,7 +200,7 @@ export class TournamentRunner {
     const f = t.fixtures.find((x) => x.status === "pending");
     if (!f) return this.finish(t);
     const r = t.request;
-    const request: MatchRequest = { p1: r.entrants[f.p1], p2: r.entrants[f.p2], stage: f.stage, seed: f.seed, cap: r.cap, cadence: r.cadence, effort: r.effort, capture: r.capture, record: r.record, mode: r.mode, window: r.window, graphics: r.graphics, reflexRate: r.reflexRate, readThreshold: r.readThreshold, gateThreshold: r.gateThreshold };
+    const request: MatchRequest = { p1: r.entrants[f.p1], p2: r.entrants[f.p2], stage: f.stage, seed: f.seed, cap: r.cap, cadence: r.cadence, effort: r.effort, capture: r.capture, record: r.record, mode: r.mode, window: r.window, graphics: r.graphics, motionBlur: r.motionBlur, film: r.film, reflexRate: r.reflexRate, readThreshold: r.readThreshold, gateThreshold: r.gateThreshold };
     try {
       f.matchId = this.runner.start(request).id;
       f.status = "running";

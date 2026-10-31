@@ -121,3 +121,65 @@ real time.
 | 2 | Velocity-driven smears on the fastest strikes | ½ day |
 | 3 | Film-quality blur in recordings (240 fps, frame blending) | ½ to 1 day |
 | 4 | Tuning, before/after videos, checks | ½ day |
+
+## Progress (built 2026-11-01)
+
+All five phases are built. What changed against the plan is noted per phase.
+
+**Phase 0.** `tools/check_motion.gd --strobe` measures how far a hand, foot or head jumps on
+screen between frames through the game camera (px at 1080 lines; one P1 per fighter against
+Kenji, 21,436 frames):
+
+| State | p50 | p95 | Max |
+|---|---|---|---|
+| Attack | 12 | 100 | 255 |
+| Getup | 35 | 150 | 167 |
+| Knocked into the air | 64 | 93 | 108 |
+| Walk forward | 13 | 30 | 85 |
+| Idle | 1 | 9 | 68 |
+
+The motion-vector check settled the main risk: Godot 4.7.2 writes motion vectors for skinned
+meshes (a kicking leg has its own, not just the body's), with MSAA on, so no per-vertex
+fallback was needed. `get_cam_projection()` is already in the renderer's own convention
+(debug views 3 and 4: the reprojected camera motion matches the motion vectors of the
+stage). Frame pacing (`--timing`, a live run at 120 Hz) is clean: 6 or 7 frames in 1,515 over
+1.5× the median, all at loading. The 480 fps reference render was not used: the motion
+reel steps one simulation tick per rendered frame, so it can't render sub-frames; the film
+path of Phase 3 (a real match) became the reference instead.
+
+**Phase 1.** `scripts/fx/motion_blur.gd` and `motion_blur.glsl`: a `CompositorEffect` after
+the transparent pass, in four compute passes (each pixel's blur vector and distance once,
+16-px tiles, 3×3 neighbourhood, a depth-weighted gather of 13 samples). Exposure is shutter ÷
+real frame time, so 120 Hz looks like 60 Hz and slow motion (filmed "at a high frame rate")
+blurs less; the camera's own motion counts 35%; a camera jump of 0.6 m or 25° in a frame is a
+cut and stays sharp; hitstop has no motion, so impact freezes stay crisp. Levels: Off,
+Subtle (1/240 s, at most 32 px), Cinematic (1/120 s, at most 56 px). The Options menu has
+*Motion Blur* (default Subtle; none at Low); coached matches take `--motion-blur` (default
+Cinematic, also on the setup page). Cost at 1080p on this Mac (frame time with vsync off,
+the motion reel): 6.84 ms off, 7.73 ms Cinematic, **about 0.9 ms**. A first version that
+reprojected every sample cost 1.05 ms.
+
+**Phase 2.** With motion blur on, `LimbTrail` is a smear instead of a ribbon: a strip over
+one frame's travel of the striking limb, only when the limb moves further than the blur's
+longest streak covers, as strong as the gap is uncovered, gone within 3 frames (real time,
+through hitstop). In the motion reel only Kenji's fastest mid kick (gaps up to 141 px) earns
+one, at a quarter strength: everything slower is covered by the blur alone. With the blur
+off the old ribbons are unchanged.
+
+**Phase 3.** `--film` (setup page: *Film-quality motion blur*, with *Record*): the game renders
+240 frames a second at High (each frame blurred over its own 1/240 s, `--motion-blur=film`)
+and ffmpeg blends the first two of every four into one 60 fps frame. Godot looks for a movie
+writer before any game script runs, so a custom streaming writer couldn't be registered;
+Godot's own Theora writer (`.ogv`, with the sound) keeps the temporary movie to about
+75 KB a frame at 720p. While recording, the coaches pace their turns by game ticks
+(`gameClock` in adapter/src/main.ts), not wall time, so a recording plays like a live match.
+
+Found on the way: every recording so far was 1280×720 whatever window was chosen (the movie
+size is fixed when the game starts, before it sizes its window); the adapter now passes the
+window's size in pixels (`--resolution`, 1920×1080 for 1080p).
+
+**Phase 4.** Before/after stills in `docs/look/movement/blur_before_after.jpg` (left off,
+right Cinematic: a kip-up's legs and a straight punch). Checks: `check_motion.gd` gives the same
+numbers as before this work (reach 0.0 cm off in 122 moves; the getup, jump-squat and landing
+skate it already flagged are unchanged), sim_test (612) and coach_test pass, and the adapter's
+78 tests pass.

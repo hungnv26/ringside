@@ -1,5 +1,5 @@
 extends Control
-## Options: volumes (music, effects, announcer, stage ambience), action camera mode, CPU difficulty, fight intros, display, resolution, graphics. Changes apply and
+## Options: volumes (music, effects, announcer, stage ambience), action camera mode, CPU difficulty, fight intros, display, resolution, graphics, motion blur. Changes apply and
 ## save immediately (Settings autoload).
 
 const MAIN_MENU_SCENE := "res://scenes/main_menu.tscn"
@@ -14,6 +14,7 @@ const MAIN_MENU_SCENE := "res://scenes/main_menu.tscn"
 @onready var window_size_option: OptionButton = %WindowSizeOption
 @onready var resolution_option: OptionButton = %ResolutionOption
 @onready var graphics_option: OptionButton = %GraphicsOption
+@onready var motion_blur_option: OptionButton = %MotionBlurOption
 @onready var swap_pads_check: CheckButton = %SwapPadsCheck
 @onready var intros_check: CheckButton = %IntrosCheck
 
@@ -33,6 +34,8 @@ func _ready() -> void:
 		resolution_option.add_item(resolution_name)
 	for quality_name in Settings.GRAPHICS_NAMES:
 		graphics_option.add_item(quality_name)
+	for level_name in MotionBlur.LEVEL_NAMES:
+		motion_blur_option.add_item(level_name)
 
 	music_slider.value = Settings.music_volume
 	sfx_slider.value = Settings.sfx_volume
@@ -45,6 +48,8 @@ func _ready() -> void:
 	window_size_option.disabled = Settings.display_mode != Settings.DisplayMode.WINDOWED
 	resolution_option.selected = Settings.resolution
 	graphics_option.selected = Settings.graphics
+	motion_blur_option.selected = Settings.motion_blur
+	motion_blur_option.disabled = Settings.graphics == Settings.Graphics.LOW # Low has none
 	swap_pads_check.button_pressed = Settings.swap_pads
 	intros_check.button_pressed = Settings.fight_intros
 
@@ -61,7 +66,10 @@ func _ready() -> void:
 		window_size_option.disabled = i != Settings.DisplayMode.WINDOWED)
 	window_size_option.item_selected.connect(func(i: int) -> void: _change(&"window_size", i))
 	resolution_option.item_selected.connect(func(i: int) -> void: _change(&"resolution", i))
-	graphics_option.item_selected.connect(func(i: int) -> void: _change(&"graphics", i))
+	graphics_option.item_selected.connect(func(i: int) -> void:
+		_change(&"graphics", i)
+		motion_blur_option.disabled = i == Settings.Graphics.LOW)
+	motion_blur_option.item_selected.connect(func(i: int) -> void: _change(&"motion_blur", i))
 	swap_pads_check.toggled.connect(func(on: bool) -> void: _change(&"swap_pads", on))
 	intros_check.toggled.connect(func(on: bool) -> void: _change(&"fight_intros", on))
 	%BackButton.pressed.connect(_back)

@@ -12,6 +12,11 @@ extends SceneTree
 ## - reach: every move's striking hand or foot at its impact time, against the baseline in
 ##   tools/motion_baseline.json, so new art still matches the hit boxes (3 cm allowed).
 ## --strict exits 1 when skate, held poses or reach miss their targets.
+## --blur off|subtle|cinematic|motion|object (reel): motion blur on the filming camera; motion
+## and object show the motion vectors / blur vectors as colour (MotionBlur.debug_view).
+## --timing (reel, without --fixed-fps): frame pacing (real frame times) and GPU time per frame.
+## --strobe (docs/motion-blur-plan.md, phase 0): how far hands, feet and head jump on screen
+## between two frames through the game camera, in px on a 1080-line screen, per state.
 
 ## Samples a fighter's pose as the skeleton's last modifier, after the motion layer.
 class Probe extends SkeletonModifier3D:
@@ -71,6 +76,15 @@ var _tick := 0
 var close_camera: Camera3D
 var wide_camera := false # --wide: both fighters centred (the framing of the first reels)
 var legs_camera := false # --legs: low and close on P1's legs
+var strobe := false
+var timing := false
+var _frame_usec := PackedInt64Array()
+var _gpu_ms := PackedFloat32Array()
+var _last_usec := 0
+var strobe_by := {} # state name -> PackedFloat32Array of px gaps
+var _last_screen := {} # fighter -> PackedVector2Array
+var _last_camera := Transform3D()
+const STROBE_BONES := [&"hand_l", &"hand_r", &"ball_leaf_l", &"ball_leaf_r", &"Head"]
 
 
 func _initialize() -> void:
@@ -89,6 +103,13 @@ func _initialize() -> void:
 	var close := args.has("--close") or args.has("--wide") or args.has("--legs")
 	legs_camera = args.has("--legs")
 	wide_camera = args.has("--wide")
+	strobe = args.has("--strobe")
+	timing = args.has("--timing")
+	if timing:
+		RenderingServer.viewport_set_measure_render_time(root.get_viewport_rid(), true)
+		if args.has("--no-vsync"): # frame times then show the cost (Metal reports no GPU time)
+			DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+			Engine.max_fps = 0
 	var only := ""
 	if args.has("--only"):
 		only = args[args.find("--only") + 1]
@@ -118,13 +139,24 @@ func _initialize() -> void:
 			close_camera.fov = 40.0
 			m.add_child(close_camera)
 			close_camera.make_current()
+		if reel and args.has("--blur"):
+			var how: String = args[args.find("--blur") + 1]
+			var camera: Camera3D = close_camera if close_camera else m.camera
+			var level := MotionBlur.Level.CINEMATIC if how in ["cinematic", "motion", "object", "camera", "depth"] else (MotionBlur.Level.SUBTLE if how == "subtle" else MotionBlur.Level.OFF)
+			var effect := MotionBlur.attach(camera, level)
+			if effect:
+				effect.debug_view = {"motion": 1, "object": 2, "camera": 3, "depth": 4}.get(how, 0)
 		await _run_scenarios()
 		if reel:
+			if timing:
+				_timing_report()
 			quit()
 			return
 
 	var report := _report()
 	print(report.text)
+	if strobe:
+		print(_strobe_report())
 	if FighterMotion.cost_calls > 0:
 		print("motion layer: %.0f µs per fighter per frame (%d frames)" % [float(FighterMotion.cost_usec) / FighterMotion.cost_calls, FighterMotion.cost_calls])
 	ok = report.ok
@@ -166,6 +198,12 @@ func step(n := 1) -> void:
 		if close_camera:
 			_aim_close_camera()
 		await process_frame # one frame per tick (--fixed-fps 60): _process, the motion layer, the probe
+		if timing:
+			var now := Time.get_ticks_usec()
+			if _last_usec > 0:
+				_frame_usec.append(now - _last_usec)
+			_last_usec = now
+			_gpu_ms.append(RenderingServer.viewport_get_measured_render_time_gpu(root.get_viewport_rid()))
 
 
 ## Side on to the line between the fighters, on the game camera's side of it.
@@ -364,6 +402,8 @@ func _sample(f: Fighter) -> void:
 		_pose_history.erase(f)
 		_last_clip.erase(f)
 	_last_pos[f] = at
+	if strobe:
+		_sample_strobe(f, state_name)
 	var ring: Array = _states_seen.get(f, [])
 	ring.append("%s/%s/f%d/h%d" % [Fighter.State.keys()[f.state], String(f.model._clip).get_file(), f.state_frame, f.hitstop])
 	if ring.size() > 6:
@@ -480,3 +520,61 @@ func _measure_reach(roster: Array, only: String) -> Dictionary:
 			out["%s/%s" % [character.id, move.name]] = [best, bp[0], bp[1], bp[2], points]
 		model.free()
 	return out
+
+
+# --- strobe -------------------------------------------------------------------------
+
+## Screen gap of the fastest effector since the last frame, at 1080 lines. A camera cut or a
+## teleport (round reset) starts again.
+func _sample_strobe(f: Fighter, state_name: String) -> void:
+	var camera: Camera3D = m.camera
+	var cut := camera.global_transform.origin.distance_to(_last_camera.origin) > 0.4
+	if f == p2:
+		_last_camera = camera.global_transform
+	var sk := f.model.skeleton
+	var xf := sk.global_transform
+	var lines := 1080.0 / camera.get_viewport().get_visible_rect().size.y
+	var now := PackedVector2Array()
+	for bone_name: StringName in STROBE_BONES:
+		var world := xf * sk.get_bone_global_pose(sk.find_bone(bone_name)).origin
+		now.append(camera.unproject_position(world) * lines)
+	var prev: PackedVector2Array = _last_screen.get(f, PackedVector2Array())
+	_last_screen[f] = now
+	if prev.is_empty() or cut or f.hitstop > 0 or f.frozen or not _pose_history.has(f):
+		return
+	var gap := 0.0
+	for i in now.size():
+		gap = maxf(gap, now[i].distance_to(prev[i]))
+	if not strobe_by.has(state_name):
+		strobe_by[state_name] = PackedFloat32Array()
+	strobe_by[state_name].append(gap)
+
+
+func _strobe_report() -> String:
+	var lines := ["", "strobe: the fastest hand, foot or head's jump between frames (px at 1080 lines)", "| state | frames | p50 | p95 | max |", "|---|---|---|---|---|"]
+	var all := []
+	var names := strobe_by.keys()
+	names.sort()
+	for state_name: String in names:
+		var v := Array(strobe_by[state_name])
+		v.sort()
+		all.append_array(v)
+		lines.append("| %s | %d | %.0f | %.0f | %.0f |" % [state_name, v.size(), v[int(v.size() * 0.5)], v[int(v.size() * 0.95)], v[-1]])
+	all.sort()
+	if all:
+		lines.append("| all | %d | %.0f | %.0f | %.0f |" % [all.size(), all[int(all.size() * 0.5)], all[int(all.size() * 0.95)], all[-1]])
+	return "\n".join(lines)
+
+
+## Frame pacing and GPU time over the reel (the first second is skipped: loading).
+func _timing_report() -> void:
+	var frames := Array(_frame_usec.slice(60))
+	var gpu := Array(_gpu_ms.slice(60))
+	if frames.is_empty():
+		return
+	frames.sort()
+	gpu.sort()
+	var median: float = frames[frames.size() / 2]
+	var late := frames.filter(func(u): return u > median * 1.5).size()
+	print("pacing: %d frames, median %.2f ms, p99 %.2f ms, max %.2f ms, %d over 1.5x the median" % [frames.size(), median / 1000.0, frames[int(frames.size() * 0.99)] / 1000.0, frames[-1] / 1000.0, late])
+	print("gpu: median %.2f ms, p95 %.2f ms per frame" % [gpu[gpu.size() / 2], gpu[int(gpu.size() * 0.95)]])

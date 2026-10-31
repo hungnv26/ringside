@@ -34,6 +34,9 @@ start (a random corner 2 never mirrors corner 1); pick one to fix it. *Start mat
 health bars, each coach's caption, plan, turns and cost, and the event feed, then keeps every
 result with links to the transcripts, and an Elo table by model. *Record the match to video*
 saves `match.mp4`, with the game's sound, next to the logs (Godot's movie writer plus ffmpeg).
+*Motion blur* (Cinematic by default) smears fast limbs like a film camera; *Film-quality
+motion blur* renders a recording at 240 frames a second and blends them, for the real thing
+(about 4× the render time). See [docs/motion-blur-plan.md](docs/motion-blur-plan.md).
 
 Picture quality is *High* by default (the 3D at 1080p upscaled with MetalFX, with ambient
 occlusion, indirect light and reflections) or *Showcase* for recordings (full resolution plus

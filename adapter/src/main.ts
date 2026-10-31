@@ -33,6 +33,10 @@ interface Args {
   window: string;
   /** Picture quality: high (live, 60 fps and up) or showcase (native resolution, global illumination; for recordings). */
   graphics: string;
+  /** Motion blur on the fight camera: off, subtle or cinematic (default). */
+  motionBlur: string;
+  /** With a recording: film-quality motion blur (240 rendered frames a second blended to 60; about 4x the render time). */
+  film: boolean;
   /** Reflex ticks a second (2 or 4) for a side with reflexes (+jev or jev:...). */
   reflexRate: number;
   /** A reflex read is sent when its probability reaches this. */
@@ -46,6 +50,7 @@ export const REFLEX_BRAIN_CADENCE = 6000;
 
 export const WINDOWS = ["720p", "900p", "1080p", "1440p", "fullscreen"] as const;
 export const GRAPHICS = ["high", "showcase"] as const;
+export const MOTION_BLUR = ["off", "subtle", "cinematic"] as const;
 
 export function parseCli(argv: string[]): Args {
   const get = (name: string, fallback?: string): string | undefined => {
@@ -69,6 +74,8 @@ export function parseCli(argv: string[]): Args {
   if (!(WINDOWS as readonly string[]).includes(window)) throw new Error(`--window must be one of ${WINDOWS.join(", ")}`);
   const graphics = get("graphics", "high")!;
   if (!(GRAPHICS as readonly string[]).includes(graphics)) throw new Error(`--graphics must be one of ${GRAPHICS.join(", ")}`);
+  const motionBlur = get("motion-blur", "cinematic")!;
+  if (!(MOTION_BLUR as readonly string[]).includes(motionBlur)) throw new Error(`--motion-blur must be one of ${MOTION_BLUR.join(", ")}`);
   const reflexRate = Number(get("reflex-rate", String(DEFAULT_REFLEX_RATE)));
   if (!(REFLEX_RATES as readonly number[]).includes(reflexRate)) throw new Error(`--reflex-rate must be one of ${REFLEX_RATES.join(", ")}`);
   const threshold = (name: string, fallback: string) => {
@@ -98,22 +105,31 @@ export function parseCli(argv: string[]): Args {
     mode,
     window,
     graphics,
+    motionBlur,
+    film: argv.includes("--film"),
     reflexRate,
     readThreshold: threshold("read-threshold", String(DEFAULT_READ_THRESHOLD)),
     gateThreshold: threshold("gate-threshold", String(DEFAULT_GATE_THRESHOLD)),
   };
 }
 
+/** Rendered frames a second for a film-quality recording; FILM_GROUP of them make one 60 fps frame. */
+export const FILM_FPS = 240;
+const FILM_GROUP = FILM_FPS / 60;
+
 /**
- * .avi (+ .wav) from Godot's movie writer -> .mp4 (H.264 + AAC) with ffmpeg; the sources are
- * removed on success. Godot's AVI carries the game's sound itself (PCM), so the audio is kept
- * whether or not a separate .wav was written (an AVI without sound gives a silent .mp4).
+ * A movie from Godot's movie writer -> .mp4 (H.264 + AAC) with ffmpeg; the sources are
+ * removed on success. Godot's AVI (and OGV) carries the game's sound itself, so the audio is
+ * kept whether or not a separate .wav was written (a movie without sound gives a silent .mp4).
+ * `film`: the movie was rendered at FILM_FPS; the first half of every FILM_GROUP frames is
+ * blended into one 60 fps frame, a film camera's 180° shutter (docs/motion-blur-plan.md).
  */
-export async function makeVideo(avi: string, mp4: string, log: (line: string) => void): Promise<void> {
+export async function makeVideo(avi: string, mp4: string, log: (line: string) => void, film = false): Promise<void> {
   if (!existsSync(avi)) throw new Error(`no movie was written at ${avi}`);
-  const wav = avi.replace(/\.avi$/, ".wav");
+  const wav = avi.replace(/\.(avi|ogv)$/, ".wav");
   const inputs = existsSync(wav) ? ["-i", avi, "-i", wav] : ["-i", avi];
-  const ffArgs = ["-loglevel", "error", "-y", ...inputs, "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", ...(existsSync(wav) ? ["-shortest"] : []), "-movflags", "+faststart", mp4];
+  const blend = film ? ["-vf", `tmix=frames=${FILM_GROUP / 2},select='eq(mod(n,${FILM_GROUP}),${FILM_GROUP / 2 - 1})',setpts=N/(60*TB)`, "-r", "60"] : [];
+  const ffArgs = ["-loglevel", "error", "-y", ...inputs, ...blend, "-c:v", "libx264", "-preset", "veryfast", "-crf", film ? "20" : "23", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", ...(existsSync(wav) ? ["-shortest"] : []), "-movflags", "+faststart", mp4];
   log(`video: encoding ${basename(mp4)} with ffmpeg`);
   const started = Date.now();
   await new Promise<void>((resolve, reject) => {
@@ -125,6 +141,44 @@ export async function makeVideo(avi: string, mp4: string, log: (line: string) =>
   });
   for (const f of [avi, wav]) if (existsSync(f)) unlinkSync(f);
   log(`video: ${mp4} (${((Date.now() - started) / 1000).toFixed(0)} s)`);
+}
+
+/** A recording's frame size for a --window choice (fullscreen records at 1080p). */
+export function movieSize(window: string): string {
+  return { "720p": "1280x720", "900p": "1600x900", "1080p": "1920x1080", "1440p": "2560x1440" }[window] ?? "1920x1080";
+}
+
+/**
+ * Timers that wait game time (the state's tick, 60 a second) instead of wall time, for the
+ * coaches of a recorded match: the game renders slower than real time, and the turns keep
+ * the pace of the fight. A tick that goes backwards (a new round) restarts the count; while
+ * no state has arrived it counts wall time.
+ */
+export function gameClock(link: { latest: { tick: number } | null }, pollMs = 20) {
+  type Handle = { timer: ReturnType<typeof setTimeout> | null };
+  const setTimer = (fn: () => void, ms: number): Handle => {
+    let start = link.latest?.tick ?? null;
+    const startedAt = Date.now();
+    const handle: Handle = { timer: null };
+    const check = () => {
+      const tick = link.latest?.tick ?? null;
+      if (start === null && tick !== null) start = tick;
+      if (start !== null && tick !== null && tick < start) start = tick;
+      const done = start !== null && tick !== null ? ((tick - start) * 1000) / 60 >= ms : Date.now() - startedAt >= ms;
+      if (done) {
+        handle.timer = null;
+        fn();
+      } else handle.timer = setTimeout(check, pollMs);
+    };
+    handle.timer = setTimeout(check, pollMs);
+    return handle;
+  };
+  const clearTimer = (h: unknown) => {
+    const handle = h as Handle | null;
+    if (handle?.timer) clearTimeout(handle.timer);
+    if (handle) handle.timer = null;
+  };
+  return { setTimer, clearTimer };
 }
 
 export function clientFor(spec: string, effort: Effort, cache: Map<string, ModelClient>): ModelClient {
@@ -182,17 +236,20 @@ async function main(): Promise<void> {
 
   if (args.log) BattleLog.at(args.log).live({ at: new Date().toISOString(), phase: "waiting", sides: args.sides, stage: args.stage, seed: args.seed });
   if (args.launch) {
-    const godotArgs = ["--path", REPO_ROOT, "--", `--coach=ws://127.0.0.1:${args.port}`, `--p1=${args.sides.p1.fighter}`, `--p2=${args.sides.p2.fighter}`, `--stage=${args.stage}`, `--seed=${args.seed}`, `--window=${args.window}`, `--graphics=${args.graphics}`];
+    const godotArgs = ["--path", REPO_ROOT, "--", `--coach=ws://127.0.0.1:${args.port}`, `--p1=${args.sides.p1.fighter}`, `--p2=${args.sides.p2.fighter}`, `--stage=${args.stage}`, `--seed=${args.seed}`, `--window=${args.window}`, `--graphics=${args.graphics}`, `--motion-blur=${args.film && args.record ? "film" : args.motionBlur}`];
     if (args.quit) godotArgs.push("--quit-after-match");
     if (args.capture) godotArgs.push(`--capture-dir=${args.capture}`);
     if (args.record) {
-      // Godot's movie writer: every frame rendered at a fixed 60 fps (MJPEG .avi + .wav), then
-      // ffmpeg makes the .mp4 once the game has closed. Rendering slower than real time slows
-      // the game, not the coaches, so a recorded match sees a few more turns per round.
-      const avi = args.record.replace(/\.mp4$/, "") + ".avi";
-      godotArgs.unshift("--write-movie", avi, "--fixed-fps", "60");
+      // Godot's movie writer: every frame rendered at a fixed 60 fps (MJPEG .avi), or at
+      // FILM_FPS for film-quality blur (Theora .ogv: four times the frames, a quarter the
+      // bytes), then ffmpeg makes the .mp4 once the game has closed. Rendering is slower than
+      // real time; the coaches keep game time (gameClock), so the match plays as it would live.
+      const movie = args.record.replace(/\.mp4$/, "") + (args.film ? ".ogv" : ".avi");
+      // The movie's size is fixed when the game starts, before it sizes its window: give it
+      // the chosen window's size in pixels (else every recording is the project's 1280×720).
+      godotArgs.unshift("--write-movie", movie, "--fixed-fps", String(args.film ? FILM_FPS : 60), "--resolution", movieSize(args.window));
       afterGame = async () => {
-        await makeVideo(avi, args.record, say);
+        await makeVideo(movie, args.record, say, args.film);
         onVideo?.();
       };
     }
@@ -255,6 +312,7 @@ async function main(): Promise<void> {
       let reflexesOf: Reflexes | null = null;
       if (brain) {
         coach = new Coach(side, brain, clientFor(brain, args.effort, clients), link, hello, log, {
+          ...(args.record ? gameClock(link) : {}),
           cadenceMs: args.cadence,
           capUsd: args.cap,
           effort: args.effort,
