@@ -30,7 +30,7 @@ const CREDITS := [
 	["Kowloon Courtyard", "Poly Haven: Dirty Tiles (Matterfield, Jenelle van Heerden),\nConcrete Wall 006 (Dario Barresi, Charlotte Baglioni) (CC0)"],
 	["Outfit fabrics", "Poly Haven: Cotton Jersey and Bi Stretch (colormass, Rico Cilliers),\nDenim Fabric 06 (Greg Zaal, Rico Cilliers) (CC0)"],
 	["Music", "\"Heavy Battle 2\", \"Space Battle\" and \"Jazzy Battle Theme\" by MintoDog, \"Determination\"\nby HydroGene, \"Midnight Drive\" by congusbongus,\n\"Boss_Koto\" by G_P, \"Funky House\" by Of Far Different Nature,\n\"Determined Pursuit\" by Emma_MA (OpenGameArt, CC0),\n\"Dragon Dance\" by BiteMe Games (itch.io, CC0)"],
-	["Fighter voices", "\"Male Grunt/Yelling sounds\" by HaelDB, \"Female Hurt\nGrunts & Groans\" by AuraVoice (OpenGameArt, CC0)"],
+	["Fighter voices", "\"Male Grunt/Yelling sounds\" by HaelDB, \"RPG Voice Starter Pack\"\nby cicifyre (OpenGameArt, CC0), \"Female Gruntwork - 1\" by PlumpDev\n(OpenGameArt, CC BY-SA 4.0)"],
 	["Sound effects & announcer", "Kenney: Impact Sounds, Interface Sounds,\nVoiceover Pack: Fighter (CC0)"],
 	["Ambient sound", "\"AMB Rain Loop 1\" by kresiek-the-furry, \"High traffic road sounds\"\nby ignasd, \"Background voices\" by pauliuw, \"Crowd Shouting/Speaking\nAmbience\" by starninjas, \"Applause in a large hall or church\" by expl0it3r,\n\"Beach Ocean Waves\" by qubodup, \"Park ambiences\" by thimras, \"Fire Crackling\"\nby antumdeluge, \"Solo Seagull Sound Effects\" by rango-mango (OpenGameArt, CC0)"],
 	["Crowd reactions", "Freesound: \"Group Ooh\" and \"Group Wow\" by CHallSmith, \"Crowd Ooohs and Ahhhs\"\nby noah0189, \"Crowd Gasping In Surprise\" by Shane Vincent, \"Small Crowd Gasps\" and\n\"Sporting Event with Steady Cheers\" by craigsmith, \"Millerntor Stadium Crowd Reaction\"\nby Philipp Feit (Sound Of Sankt Pauli), \"Football Crowd - Reaction To Goal\" by D.jones,\n\"Crowd aah\" and \"Crowd shock\" by an anonymous contributor (CC0)"],
@@ -40,7 +40,7 @@ const CREDITS := [
 	["Logo lettering", "Based on the \"Permanent Marker\" font by Font Diner"],
 	["Dojo scroll lettering", "Drawn with the \"Yuji Syuku\" font by The Yuji Project Authors (SIL OFL 1.1)"],
 	["Made for this project", "Ring, arena, dojo, rooftop, temple, beach, night market, the express train,\nthe Kowloon courtyard, the fighters' bodies and outfits, the crowds and their\nanimations, cherry blossom, palm fronds, trees and the dojo's scroll and drum art,\nhit sparks, smoke and impact effects, fight and special-move animations, portraits,\nkey art and logo, swing, energy and super sounds"],
-	["License", "Code: MIT  ·  Original assets: CC BY 4.0\nThird-party assets: CC0  ·  Fonts: SIL Open Font License 1.1"],
+	["License", "Code: MIT  ·  Original assets: CC BY 4.0\nThird-party assets: CC0, one voice pack CC BY-SA 4.0  ·  Fonts: SIL Open Font License 1.1"],
 	["", ""],
 	["THANKS FOR PLAYING!", ""],
 ]

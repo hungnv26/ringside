@@ -29,10 +29,11 @@ npm run setup            # the setup page: http://127.0.0.1:8798
 
 The **setup page** is where matches are set up (no setup screens in the game): a fighter and
 the model that coaches it for each corner, the provider keys, stage, seed, cost cap, turn pace
-and thinking effort. *Start match* opens the game window; the page shows the round, both
+and thinking effort. Both fighters and the stage start on *Random*, rolled afresh at every
+start (a random corner 2 never mirrors corner 1); pick one to fix it. *Start match* opens the game window; the page shows the round, both
 health bars, each coach's caption, plan, turns and cost, and the event feed, then keeps every
 result with links to the transcripts, and an Elo table by model. *Record the match to video*
-saves `match.mp4` next to the logs (Godot's movie writer plus ffmpeg).
+saves `match.mp4`, with the game's sound, next to the logs (Godot's movie writer plus ffmpeg).
 
 Picture quality is *High* by default (the 3D at 1080p upscaled with MetalFX, with ambient
 occlusion, indirect light and reflections) or *Showcase* for recordings (full resolution plus

@@ -104,12 +104,16 @@ export function parseCli(argv: string[]): Args {
   };
 }
 
-/** .avi (+ .wav) from Godot's movie writer -> .mp4 (H.264 + AAC) with ffmpeg; the sources are removed on success. */
+/**
+ * .avi (+ .wav) from Godot's movie writer -> .mp4 (H.264 + AAC) with ffmpeg; the sources are
+ * removed on success. Godot's AVI carries the game's sound itself (PCM), so the audio is kept
+ * whether or not a separate .wav was written (an AVI without sound gives a silent .mp4).
+ */
 export async function makeVideo(avi: string, mp4: string, log: (line: string) => void): Promise<void> {
   if (!existsSync(avi)) throw new Error(`no movie was written at ${avi}`);
   const wav = avi.replace(/\.avi$/, ".wav");
   const inputs = existsSync(wav) ? ["-i", avi, "-i", wav] : ["-i", avi];
-  const ffArgs = ["-loglevel", "error", "-y", ...inputs, "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", ...(existsSync(wav) ? ["-c:a", "aac", "-b:a", "160k", "-shortest"] : ["-an"]), "-movflags", "+faststart", mp4];
+  const ffArgs = ["-loglevel", "error", "-y", ...inputs, "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", ...(existsSync(wav) ? ["-shortest"] : []), "-movflags", "+faststart", mp4];
   log(`video: encoding ${basename(mp4)} with ffmpeg`);
   const started = Date.now();
   await new Promise<void>((resolve, reject) => {

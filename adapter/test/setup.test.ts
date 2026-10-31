@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { createSetupServer, elo, matchArgs, parseCharacter, results, roster, Runner, stages, summarize, validateMatch, type BattleSummary } from "../src/setup.ts";
+import { createSetupServer, elo, matchArgs, parseCharacter, RANDOM, resolveRandom, results, roster, Runner, stages, summarize, validateMatch, type BattleSummary } from "../src/setup.ts";
 import { REPO_ROOT } from "../src/models.ts";
 
 const tres = `[gd_resource type="Resource" script_class="CharacterData" format=3]
@@ -114,6 +114,33 @@ test("validateMatch and matchArgs carry the reflexes: +jev specs, jev alone, the
   assert.equal(table.find((r) => r.model === "jev:fake")?.usd, 0.04);
 });
 
+test("resolveRandom rolls random fighters and stages, never a mirror for a random corner", () => {
+  const ids = fighters.map((f) => f.id);
+  const seen = { p1: new Set<string>(), p2: new Set<string>(), stage: new Set<string>() };
+  let seq = 0;
+  const rand = () => ((seq++ * 0.6180339887) % 1); // deterministic, spread over [0, 1)
+  for (let i = 0; i < 60; i++) {
+    const m = validateMatch(resolveRandom({ p1: { fighter: RANDOM, spec: "fake:coach" }, p2: { fighter: RANDOM, spec: "fake:coach" }, stage: RANDOM }, fighters, stageIds, rand), fighters, stageIds);
+    assert.notEqual(m.p1.fighter, m.p2.fighter);
+    seen.p1.add(m.p1.fighter);
+    seen.p2.add(m.p2.fighter);
+    seen.stage.add(m.stage);
+  }
+  assert.equal(seen.p1.size, ids.length);
+  assert.equal(seen.p2.size, ids.length);
+  assert.equal(seen.stage.size, stageIds.length);
+  // A fixed corner stays, and the random one avoids it; fixed stages pass through; rand() = 1 stays in range.
+  for (const r of [0, 0.5, 0.999999, 1]) {
+    const m = resolveRandom({ p1: { fighter: "jin", spec: "fake:coach" }, p2: { fighter: RANDOM, spec: "fake:coach" }, stage: "beach", cap: "2" }, fighters, stageIds, () => r);
+    assert.equal(m.p1.fighter, "jin");
+    assert.ok(ids.includes(m.p2.fighter) && m.p2.fighter !== "jin");
+    assert.equal(m.stage, "beach");
+    assert.equal(m.cap, "2");
+  }
+  // A one-fighter roster still fights (a mirror).
+  assert.equal(resolveRandom({ p1: { fighter: "jin" }, p2: { fighter: RANDOM } }, [fighters.find((f) => f.id === "jin")!], stageIds).p2.fighter, "jin");
+});
+
 test("validateMatch refuses bad fighters, specs, stages and numbers", () => {
   const good = { p1: { fighter: "jin", spec: "fake:coach" }, p2: { fighter: "kenji", spec: "fake:coach" }, stage: "ring" };
   assert.throws(() => validateMatch({ ...good, p1: { fighter: "ryu", spec: "fake:coach" } }, fighters, stageIds), /unknown fighter/);
@@ -166,12 +193,16 @@ test("the API serves setup, results, logs and refuses bad requests", async () =>
     assert.ok(setup.body.roster.length >= 7 && setup.body.stages.length >= 8);
     assert.deepEqual(setup.body.providers, ["fake", "anthropic", "openai", "openrouter", "ollama", "jev"]);
     assert.ok("anthropic" in setup.body.keys);
+    assert.equal(setup.body.defaults.p1.fighter, "random");
+    assert.equal(setup.body.defaults.stage, "random");
     assert.deepEqual((await get("/api/models?provider=fake")).body, { models: ["coach"] });
     const bad = await get("/api/match", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ p1: { fighter: "x", spec: "fake:coach" } }) });
     assert.equal(bad.status, 400);
     assert.match(bad.body.error, /unknown fighter/);
-    const ok = await get("/api/match", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ p1: { fighter: "jin", spec: "fake:coach" }, p2: { fighter: "kenji", spec: "fake:coach" }, stage: "ring" }) });
+    const ok = await get("/api/match", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ p1: { fighter: "random", spec: "fake:coach" }, p2: { fighter: "random", spec: "fake:coach" }, stage: "random" }) });
     assert.equal(ok.status, 200);
+    assert.ok(setup.body.roster.some((f: { id: string }) => f.id === ok.body.p1) && ok.body.p1 !== ok.body.p2, `rolled ${ok.body.p1} vs ${ok.body.p2}`);
+    assert.ok(setup.body.stages.some((s: { id: string }) => s.id === ok.body.stage));
     for (let i = 0; i < 100 && runner.running; i++) await new Promise((r) => setTimeout(r, 50));
     const res = await get("/api/results");
     assert.equal(res.body.battles.length, 1);

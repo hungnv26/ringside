@@ -31,6 +31,17 @@ const SMOKE_POOL := 4
 const FOOTPRINTS := 28
 const FOOTPRINT_SECONDS := 12.0
 const FX_DIR := "res://assets/fx/"
+## Fighter voices. Efforts on normal attacks: often on heavy ones, rarely on light ones,
+## at most one per ATTACK_SHOUT_GAP per fighter. Pain on hits that land: always on heavy
+## hits, counters and HURT_DAMAGE or more, sometimes on medium ones, at most one per
+## HURT_GAP, so a long combo isn't a stream of grunts.
+const ATTACK_SHOUT_HEAVY := 0.55
+const ATTACK_SHOUT_LIGHT := 0.12
+const ATTACK_SHOUT_GAP := 0.9
+const HURT_DAMAGE := 80
+const HURT_MEDIUM := 40
+const HURT_MEDIUM_CHANCE := 0.35
+const HURT_GAP := 0.45
 const WALL_COLOR := Color(1.0, 0.95, 0.85) # the shock ring of a wall splat
 
 var manager: Node
@@ -80,7 +91,10 @@ func setup(fight_manager: Node) -> void:
 	manager.projectile_clashed.connect(manager.cosmetic(func(point: Vector3) -> void:
 		spark(point, SUPER_COLOR, 1.4)
 		Audio.sfx(&"hit_heavy", 0.0, 1.2)))
-	manager.throw_landed.connect(manager.cosmetic(func(_a: Fighter, _d: Fighter) -> void: Audio.sfx(&"block", -4.0, 0.8)))
+	manager.throw_landed.connect(manager.cosmetic(func(a: Fighter, d: Fighter) -> void:
+		Audio.sfx(&"block", -4.0, 0.8)
+		_shout(a, "attack")
+		_shout(d, "hurt")))
 	for fighter: Fighter in manager.fighters:
 		fighter.attack_started.connect(manager.cosmetic(_on_attack_started.bind(fighter)))
 		fighter.move_active.connect(manager.cosmetic(_on_move_active))
@@ -142,6 +156,8 @@ func _on_hit_landed(attacker: Fighter, defender: Fighter, move: MoveData, result
 			smoke(point, Color(0.85, 0.83, 0.8), 0.7 * weight)
 		if finisher and not ko:
 			manager.camera.finisher_slowmo()
+	if result != Fighter.HitResult.BLOCKED and not ko:
+		_hurt(defender, move, result)
 	match result:
 		Fighter.HitResult.BLOCKED:
 			spark(point, BLOCK_COLOR, 0.6)
@@ -167,6 +183,10 @@ func _on_attack_started(move: MoveData, fighter: Fighter) -> void:
 		Audio.sfx(&"swing_heavy" if move.hitstop >= HEAVY_HITSTOP else &"swing_light", -8.0)
 	if move.is_special() and not move.super_move:
 		_shout(fighter, "special")
+	elif not move.super_move and move.projectile_speed <= 0.0:
+		var heavy := move.hitstop >= HEAVY_HITSTOP
+		if _since(fighter, &"shout_ms") >= ATTACK_SHOUT_GAP and Audio.chance(ATTACK_SHOUT_HEAVY if heavy else ATTACK_SHOUT_LIGHT):
+			_shout(fighter, "attack")
 
 
 ## First active frame: launch flash, rising burst, ground-pound shockwave, or a focus
@@ -267,11 +287,30 @@ func _on_reversal(reverser: Fighter, _attacker: Fighter) -> void:
 		reverser.model.flash(REVERSAL_COLOR, 0.25)
 
 
-## A fighter's shout, with their mouth moving to it.
+## A fighter's shout, with their mouth moving to it. Each corner is its own speaker, so a
+## mirror match keeps two voices.
 func _shout(fighter: Fighter, kind: String, volume_db := 0.0) -> void:
-	var player := Audio.shout(fighter.data.id, kind, volume_db)
+	var player := Audio.shout(fighter.data.id, kind, volume_db, "p%d" % (manager.fighters.find(fighter) + 1))
+	if player == null:
+		return
+	fighter.set_meta(&"shout_ms", Time.get_ticks_msec())
 	if fighter.model:
 		fighter.model.speak(player)
+
+
+## A pain grunt from `defender` for a hit that landed (see HURT_DAMAGE).
+func _hurt(defender: Fighter, move: MoveData, result: Fighter.HitResult) -> void:
+	if _since(defender, &"hurt_ms") < HURT_GAP:
+		return
+	var big := move.hitstop >= HEAVY_HITSTOP or result == Fighter.HitResult.COUNTER or move.damage >= HURT_DAMAGE
+	if big or (move.damage >= HURT_MEDIUM and Audio.chance(HURT_MEDIUM_CHANCE)):
+		defender.set_meta(&"hurt_ms", Time.get_ticks_msec())
+		_shout(defender, "hurt")
+
+
+## Seconds since the time stamp `key` on `fighter` (a long time if never set).
+func _since(fighter: Fighter, key: StringName) -> float:
+	return (Time.get_ticks_msec() - int(fighter.get_meta(key, -100000))) / 1000.0
 
 
 ## Super start: a burst of golden sparks and a glow on the fighter, plus the flash sound.

@@ -4,11 +4,12 @@ import { mkdtempSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BattleLog, battleId } from "../src/log.ts";
-import { clientFor, parseCli, reflexClientFor } from "../src/main.ts";
+import { clientFor, makeVideo, parseCli, reflexClientFor } from "../src/main.ts";
 import { FakeJevClient, JevClient } from "../src/jev.ts";
 import { FakeModelClient } from "../src/fake.ts";
 import { ProviderClient } from "../src/models.ts";
 import { hello } from "./helpers.ts";
+import { spawnSync } from "node:child_process";
 
 test("the CLI parses sides, stage and numbers, with fake defaults", () => {
   const a = parseCli(["--p1", "jin=anthropic:claude-haiku-5-5", "--p2=kenji=fake:coach", "--stage", "dojo", "--seed", "42", "--cap", "0.5", "--no-launch", "--quit"]);
@@ -91,4 +92,18 @@ test("battle logs are written per side and for the battle", () => {
   assert.equal(JSON.parse(lines[0]).turn, 1);
   assert.ok(existsSync(join(root, id, "battle.json")));
   assert.equal(JSON.parse(readFileSync(join(root, id, "battle.json"), "utf8")).result.winner, "p1");
+});
+
+test("makeVideo keeps the sound Godot's movie writer puts inside the .avi", async (t) => {
+  if (spawnSync("ffmpeg", ["-version"]).status !== 0) return t.skip("no ffmpeg");
+  const dir = mkdtempSync(join(tmpdir(), "ringside-video-"));
+  const avi = join(dir, "match.avi");
+  const mp4 = join(dir, "match.mp4");
+  // Like the movie writer: MJPEG video and 16-bit PCM audio in one AVI, no .wav beside it.
+  const made = spawnSync("ffmpeg", ["-loglevel", "error", "-f", "lavfi", "-i", "color=c=gray:s=64x36:d=0.5:r=30", "-f", "lavfi", "-i", "sine=f=440:d=0.5", "-c:v", "mjpeg", "-c:a", "pcm_s16le", avi]);
+  assert.equal(made.status, 0, String(made.stderr));
+  await makeVideo(avi, mp4, () => {});
+  const probe = spawnSync("ffprobe", ["-v", "error", "-show_entries", "stream=codec_type", "-of", "csv=p=0", mp4]);
+  assert.deepEqual(String(probe.stdout).trim().split("\n").sort(), ["audio", "video"]);
+  assert.equal(existsSync(avi), false);
 });

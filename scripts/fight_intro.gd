@@ -108,7 +108,7 @@ func advance(delta: float) -> void:
 		_shouted = true
 		# Looked up at run time: tests compile this class before the autoloads exist.
 		var audio := get_tree().root.get_node_or_null("Audio")
-		var player: AudioStreamPlayer = audio.shout(fighter.data.id, "special") if audio else null
+		var player: AudioStreamPlayer = audio.shout(fighter.data.id, "special", 0.0, "p%d" % (_shot + 1)) if audio else null
 		if player and fighter.model:
 			fighter.model.speak(player)
 	if _time >= SHOT_SECONDS:

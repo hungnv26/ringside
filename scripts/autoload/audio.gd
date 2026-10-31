@@ -46,6 +46,15 @@ var _active_music := 0
 var _rng := RandomNumberGenerator.new() # cosmetic only, never gameplay RNG
 var _voice_queue: Array[String] = []
 var _shouts := {} # "<id>_<kind>" -> Array[AudioStream]
+## Fighter voices (assets/audio/voice/fighters, tools/build_fighter_voices.py): each speaker
+## has its own player, so one fighter never talks over themselves and a busy fight can't
+## steal a shout's player from the shared effect pool. A line only cuts off a lower one.
+const SHOUT_PRIORITY := {"attack": 0, "special": 1, "hurt": 2, "super": 3, "ko": 4}
+## Every take is levelled to one loudness; these place each kind in the mix (dB).
+const SHOUT_VOLUME := {"attack": -4.0, "special": -1.0, "hurt": -2.0, "super": 0.0, "ko": 0.0}
+const SHOUT_TAKES := 8 # <id>_<kind>_1.ogg .. _8.ogg
+var _speakers := {} # speaker -> AudioStreamPlayer
+var _last_take := {} # "<id>_<kind>" -> index of the take played last
 
 const LIMITER_CEILING_DB := -1.0
 
@@ -105,13 +114,16 @@ func sfx(sound: StringName, volume_db: float = 0.0, pitch: float = 1.0) -> void:
 
 
 ## A fighter's shout: a random take of assets/audio/voice/fighters/<id>_<kind>_N.ogg
-## (kinds: "special", "super", "ko"). Silently does nothing if there are none. Returns the
-## player it started (FighterModel.speak moves the mouth with it), or null.
-func shout(fighter_id: StringName, kind: String, volume_db: float = 0.0) -> AudioStreamPlayer:
+## (kinds: "attack", "special", "hurt", "super", "ko"), never the same take twice running.
+## `speaker` is who says it ("p1", "p2"; the fighter id when empty): while that speaker's
+## line of the same or a higher priority (SHOUT_PRIORITY) plays, this one is dropped.
+## Silently does nothing without takes. Returns the player it started
+## (FighterModel.speak moves the mouth with it), or null.
+func shout(fighter_id: StringName, kind: String, volume_db: float = 0.0, speaker: String = "") -> AudioStreamPlayer:
 	var key := "%s_%s" % [fighter_id, kind]
 	if not _shouts.has(key):
 		var takes: Array[AudioStream] = []
-		for n in range(1, 9):
+		for n in range(1, SHOUT_TAKES + 1):
 			var path := FIGHTER_VOICE_DIR + "%s_%d.ogg" % [key, n]
 			if ResourceLoader.exists(path):
 				takes.append(load(path))
@@ -119,13 +131,30 @@ func shout(fighter_id: StringName, kind: String, volume_db: float = 0.0) -> Audi
 	var streams: Array = _shouts[key]
 	if streams.is_empty():
 		return null
-	var player := _pool[_next_player]
-	_next_player = (_next_player + 1) % _pool.size()
-	player.stream = streams[_rng.randi() % streams.size()]
-	player.volume_db = volume_db
-	player.pitch_scale = _rng.randf_range(0.97, 1.03)
+	var who := speaker if speaker != "" else String(fighter_id)
+	var player: AudioStreamPlayer = _speakers.get(who)
+	if player == null:
+		player = _make_player("SFX")
+		_speakers[who] = player
+	var priority: int = SHOUT_PRIORITY.get(kind, 1)
+	if player.playing and priority <= int(player.get_meta(&"priority", -1)):
+		return null
+	var take := _rng.randi() % streams.size()
+	if streams.size() > 1 and take == _last_take.get(key, -1):
+		take = (take + 1 + _rng.randi() % (streams.size() - 1)) % streams.size()
+	_last_take[key] = take
+	player.stop()
+	player.stream = streams[take]
+	player.set_meta(&"priority", priority)
+	player.volume_db = SHOUT_VOLUME.get(kind, 0.0) + volume_db
+	player.pitch_scale = _rng.randf_range(0.98, 1.02)
 	player.play()
 	return player
+
+
+## True with probability `p`, from the cosmetic generator (never gameplay).
+func chance(p: float) -> bool:
+	return _rng.randf() < p
 
 
 ## Announcer line from assets/audio/voice/<line>.ogg. A new line cuts off the old one

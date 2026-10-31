@@ -286,11 +286,14 @@ function remember(key, value) {
 
 async function init() {
   setup = await api("/api/setup");
-  const fighters = setup.roster.map((f) => ({ value: f.id, label: `${f.name} (${f.archetype})` }));
+  // "Random" heads each fighter and stage list and is picked every time the page opens:
+  // the setup server rolls it when the match starts (a random corner 2 never mirrors corner 1).
+  const RANDOM = setup.random || "random";
+  const fighters = [{ value: RANDOM, label: "Random" }, ...setup.roster.map((f) => ({ value: f.id, label: `${f.name} (${f.archetype})` }))];
   const providers = setup.providers.map((p) => ({ value: p, label: p }));
   const last = stored("match", setup.defaults);
   for (const side of SIDES) {
-    fill($(side + "-fighter"), fighters, last[side].fighter);
+    fill($(side + "-fighter"), fighters, RANDOM);
     fill($(side + "-provider"), providers);
     setSpec(side, last[side].spec);
     $(side + "-provider").addEventListener("change", () => { reflexRow(side); loadModels(side); });
@@ -300,7 +303,7 @@ async function init() {
   fill($("reflex-rate"), rates.map((r) => ({ value: String(r), label: `${r} (${r === 4 ? "every state frame" : "every other frame"})` })), String(last.reflexRate || setup.defaults.reflexRate || 2));
   $("read-threshold").value = last.readThreshold ?? setup.defaults.readThreshold ?? 0.6;
   $("gate-threshold").value = last.gateThreshold ?? setup.defaults.gateThreshold ?? 0.7;
-  fill($("stage"), setup.stages.map((s) => ({ value: s.id, label: s.name })), last.stage);
+  fill($("stage"), [{ value: RANDOM, label: "Random" }, ...setup.stages.map((s) => ({ value: s.id, label: s.name }))], RANDOM);
   fill($("effort"), setup.efforts.map((e) => ({ value: e, label: e })), last.effort);
   fill($("window"), setup.windows.map((w) => ({ value: w, label: w === "fullscreen" ? "fullscreen (borderless)" : w })), last.window || setup.defaults.window || "1080p");
   // An older setup server (started before the page last changed) sends no presets; offer High.
@@ -339,7 +342,9 @@ function renderEntrants() {
 }
 function addEntrant(side) {
   const msg = $("t-entrants-msg");
-  const e = { fighter: $(side + "-fighter").value, spec: spec(side) };
+  let fighter = $(side + "-fighter").value;
+  if (fighter === (setup.random || "random")) fighter = setup.roster[Math.floor(Math.random() * setup.roster.length)].id; // an entrant is a real fighter
+  const e = { fighter, spec: spec(side) };
   msg.className = "msg";
   if (entrants.some((x) => x.fighter === e.fighter && x.spec === e.spec)) { msg.className = "msg err"; msg.textContent = `${fighterName(e.fighter)} with ${e.spec} is already in`; return; }
   if (entrants.length >= setup.tournament.maxEntrants) { msg.className = "msg err"; msg.textContent = `at most ${setup.tournament.maxEntrants} entrants`; return; }
@@ -444,7 +449,9 @@ $("start").addEventListener("click", async () => {
     const r = await api("/api/match", request);
     remember("match", request);
     msg.className = "msg ok";
-    msg.textContent = `started ${r.id}`;
+    const rolled = [request.p1.fighter, request.p2.fighter, request.stage].includes(setup.random || "random");
+    const stageName = (setup.stages.find((s) => s.id === r.stage) || {}).name || r.stage;
+    msg.textContent = r.p1 ? `started: ${fighterName(r.p1)} vs ${fighterName(r.p2)} on ${stageName}${rolled ? " (random picks)" : ""}` : `started ${r.id}`;
     $("result").hidden = true;
     $("captures").hidden = true;
     $("video-box").hidden = true;

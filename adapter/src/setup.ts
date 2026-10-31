@@ -207,6 +207,27 @@ function validateSettings(raw: any) {
   return { seed, cap: num("cap", 1, 0, 50), cadence: Math.floor(num("cadence", 2000, 500, 30000)), effort, capture: !!raw?.capture, record: !!raw?.record, mode, window, graphics, reflexRate, readThreshold: num("readThreshold", DEFAULT_READ_THRESHOLD, 0.3, 0.95), gateThreshold: num("gateThreshold", DEFAULT_GATE_THRESHOLD, 0.3, 0.95) };
 }
 
+/** The fighter or stage choice that is rolled when the match starts. */
+export const RANDOM = "random";
+
+/**
+ * Rolls every "random" fighter and stage in a match request. A random corner 2 never
+ * mirrors corner 1 when another fighter is available. Other fields pass through as sent.
+ */
+export function resolveRandom(raw: any, fighters: Fighter[], stageIds: string[], rand: () => number = Math.random): any {
+  const pick = <T>(list: T[]): T => list[Math.min(list.length - 1, Math.floor(rand() * list.length))];
+  const out = { ...(raw ?? {}) };
+  const ids = fighters.map((f) => f.id);
+  for (const side of ["p1", "p2"] as const) {
+    if (out[side]?.fighter !== RANDOM || ids.length === 0) continue;
+    const other = side === "p1" ? out.p2?.fighter : out.p1?.fighter;
+    const choices = ids.filter((id) => id !== other);
+    out[side] = { ...out[side], fighter: pick(choices.length ? choices : ids) };
+  }
+  if (out.stage === RANDOM && stageIds.length) out.stage = pick(stageIds);
+  return out;
+}
+
 export function validateMatch(raw: any, fighters: Fighter[], stageIds: string[]): MatchRequest {
   const p1 = validateEntrant(raw?.p1, "p1", fighters);
   const p2 = validateEntrant(raw?.p2, "p2", fighters);
@@ -390,8 +411,9 @@ export function createSetupServer(runner = new Runner(), root = REPO_ROOT, fetch
             { id: "coach", name: "Coach", blurb: "the model adjusts its fighter's plan every couple of seconds" },
             { id: "script", name: "Self-coding", blurb: "the model writes rules before the match and rewrites them after every round; no calls during a round" },
           ],
-          defaults: { p1: { fighter: "jin", spec: "anthropic:claude-haiku-5-5" }, p2: { fighter: "kenji", spec: "openai:gpt-5.4-mini" }, stage: "rooftop", cap: 1, cadence: 2000, effort: "low", window: "1080p", graphics: "high", reflexRate: DEFAULT_REFLEX_RATE, readThreshold: DEFAULT_READ_THRESHOLD, gateThreshold: DEFAULT_GATE_THRESHOLD },
+          defaults: { p1: { fighter: RANDOM, spec: "anthropic:claude-haiku-5-5" }, p2: { fighter: RANDOM, spec: "openai:gpt-5.4-mini" }, stage: RANDOM, cap: 1, cadence: 2000, effort: "low", window: "1080p", graphics: "high", reflexRate: DEFAULT_REFLEX_RATE, readThreshold: DEFAULT_READ_THRESHOLD, gateThreshold: DEFAULT_GATE_THRESHOLD },
           tournament: { maxEntrants: MAX_ENTRANTS, rotate: ROTATE },
+          random: RANDOM,
           running: runner.running,
         });
       }
@@ -424,9 +446,11 @@ export function createSetupServer(runner = new Runner(), root = REPO_ROOT, fetch
         return json(res, 200, { ok: true, file, keys: keyStatus() });
       }
       if (url.pathname === "/api/match" && req.method === "POST") {
-        const request = validateMatch(await body(req), roster(root), stages(root).map((s) => s.id));
+        const stageIds = stages(root).map((s) => s.id);
+        const request = validateMatch(resolveRandom(await body(req), roster(root), stageIds), roster(root), stageIds);
         if (tournaments.active) throw new Error("a tournament is running; stop it first");
-        return json(res, 200, runner.start(request));
+        // The picks go back to the page, which shows what "random" rolled.
+        return json(res, 200, { ...runner.start(request), p1: request.p1.fighter, p2: request.p2.fighter, stage: request.stage });
       }
       if (url.pathname === "/api/stop" && req.method === "POST") return json(res, 200, { stopped: runner.stop() });
       if (url.pathname === "/api/status") return json(res, 200, { ...runner.status(), tournament: tournaments.status() });
