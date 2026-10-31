@@ -461,12 +461,15 @@ static func plan_chips(before: Dictionary, after: Dictionary, prefix := "") -> A
 			continue
 		var was = before.get(key)
 		var now = after[key]
-		if was == now:
-			continue
+		# The two may differ in type (an int against a StringName, say); GDScript's == throws on that.
 		if now is float or now is int:
-			var arrow := "→" if was == null else ("↑" if float(now) > float(was) else "↓")
+			if (was is float or was is int) and is_equal_approx(float(was), float(now)):
+				continue
+			var arrow := "→" if not (was is float or was is int) else ("↑" if float(now) > float(was) else "↓")
 			chips.append("%s%s %s %s" % [prefix, key, arrow, _num(now)])
 		else:
+			if str(was) == str(now):
+				continue
 			chips.append("%s%s → %s" % [prefix, key, str(now)])
 	var options_before: Dictionary = before.get("options", {})
 	for option in after.get("options", {}):
