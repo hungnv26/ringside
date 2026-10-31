@@ -151,3 +151,80 @@ the baseline. Phase 5 is the biggest job and depends on the source decision.
 - Online play and replays are unaffected for the same reason.
 - Low graphics keeps the clips and drops the procedural layer if it costs frames there.
 - Every new clip and its source goes in `assets/CREDITS.md`.
+
+## Progress
+
+All seven phases built on 2026-10-31 (branch `motion`). Everything is cosmetic: the motion
+layer runs in the skeleton's modifier step after the clip, Godot restores the clip pose
+after every frame, and the simulation, frame data and hit boxes are untouched.
+
+### What was built
+
+- **Phase 0.** `tools/check_motion.gd` drives real fights headless (every fighter against
+  Kenji, scripted) and reports foot skate per state, held poses, the sharpest change of
+  bone speed at clip changes, the motion layer's cost, and every move's reach at impact
+  against `tools/motion_baseline.json`. `--reel [--close]` records the same script through
+  the movie writer. `tools/render_clip_sheet.gd` renders any clip as a side-on sheet.
+- **Phase 1.** `scripts/fighter/fighter_motion.gd` (FighterMotion, a SkeletonModifier3D)
+  plants each foot in the world and steps it when the body moves or turns away from it;
+  two-bone IK bends the legs and the pelvis drops when a foot is out of reach. Walking,
+  dashing and sidestepping show the stance clip with procedural steps, so stride always
+  matches speed. Three living stances (calm, bounce, heavy) per
+  `CharacterData.stance_animation`; the crouch breathes.
+- **Phase 2.** Inertialized transitions: the new clip plays at once and the old pose's
+  offset decays along a quintic that keeps its velocity. `Fighter.transition_to` sets the
+  time per change. The floor lift moved into the motion layer.
+- **Phase 3.** Head, neck and upper spine track the opponent; the trunk leans into
+  acceleration on a spring and rocks back when stopping; the pelvis sinks on landing;
+  fatigue deepens the breathing and lowers the guard. `secondary_motion.gd` builds spring
+  chains at load for hanging hair (Rhea, Lian, Valka) and belt tails (Kenji, Jin).
+- **Phase 4.** Hit reactions by height (high, body, low, crouching) and block recoils,
+  each played over the stun; a directional recoil from where the blow actually landed; a
+  knockdown loop that breathes, a K.O. loop, a getup that brings the guard up, a kip-up
+  for the agile fighters (`CharacterData.getup_animation`), a throw break.
+- **Phase 5.** The 29 code-built strikes are baked at 60 fps with overlap (core first
+  into the blow, limb first out of it), acceleration into the impact, a coil before slower
+  strikes and a settle past the guard. Every key pose, the impact included, is unchanged.
+- **Phase 6.** `CharacterData` stance width, posture, guard height, step tempo, step height
+  and settle, set for all seven fighters.
+
+### Measured (all seven fighters, tools/check_motion.gd)
+
+| | Before | After |
+|---|---|---|
+| Walk forward, foot skate p90 | 225 cm/s | 0.4 |
+| Walk back | 230 | 0 |
+| Dash | 466 | 0 |
+| Backdash | 314 | 0 |
+| Sidestep | 569 | 3.5 |
+| Blockstun | 131 | 0 |
+| Hitstun | 187 | 0 |
+| Getup | 144 | 56 |
+| Idle ticks held still | 638 | 0 |
+| Crouch ticks held still | 1534 | 0 |
+| Knockdown ticks held still | 217 | 0 |
+| Worst change of bone speed at a clip change | 36.7 cm/tick | 17.7 |
+| Other ticks, p90 | 8.2 cm/tick | 7.4 |
+| Reach at impact, worst change | | 0.0 cm (122 moves) |
+
+The layer costs about 58 µs per fighter per frame, so it stays on at every graphics level.
+sim_test (612) and coach_test (46) pass at every phase.
+
+### Differences from the plan
+
+- Phase 1 steps the feet procedurally instead of adding fixed step clips: stride matches
+  any speed and direction, every body size gets its own IK, and turn steps come from the
+  same rule (a planted foot twisted 28° off the stance steps).
+- Phase 2 keeps the AnimationPlayer (its exact clip-time seek ties attack art to frame
+  data) and inertializes in the motion layer instead of moving to an AnimationTree.
+- The IK is written in the motion layer rather than TwoBoneIK3D, to drop the pelvis for
+  reach and to plant and release feet by rule.
+- No captured motion was brought in (phase 5's source B or C): the strikes were improved
+  in the builder only. Downloading the CMU library or filming your own moves is still open.
+- No ragdoll for the final K.O. (optional in the plan).
+
+### Still rough
+
+- Getups still drag the feet a little (56 cm/s p90): the push-up clip slides its feet
+  as the body rises.
+- Jin's landing slides one sole for a single frame.
