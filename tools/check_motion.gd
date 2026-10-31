@@ -62,6 +62,7 @@ var _last_pos := {}
 var _states_seen := {}
 var pops_by := {} # "FROM>TO" -> PackedFloat32Array
 var debug_feet := false
+var feet_frame := false # --feet: P1's feet in its own frame while standing and moving
 var trace_from := -1
 var trace_change := ""
 var _ring := []
@@ -69,6 +70,7 @@ var _trace_left := 0
 var _tick := 0
 var close_camera: Camera3D
 var wide_camera := false # --wide: both fighters centred (the framing of the first reels)
+var legs_camera := false # --legs: low and close on P1's legs
 
 
 func _initialize() -> void:
@@ -79,11 +81,13 @@ func _initialize() -> void:
 	reel = args.has("--reel")
 	FighterModel.eased_transitions = not args.has("--linear-fades")
 	debug_feet = args.has("--debug-feet")
+	feet_frame = args.has("--feet")
 	if args.has("--trace-change"):
 		trace_change = args[args.find("--trace-change") + 1]
 	if args.has("--trace"):
 		trace_from = int(args[args.find("--trace") + 1])
-	var close := args.has("--close") or args.has("--wide")
+	var close := args.has("--close") or args.has("--wide") or args.has("--legs")
+	legs_camera = args.has("--legs")
 	wide_camera = args.has("--wide")
 	var only := ""
 	if args.has("--only"):
@@ -173,6 +177,11 @@ func _aim_close_camera() -> void:
 	var game_camera: Camera3D = m.camera
 	if side.dot(game_camera.global_position - mid) < 0.0:
 		side = -side
+	if legs_camera:
+		var low := p1.global_position + Vector3.UP * 0.55
+		close_camera.global_position = low + side * 2.0 + Vector3.UP * 0.05
+		close_camera.look_at(low)
+		return
 	var target := mid + Vector3.UP * 1.0
 	close_camera.global_position = target + side * (3.6 if wide_camera else 3.3) + Vector3.UP * (0.15 if wide_camera else 0.1)
 	close_camera.look_at(target)
@@ -296,6 +305,27 @@ func _sample(f: Fighter) -> void:
 		print("T%d %s clip=%s  %s" % [_tick, Fighter.State.keys()[f.state], f.model._clip, "  ".join(parts)])
 	if f == p1:
 		_tick += 1
+	if feet_frame and f == p1 and f.state in [Fighter.State.IDLE, Fighter.State.WALK_FWD, Fighter.State.WALK_BACK, Fighter.State.DASH, Fighter.State.BACKDASH, Fighter.State.SIDESTEP]:
+		var sk2 := f.model.skeleton
+		var xf2 := sk2.global_transform
+		var fwd := f.forward
+		var right := fwd.cross(Vector3.UP).normalized()
+		var line := "%s f%d" % [Fighter.State.keys()[f.state], f.state_frame]
+		for side in ["l", "r"]:
+			var ankle := xf2 * sk2.get_bone_global_pose(sk2.find_bone("foot_" + side)).origin
+			var toe := xf2 * sk2.get_bone_global_pose(sk2.find_bone("ball_" + side)).origin
+			var knee := xf2 * sk2.get_bone_global_pose(sk2.find_bone("calf_" + side)).origin
+			var hip := xf2 * sk2.get_bone_global_pose(sk2.find_bone("thigh_" + side)).origin
+			var rel := ankle - f.global_position
+			var toe_dir := (toe - ankle)
+			var yaw := rad_to_deg(Vector2(toe_dir.dot(fwd), toe_dir.dot(right)).angle())
+			# knee direction relative to the hip-ankle line, sideways component (+ = toward the fighter's right)
+			var mid := hip.lerp(ankle, 0.5)
+			var knee_side := (knee - mid).dot(right)
+			var knee_fwd := (knee - mid).dot(fwd)
+			var hip_rel := hip - f.global_position
+			line += "  %s hip fwd %+.2f side %+.2f | ankle fwd %+.2f side %+.2f toe %+4.0f° knee fwd %+.2f side %+.2f" % [side, hip_rel.dot(fwd), hip_rel.dot(right), rel.dot(fwd), rel.dot(right), yaw, knee_fwd, knee_side]
+		print("FEET ", line)
 	if debug_feet and f == p1 and f.state in [Fighter.State.DASH, Fighter.State.BACKDASH, Fighter.State.SIDESTEP, Fighter.State.LANDING, Fighter.State.JUMP_SQUAT, Fighter.State.JUMP]:
 		var mo := f.model.motion
 		var line := "%s f%d v=%.2f" % [Fighter.State.keys()[f.state], f.state_frame, mo._velocity.length()]
@@ -359,7 +389,7 @@ func _sample(f: Fighter) -> void:
 		(pops if changed else steady).append(jump * 100.0)
 		if changed:
 			var key := "%s>%s" % [Fighter.State.keys()[_last_state.get(f, 0)], Fighter.State.keys()[f.state]]
-			if jump > 0.3 and debug_feet:
+			if jump > 0.2 and debug_feet:
 				var worst := 0
 				for i in pose.size():
 					var dd: Vector3 = (pose[i] - history[-2][i]) - (history[-2][i] - history[-3][i])

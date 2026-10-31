@@ -223,8 +223,21 @@ sim_test (612) and coach_test (46) pass at every phase.
   in the builder only. Downloading the CMU library or filming your own moves is still open.
 - No ragdoll for the final K.O. (optional in the plan).
 
+### Leg fix (2026-10-31, after review)
+
+The left fighter's legs looked wrong in the first reels: walking strides were so long
+(each step covering about 75 cm at 2.2 m/s) that the rear foot trailed 68 cm behind and
+then landed under the hips, and the IK then bent that knee sideways and slightly backward,
+so the legs went bow-legged and frog-like, with the pelvis dropping up to 9 cm. Now the
+feet shuffle (the trailing foot leaves once the leading one is a third of the way), steps
+are quicker (0.16 s walking) and land closer to the stance, the pelvis drops at most
+5 cm, and the knee bends over the toes and toward the body's forward (the clip's own knee
+is kept only while it agrees, and eased in when the IK takes a leg back after a jump),
+never more than 35° off forward. Widest split between the feet while walking 0.83 ->
+0.69 m (0.44 standing); no knee ever points backward; footwork skate still 0.
+
 ### Still rough
 
-- Getups still drag the feet a little (56 cm/s p90): the push-up clip slides its feet
+- Getups still drag the feet a little (44 cm/s p90): the push-up clip slides its feet
   as the body rises.
 - Jin's landing slides one sole for a single frame.

@@ -24,13 +24,14 @@ const SWEEP_SPEED := 1.5 # m/s: an attack moving a foot this fast along the floo
 const GAIT_STEP := 0.12 # metres a planted foot may lag behind its place in the stance
 const CLIP_STEP := 0.30
 const STEP_TURN := deg_to_rad(28.0) # a planted foot twisted this far off the stance steps
-const STEP_TIME_SLOW := 0.2 # seconds a step takes walking
+const STEP_TIME_SLOW := 0.16 # seconds a step takes walking
 const STEP_TIME_FAST := 0.11 # and at dash speed
 const STEP_HEIGHT := 0.07
 const STEP_REST := 0.04 # a foot just landed doesn't step again sooner
-const LANDING_LEAD := 0.55 # a step lands this fraction of its own time ahead of the body
+const LANDING_LEAD := 0.3 # a step lands this fraction of its own time ahead of the body
 const TELEPORT := 0.8 # metres in a frame: a reset, not movement
-const MAX_PELVIS_DROP := 0.09
+const MAX_PELVIS_DROP := 0.05
+const KNEE_SPLAY := deg_to_rad(35.0)
 const WEIGHT_SPEED := 9.0 # how fast the footwork blends in and out (1/s)
 
 ## Inputs, set by the fighter every frame.
@@ -103,6 +104,7 @@ var _was_airborne := false
 var _last_clip_foot := {} # side -> the clip's foot position last frame (skeleton space)
 var _clip_foot_speed := {} # side -> m/s the clip moves the foot relative to the body
 var _just_landed := false
+var _knee_mix := 1.0 # 0 right after the IK takes the legs back, easing to 1
 var _breath := 0.0 # phase of the extra fatigue breathing
 var _recoil := {} # bone name -> [angle Vector3 (deg, world axis-angle), velocity Vector3]
 ## Secondary motion (spring bones on hair and belt tails), built by SecondaryMotion.
@@ -291,6 +293,10 @@ func solve(delta: float) -> void:
 	# Landing (or getting up) plants the feet at once; other changes blend.
 	if target_weight > 0.0 and _just_landed:
 		_weight = target_weight
+		_knee_mix = 0.0
+	if target_weight <= 0.0:
+		_knee_mix = 0.0
+	_knee_mix = minf(_knee_mix + delta * 8.0, 1.0)
 	_weight = move_toward(_weight, target_weight, WEIGHT_SPEED * delta)
 	if _weight <= 0.0:
 		for side: String in SIDES:
@@ -317,7 +323,7 @@ func solve(delta: float) -> void:
 		sweep[side] = _clip_foot_speed.get(side, 0.0)
 
 	var speed := _velocity.length()
-	var step_time := lerpf(STEP_TIME_SLOW, STEP_TIME_FAST, clampf((speed - 1.2) / 3.0, 0.0, 1.0)) / step_tempo
+	var step_time := lerpf(STEP_TIME_SLOW, STEP_TIME_FAST, clampf((speed - 0.8) / 2.5, 0.0, 1.0)) / step_tempo
 	if mode == Mode.OFF:
 		# Airborne or lying: the clip has the feet (the IK fades out onto them); each foot
 		# is planted again where it next comes down.
@@ -347,8 +353,11 @@ func solve(delta: float) -> void:
 			var lag := Vector2(home.x - foot.pos.x, home.z - foot.pos.z).length()
 			var twist := _yaw_between(foot.basis, a.basis)
 			var limit := GAIT_STEP if mode == Mode.GAIT else CLIP_STEP
-			# At speed (a dash) the feet skip: the second may leave once the first is half way.
-			var other_ready: bool = other.planted or (other.swinging and other.u > 0.45 and speed > 2.5)
+			# Moving, the feet shuffle: the second may leave once the first is past half way
+			# (at a walk), or nearly at once (a dash), so no step has to cover the whole
+			# distance on its own and no leg is left stretched far behind.
+			var overlap := 0.35 if speed < 2.5 else 0.3
+			var other_ready: bool = other.planted or (other.swinging and other.u > overlap and speed > 0.3)
 			if (lag > limit or twist > STEP_TURN) and foot.rest <= 0.0 and other_ready and dt > 0.0:
 				if lag <= limit or _leads(side, home, anim) or _lag_of(other, anim["r" if side == "l" else "l"], speed) <= lag:
 					foot.planted = false
@@ -706,10 +715,38 @@ func _solve_leg(side: String, target: Vector3, foot_basis: Basis, weight: float)
 		return
 	var d := clampf(to_target.length(), absf(l1 - l2) + 0.001, l1 + l2 - 0.001)
 	var dir := to_target.normalized()
-	var bend := (b - a) - dir * (b - a).dot(dir)
-	if bend.length_squared() < 1e-6:
-		bend = sk.get_bone_global_pose(_bone("pelvis")).basis.z
-		bend = bend - dir * bend.dot(dir)
+	# The knee bends over the toes, and never backward: its direction comes from where the
+	# foot points (blended with the body's forward), not from the clip's knee, whose plane
+	# collapses sideways when a step brings the foot in under the hips.
+	var toe_local := sk.get_bone_global_rest(_bone("ball_" + side)).origin - sk.get_bone_global_rest(foot).origin
+	toe_local = sk.get_bone_global_rest(foot).basis.orthonormalized().inverse() * toe_local
+	var toe := foot_basis.orthonormalized() * toe_local
+	toe.y = 0.0
+	var ahead := Vector3.BACK # the model's forward in skeleton space (+Z)
+	var pole := (toe.normalized() * 0.5 + ahead * 0.5) if toe.length_squared() > 1e-6 else ahead
+	var wanted := pole - dir * pole.dot(dir)
+	if wanted.length_squared() < 1e-6:
+		wanted = ahead - dir * ahead.dot(dir)
+	wanted = wanted.normalized()
+	# The clip's own knee is kept while it roughly agrees (no snap when the IK takes a leg);
+	# the further it turns sideways or back, the more the knee follows the toes instead.
+	var clip_bend := (b - a) - dir * (b - a).dot(dir)
+	var bend := wanted
+	if clip_bend.length_squared() > 1e-6:
+		clip_bend = clip_bend.normalized()
+		var trust := clampf((clip_bend.dot(wanted) - 0.6) / 0.35, 0.0, 1.0)
+		bend = clip_bend.slerp(wanted, 1.0 - trust) if clip_bend.dot(wanted) > -0.99 else wanted
+	# A knee turns out with its foot, but not past KNEE_SPLAY off the body's forward.
+	var flat := Vector2(bend.x, bend.z)
+	if flat.length() > 1e-4:
+		var angle := Vector2(ahead.x, ahead.z).angle_to(flat)
+		if absf(angle) > KNEE_SPLAY:
+			var turned := Vector2(ahead.x, ahead.z).rotated(signf(angle) * KNEE_SPLAY) * flat.length()
+			bend = Vector3(turned.x, bend.y, turned.y)
+			bend = bend - dir * bend.dot(dir)
+	# A leg the IK has only just taken (landing, getting up) eases from the clip's knee.
+	if clip_bend.length_squared() > 1e-6 and _knee_mix < 1.0:
+		bend = clip_bend.slerp(bend.normalized(), _knee_mix) if clip_bend.dot(bend.normalized()) > -0.99 else bend
 	bend = bend.normalized()
 	var cos_a := clampf((l1 * l1 + d * d - l2 * l2) / (2.0 * l1 * d), -1.0, 1.0)
 	var knee := a + dir * (cos_a * l1) + bend * (sqrt(1.0 - cos_a * cos_a) * l1)
