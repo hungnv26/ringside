@@ -1,6 +1,6 @@
 extends SceneTree
 ## Measures how the fighters move (docs/movement-plan.md, phase 0). Headless:
-##   godot --headless --path . -s res://tools/check_motion.gd -- [--write-baseline] [--strict] [--only <id>]
+##   godot --headless --fixed-fps 60 --path . -s res://tools/check_motion.gd -- [--write-baseline] [--strict] [--only <id>]
 ## Reel (windowed, one rendered frame per tick, for before/after video):
 ##   godot --path . --write-movie out.avi --fixed-fps 60 -s res://tools/check_motion.gd -- --reel --only jin [--close]
 ## --close films from a side camera at chest height 3.6 m away instead of the game camera.
@@ -12,6 +12,12 @@ extends SceneTree
 ## - reach: every move's striking hand or foot at its impact time, against the baseline in
 ##   tools/motion_baseline.json, so new art still matches the hit boxes (3 cm allowed).
 ## --strict exits 1 when skate, held poses or reach miss their targets.
+
+## Samples a fighter's pose as the skeleton's last modifier, after the motion layer.
+class Probe extends SkeletonModifier3D:
+	var on_sample: Callable
+	func _process_modification_with_delta(_delta: float) -> void:
+		on_sample.call()
 
 class Scripted extends FighterController:
 	var dir := 5
@@ -46,6 +52,7 @@ var stats := {}
 var _prev_soles := {} # fighter -> {bone: Vector3 or null}
 var _pose_history := {} # fighter -> Array of PackedVector3Array
 var reel := false
+var debug_feet := false
 var close_camera: Camera3D
 
 
@@ -55,6 +62,7 @@ func _initialize() -> void:
 	var write_baseline := args.has("--write-baseline")
 	var strict := args.has("--strict")
 	reel = args.has("--reel")
+	debug_feet = args.has("--debug-feet")
 	var close := args.has("--close")
 	var only := ""
 	if args.has("--only"):
@@ -76,8 +84,10 @@ func _initialize() -> void:
 		p1 = m.fighters[0]
 		p2 = m.fighters[1]
 		if not reel:
-			p1.set_process(false)
-			p2.set_process(false)
+			for f: Fighter in [p1, p2]:
+				var probe := Probe.new()
+				probe.on_sample = _sample.bind(f)
+				f.model.skeleton.add_child(probe)
 		elif close:
 			close_camera = Camera3D.new()
 			close_camera.fov = 40.0
@@ -126,19 +136,14 @@ func _initialize() -> void:
 func step(n := 1) -> void:
 	for i in n:
 		m._physics_process(DT)
-		if reel:
-			if close_camera:
-				_aim_close_camera()
-			await process_frame # the engine renders (and runs _process) once per tick
-			continue
-		for f: Fighter in [p1, p2]:
-			f._process(DT)
-			_sample(f)
+		if close_camera:
+			_aim_close_camera()
+		await process_frame # one frame per tick (--fixed-fps 60): _process, the motion layer, the probe
 
 
 ## Side on to the line between the fighters, on the game camera's side of it.
 func _aim_close_camera() -> void:
-	var mid := (p1.global_position + p2.global_position) * 0.5
+	var mid := p1.global_position.lerp(p2.global_position, 0.12)
 	var across := (p2.global_position - p1.global_position)
 	across.y = 0.0
 	var side := Vector3.UP.cross(across.normalized()) if across.length() > 0.01 else Vector3.BACK
@@ -146,7 +151,7 @@ func _aim_close_camera() -> void:
 	if side.dot(game_camera.global_position - mid) < 0.0:
 		side = -side
 	var target := mid + Vector3.UP * 1.0
-	close_camera.global_position = target + side * 3.6 + Vector3.UP * 0.15
+	close_camera.global_position = target + side * 3.3 + Vector3.UP * 0.1
 	close_camera.look_at(target)
 
 
@@ -238,6 +243,13 @@ func _run_scenarios() -> void:
 func _sample(f: Fighter) -> void:
 	if f.model == null:
 		return
+	if debug_feet and f == p1 and f.state in [Fighter.State.DASH, Fighter.State.BACKDASH, Fighter.State.SIDESTEP]:
+		var mo := f.model.motion
+		var line := "%s f%d v=%.2f" % [Fighter.State.keys()[f.state], f.state_frame, mo._velocity.length()]
+		for side in ["l", "r"]:
+			var ft: Dictionary = mo._feet[side]
+			line += "  %s:%s%s u=%.2f lift=%s" % [side, "P" if ft.planted else "-", "S" if ft.swinging else "-", ft.u, ft.lifted]
+		print(line)
 	var state_name: String = Fighter.State.keys()[f.state]
 	if not stats.has(state_name):
 		stats[state_name] = {skate = PackedFloat32Array(), held = 0, ticks = 0}

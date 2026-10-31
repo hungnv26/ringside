@@ -41,6 +41,9 @@ extends Resource
 @export var realistic_shading: bool = false
 ## Match-win animations ("library/clip"); one is picked at random.
 @export var victory_animations: Array[StringName] = []
+## The fighting stance looped while standing and moving (the feet are stepped by
+## FighterMotion): fight/guard (calm), fight/guard_bounce or fight/guard_heavy.
+@export var stance_animation: StringName = &"fight/guard"
 ## Tint used for graybox stand-ins and UI until real models/portraits exist.
 @export var placeholder_color: Color = Color.WHITE
 

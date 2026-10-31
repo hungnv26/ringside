@@ -1194,6 +1194,8 @@ func _update_model(delta: float) -> void:
 	# Hitstop freezes the pose outright; the super freeze holds the clip time but lets a
 	# cross-fade finish, so nobody is stuck mid-blend in the close-up.
 	model.show_clip(request[0], request[1], request[2], 0.0 if hitstop > 0 else delta)
+	model.motion.mode = motion_mode()
+	model.motion.frozen = hitstop > 0
 	# The face keeps moving through hitstop, so the reaction lands with the impact.
 	model.set_face(face_expression(), delta)
 	model.set_gaze(gaze_target(), delta)
@@ -1208,6 +1210,21 @@ func _update_model(delta: float) -> void:
 		var f := (float(state_frame) + Engine.get_physics_interpolation_fraction()) / GRAB_SNAP_FRAMES
 		shake += global_transform.basis.inverse() * (_grab_snap * (1.0 - smoothstep(0.0, 1.0, f)))
 	model.position = shake
+
+
+## Logic → how the procedural layer treats the feet (FighterMotion.Mode). Cosmetic.
+func motion_mode() -> FighterMotion.Mode:
+	if position.y > 0.02:
+		return FighterMotion.Mode.OFF
+	match state:
+		State.IDLE, State.WALK_FWD, State.WALK_BACK, State.CROUCH, State.DASH, State.BACKDASH, \
+				State.SIDESTEP, State.BLOCKSTUN, State.HITSTUN, State.TECH:
+			return FighterMotion.Mode.GAIT
+		State.ATTACK, State.THROW, State.JUMP_SQUAT, State.LANDING:
+			return FighterMotion.Mode.CLIP
+	if intro_clip != &"" or victory:
+		return FighterMotion.Mode.CLIP
+	return FighterMotion.Mode.OFF
 
 
 ## Logic → facial expression (a FighterModel.EXPRESSIONS key). Cosmetic.
@@ -1265,10 +1282,9 @@ func _animation_request(frozen: bool) -> Array:
 	var f := float(state_frame) + (0.0 if frozen else Engine.get_physics_interpolation_fraction())
 	var t := f * DT
 	match state:
-		State.WALK_FWD:
-			return [&"fight/walk_guard", -1.0, data.walk_speed / 1.5]
-		State.WALK_BACK:
-			return [&"fight/walk_guard", -1.0, -data.back_walk_speed / 1.5]
+		State.WALK_FWD, State.WALK_BACK:
+			# The feet are stepped by the motion layer (FighterMotion): the clip is the stance.
+			return [data.stance_animation, -1.0, 1.0]
 		State.CROUCH:
 			return [&"fight/crouch_guard", -1.0, 1.0]
 		State.JUMP_SQUAT:
@@ -1277,10 +1293,8 @@ func _animation_request(frozen: bool) -> Array:
 			return [&"ual1/Jump_Start", 0.15 + t, 1.0]
 		State.LANDING:
 			return [&"ual1/Jump_Land", 0.05 + t, 1.0]
-		State.DASH, State.SIDESTEP:
-			return [&"fight/walk_guard", -1.0, 2.5]
-		State.BACKDASH:
-			return [&"fight/walk_guard", -1.0, -2.5]
+		State.DASH, State.SIDESTEP, State.BACKDASH:
+			return [data.stance_animation, -1.0, 1.0]
 		State.ATTACK:
 			return [current_move.animation, _attack_clip_time(f), 1.0]
 		State.BLOCKSTUN:
@@ -1314,7 +1328,7 @@ func _animation_request(frozen: bool) -> Array:
 		return [victory_clip, _victory_time, 1.0]
 	if victory:
 		return [&"ual2/Idle_FoldArms", -1.0, 1.0]
-	return [&"fight/guard", -1.0, 1.0]
+	return [data.stance_animation, -1.0, 1.0]
 
 
 ## Maps the move's frame onto clip time: startup covers [0, impact], so the strike lands

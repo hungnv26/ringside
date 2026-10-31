@@ -44,9 +44,13 @@ func _initialize() -> void:
 	print("rear side: ", rear)
 
 	var lib := AnimationLibrary.new()
-	lib.add_animation("guard", build_guard())
+	# Living stances (docs/movement-plan.md, phase 1): the game plants the feet with IK, so
+	# the pelvis is free to shift, bob and bounce over them.
+	lib.add_animation("guard", build_stance("calm"))
+	lib.add_animation("guard_bounce", build_stance("bounce"))
+	lib.add_animation("guard_heavy", build_stance("heavy"))
 	lib.add_animation("walk_guard", resample_merged(ual1.get_animation("Walk"), LOWER_BODY, true))
-	lib.add_animation("crouch_guard", build_crouch_guard())
+	lib.add_animation("crouch_guard", build_crouch_stance())
 	lib.add_animation("crouch_jab", build_crouch_jab())
 	lib.add_animation("block_stand", build_block(guard))
 	lib.add_animation("block_crouch", build_block(crouch))
@@ -116,6 +120,87 @@ func build_crouch_guard() -> Animation:
 	var breathe := duplicate_pose(crouch)
 	move_bone(breathe, "pelvis", Vector3(0, -0.01, 0))
 	return make_animation([[0.0, crouch], [1.0, breathe], [2.0, crouch]], true)
+
+
+const STANCE_LOOP := 4.8 # seconds; every period below divides it, so the loop is seamless
+
+
+## A fighting stance that is never still. Every style breathes (the chest lifts, the
+## shoulders rise a little, the head follows), drifts its guard and shifts its weight:
+## - calm: rocks between the feet and side to side, the hands circling a little;
+## - bounce: a boxer's rhythm, a 2 Hz bob with the arms and head lagging behind it;
+## - heavy: sits lower, breathes deep and slow, rocks forward and back.
+func build_stance(style: String) -> Animation:
+	var keys := []
+	var steps := int(STANCE_LOOP * SAMPLE_FPS)
+	for i in steps + 1:
+		var t := float(i) / SAMPLE_FPS
+		keys.append([t, _stance_pose(guard, style, t)])
+	return make_animation(keys, true)
+
+
+func build_crouch_stance() -> Animation:
+	var keys := []
+	var steps := int(STANCE_LOOP * SAMPLE_FPS)
+	for i in steps + 1:
+		var t := float(i) / SAMPLE_FPS
+		keys.append([t, _stance_pose(crouch, "crouch", t)])
+	return make_animation(keys, true)
+
+
+func _wave(t: float, period: float, phase := 0.0) -> float:
+	return sin(TAU * (t / period + phase))
+
+
+func _stance_pose(base: Dictionary, style: String, t: float) -> Dictionary:
+	var pose := duplicate_pose(base)
+	var s := rear_sign()
+	var breath_period := 1.6
+	var breath_depth := 1.0
+	var sway := Vector3.ZERO
+	var drift := 1.0
+	match style:
+		"calm":
+			sway = Vector3(0.012 * _wave(t, 2.4), -0.006 * (0.5 + 0.5 * _wave(t, 1.2, 0.25)), 0.012 * _wave(t, 4.8))
+		"bounce":
+			# Down on each beat, the lateral shift every other beat.
+			var bob := 0.5 - 0.5 * cos(TAU * t / 0.48)
+			sway = Vector3(0.012 * _wave(t, 0.96), -0.024 * bob, 0.008 * _wave(t, 0.96, 0.25))
+			breath_period = 0.96
+			breath_depth = 0.7
+			# Arms and head ride the bounce a beat late.
+			var lag := 0.5 - 0.5 * cos(TAU * (t - 0.07) / 0.48)
+			for side in ["l", "r"]:
+				rotate_bone(pose, "upperarm_" + side, Vector3.RIGHT, 2.5 * lag)
+			rotate_bone(pose, "neck_01", Vector3.RIGHT, 2.0 * lag)
+		"heavy":
+			sway = Vector3(0.008 * _wave(t, 4.8, 0.1), -0.025 - 0.008 * (0.5 + 0.5 * _wave(t, 2.4)), 0.016 * _wave(t, 4.8))
+			breath_period = 2.4
+			breath_depth = 2.0
+			drift = 0.7
+		"crouch":
+			sway = Vector3(0.006 * _wave(t, 2.4), -0.006 * (0.5 + 0.5 * _wave(t, 1.6)), 0.006 * _wave(t, 4.8))
+			breath_depth = 1.2
+	move_bone(pose, "pelvis", sway)
+	# The hips turn a little with the weight, the shoulders a little against them.
+	rotate_bone(pose, "pelvis", Vector3.UP, 2.0 * _wave(t, 2.4, 0.15) * s)
+	rotate_bone(pose, "spine_02", Vector3.UP, -1.2 * _wave(t, 2.4, 0.15) * s)
+	# Breathing: the chest lifts and opens, the shoulders rise, the head tips with them.
+	var breath := 0.5 + 0.5 * _wave(t, breath_period)
+	rotate_bone(pose, "spine_02", Vector3.RIGHT, -0.9 * breath * breath_depth)
+	rotate_bone(pose, "spine_03", Vector3.RIGHT, -0.8 * breath * breath_depth)
+	rotate_bone(pose, "clavicle_l", Vector3.BACK, 1.2 * breath * breath_depth)
+	rotate_bone(pose, "clavicle_r", Vector3.BACK, -1.2 * breath * breath_depth)
+	rotate_bone(pose, "neck_01", Vector3.RIGHT, 0.6 * breath * breath_depth)
+	# The guard drifts: each hand on its own slow loop, the head searching a little.
+	for side in ["l", "r"]:
+		var ph := 0.0 if side == "l" else 0.37
+		rotate_bone(pose, "upperarm_" + side, Vector3.RIGHT, 2.0 * drift * _wave(t, 2.4, ph))
+		rotate_bone(pose, "upperarm_" + side, Vector3.UP, 1.5 * drift * _wave(t, 4.8, ph + 0.25))
+		rotate_bone(pose, "lowerarm_" + side, Vector3.RIGHT, -1.5 * drift * _wave(t, 1.6, ph + 0.5))
+	rotate_bone(pose, "neck_01", Vector3.UP, 2.0 * _wave(t, 4.8, 0.6))
+	rotate_bone(pose, "Head", Vector3.RIGHT, 1.0 * _wave(t, 2.4, 0.4))
+	return pose
 
 
 ## Forearms raised in front of the face.

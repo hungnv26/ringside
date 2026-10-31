@@ -113,6 +113,8 @@ const SOLE_BELOW_ORIGIN := 0.01
 
 var skeleton: Skeleton3D
 var player: AnimationPlayer
+## The procedural layer (footwork, IK, ...) the skeleton runs after the clip each frame.
+var motion: FighterMotion
 var _body: Node3D
 var _clip: StringName
 var _contacts := {} # bone index -> rest height above the sole
@@ -174,6 +176,9 @@ func build(data: CharacterData, alt: bool = false) -> void:
 	for library_name: StringName in LIBRARIES:
 		player.add_animation_library(library_name, LIBRARIES[library_name])
 	player.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+	motion = FighterMotion.new()
+	motion.name = "Motion"
+	skeleton.add_child(motion)
 	_keep_materials("%s/%s/%s" % [data.id, alt, realistic])
 
 

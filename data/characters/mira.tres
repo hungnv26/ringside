@@ -48,6 +48,7 @@ alt_outfit_colors = PackedColorArray(0.8, 0.8, 0.78, 1, 0.75, 0.08, 0.08, 1, 0.1
 detailed_textures = true
 realistic_shading = true
 victory_animations = Array[StringName]([&"fight/victory_fist_pump", &"fight/victory_point"])
+stance_animation = &"fight/guard_bounce"
 placeholder_color = Color(0.86, 0.62, 0.12, 1)
 intro_animation = &"fight/intro_power"
 intro_expression = &"grin"
