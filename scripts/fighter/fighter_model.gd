@@ -111,6 +111,10 @@ const VOICE_BLEND := 10.0 # how fast the voice takes over the jaw from the expre
 const CONTACT_BONES := [&"foot_l", &"foot_r", &"ball_l", &"ball_r"]
 const SOLE_BELOW_ORIGIN := 0.01
 
+## Off: every clip change is the AnimationPlayer's linear cross-fade (tools/check_motion.gd
+## --linear-fades compares against it).
+static var eased_transitions := true
+
 var skeleton: Skeleton3D
 var player: AnimationPlayer
 ## The procedural layer (footwork, IK, ...) the skeleton runs after the clip each frame.
@@ -202,13 +206,19 @@ func clip_length(clip: StringName) -> float:
 
 ## Shows `clip`. With time >= 0 the clip is posed at that exact time (timed clips such as
 ## attacks); otherwise it free-runs at `speed` (loops such as idle and walk).
-func show_clip(clip: StringName, time: float, speed: float, delta: float) -> void:
+## `transition` > 0: the change of clip is inertialized by the motion layer over that many
+## seconds; otherwise the AnimationPlayer cross-fades linearly over BLEND_TIME.
+func show_clip(clip: StringName, time: float, speed: float, delta: float, transition := -1.0) -> void:
 	if not player.has_animation(clip):
 		push_warning("Missing animation clip: %s" % clip)
 		return
 	if clip != _clip:
 		_clip = clip
-		player.play(clip, BLEND_TIME)
+		if transition <= 0.0 or not eased_transitions:
+			player.play(clip, BLEND_TIME)
+		else:
+			player.play(clip, 0.0)
+			motion.start_transition(transition)
 	if time >= 0.0:
 		# Seek just short of the target and advance onto it, so cross-fades still progress.
 		# Always advance the full delta: near time 0 this overshoots by under a frame, but
@@ -220,7 +230,8 @@ func show_clip(clip: StringName, time: float, speed: float, delta: float) -> voi
 	else:
 		player.speed_scale = speed
 		player.advance(delta)
-	_keep_feet_above_floor()
+	# The motion layer keeps the feet above the floor (FighterMotion._keep_feet_above_floor).
+	_body.position.y = 0.0
 
 
 ## The UAL clips were authored for slightly different proportions and sink these bodies'

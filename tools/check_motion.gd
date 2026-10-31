@@ -52,7 +52,17 @@ var stats := {}
 var _prev_soles := {} # fighter -> {bone: Vector3 or null}
 var _pose_history := {} # fighter -> Array of PackedVector3Array
 var reel := false
+var pops := PackedFloat32Array() # cm/tick a bone's speed changed in the tick its clip changed
+var steady := PackedFloat32Array() # and in ticks without a change, for scale
+var _last_clip := {}
+var _last_state := {}
+var pops_by := {} # "FROM>TO" -> PackedFloat32Array
 var debug_feet := false
+var trace_from := -1
+var trace_change := ""
+var _ring := []
+var _trace_left := 0
+var _tick := 0
 var close_camera: Camera3D
 
 
@@ -62,7 +72,12 @@ func _initialize() -> void:
 	var write_baseline := args.has("--write-baseline")
 	var strict := args.has("--strict")
 	reel = args.has("--reel")
+	FighterModel.eased_transitions = not args.has("--linear-fades")
 	debug_feet = args.has("--debug-feet")
+	if args.has("--trace-change"):
+		trace_change = args[args.find("--trace-change") + 1]
+	if args.has("--trace"):
+		trace_from = int(args[args.find("--trace") + 1])
 	var close := args.has("--close")
 	var only := ""
 	if args.has("--only"):
@@ -243,6 +258,32 @@ func _run_scenarios() -> void:
 func _sample(f: Fighter) -> void:
 	if f.model == null:
 		return
+	if trace_change != "" and (f == p1 or f == p2):
+		var sk1 := f.model.skeleton
+		var desc := "%s clip=%s pelvis %s Head %s hand_l %s body_y %.3f" % [Fighter.State.keys()[f.state], f.model._clip,
+			(sk1.get_bone_global_pose(sk1.find_bone(&"pelvis")).origin * 100.0).snapped(Vector3.ONE * 0.1),
+			(sk1.get_bone_global_pose(sk1.find_bone(&"Head")).origin * 100.0).snapped(Vector3.ONE * 0.1),
+			(sk1.get_bone_global_pose(sk1.find_bone(&"hand_l")).origin * 100.0).snapped(Vector3.ONE * 0.1), f.model.skeleton.global_position.y]
+		_ring.append(desc)
+		if _ring.size() > 4:
+			_ring.pop_front()
+		var key := "%s>%s" % [Fighter.State.keys()[_last_state.get(f, 0)], Fighter.State.keys()[f.state]]
+		if key == trace_change and _trace_left == 0:
+			print("---- ", key)
+			for r in _ring:
+				print("  ", r)
+			_trace_left = 6
+		elif _trace_left > 0:
+			print("  ", desc)
+			_trace_left -= 1
+	if trace_from >= 0 and f == p1 and _tick >= trace_from and _tick < trace_from + 14:
+		var sk0 := f.model.skeleton
+		var parts := []
+		for bn in [&"pelvis", &"Head", &"hand_l", &"calf_l", &"foot_l"]:
+			parts.append("%s %s" % [bn, (sk0.get_bone_global_pose(sk0.find_bone(bn)).origin * 100.0).snapped(Vector3.ONE * 0.1)])
+		print("T%d %s clip=%s  %s" % [_tick, Fighter.State.keys()[f.state], f.model._clip, "  ".join(parts)])
+	if f == p1:
+		_tick += 1
 	if debug_feet and f == p1 and f.state in [Fighter.State.DASH, Fighter.State.BACKDASH, Fighter.State.SIDESTEP]:
 		var mo := f.model.motion
 		var line := "%s f%d v=%.2f" % [Fighter.State.keys()[f.state], f.state_frame, mo._velocity.length()]
@@ -280,6 +321,22 @@ func _sample(f: Fighter) -> void:
 	if history.size() > HELD_WINDOW:
 		history.pop_front()
 	_pose_history[f] = history
+	if history.size() >= 3 and f.hitstop == 0 and not f.frozen:
+		# How suddenly a bone changed speed: |this tick's move - last tick's move|.
+		var jump := 0.0
+		for i in pose.size():
+			var d2: Vector3 = pose[i] - history[-2][i]
+			var d1: Vector3 = history[-2][i] - history[-3][i]
+			jump = maxf(jump, (d2 - d1).length())
+		var changed: bool = _last_clip.get(f, &"") != f.model._clip
+		(pops if changed else steady).append(jump * 100.0)
+		if changed:
+			var key := "%s>%s" % [Fighter.State.keys()[_last_state.get(f, 0)], Fighter.State.keys()[f.state]]
+			if not pops_by.has(key):
+				pops_by[key] = PackedFloat32Array()
+			pops_by[key].append(jump * 100.0)
+	_last_clip[f] = f.model._clip
+	_last_state[f] = f.state
 	if history.size() == HELD_WINDOW and f.hitstop == 0 and not f.frozen:
 		var moved := 0.0
 		for i in pose.size():
@@ -308,6 +365,20 @@ func _report() -> Dictionary:
 			flags += " HELD"
 			ok = false
 		lines.append("| %s | %d | %.1f | %.1f | %d |%s" % [state_name, s.ticks, p50, p90, s.held, flags])
+	var pc := Array(pops)
+	pc.sort()
+	var st := Array(steady)
+	st.sort()
+	if pc:
+		lines.append("")
+		lines.append("clip changes: %d, sharpest change of bone speed that tick p50 %.1f cm/tick, p90 %.1f, max %.1f (other ticks p90 %.1f)" % [pc.size(),
+			pc[int(pc.size() * 0.5)], pc[int(pc.size() * 0.9)], pc[-1], st[int(st.size() * 0.9)] if st else 0.0])
+	var keys := pops_by.keys()
+	keys.sort_custom(func(a, b): return (pops_by[a] as PackedFloat32Array).size() > (pops_by[b] as PackedFloat32Array).size())
+	for key: String in keys.slice(0, 10):
+		var v := Array(pops_by[key])
+		v.sort()
+		lines.append("  %s: %d, p50 %.1f, max %.1f" % [key, v.size(), v[int(v.size() * 0.5)], v[-1]])
 	return {text = "\n".join(lines), ok = ok}
 
 

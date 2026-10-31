@@ -49,10 +49,124 @@ var _time := 0.0
 ## Diagnostics for tools/check_motion.gd: the world position of each foot after solving.
 var solved_feet := {}
 
+## Transitions (phase 2): inertialization. When the clip changes, the new clip plays at
+## once and the difference from the pose shown last is added on top, decaying to nothing
+## along a quintic that starts with the old pose's own velocity: the old motion carries on
+## for a moment and settles into the new one, with no pop and no hitch.
+var _last_rot := [] # per bone, the local rotation shown last frame (before IK)
+var _prev_rot := [] # and the frame before
+var _last_pelvis := Vector3.ZERO
+var _prev_pelvis := Vector3.ZERO
+var _last_dt := 1.0 / 60.0
+var _pending := -1.0 # a transition asked for this frame: its duration
+var _offsets := [] # per bone [axis, Vector4(A, B, C, half a0), v0, x0, t1] or null
+var _pelvis_offset := [] # [direction, coefficients...] or empty
+var _blend_t := 0.0
+
 
 func _ready() -> void:
 	for side: String in SIDES:
 		_feet[side] = _new_foot()
+
+
+## Starts a transition from the pose shown last frame, settling over `seconds`.
+func start_transition(seconds: float) -> void:
+	if _last_rot.is_empty() or seconds <= 0.0:
+		return
+	_pending = seconds
+
+
+## Quintic decay of an offset x0 moving at v0, reaching 0 with no velocity or acceleration
+## at t1 (Bollo, "Inertialization", GDC 2018). Returns [A, B, C, a0 / 2, v0, x0, t1].
+static func _decay(x0: float, v0: float, duration: float) -> Array:
+	if x0 < 1e-5:
+		return []
+	# Moving away from the new pose keeps going for a moment (follow-through), capped so
+	# the offset can't more than double before it turns.
+	var v := clampf(v0, -INF, x0 / maxf(duration, 1e-3) * 2.0)
+	var t1 := duration
+	if v < 0.0:
+		t1 = minf(duration, -5.0 * x0 / v)
+	t1 = maxf(t1, 1e-3)
+	var a0 := maxf((-8.0 * v * t1 - 20.0 * x0) / (t1 * t1), 0.0)
+	var a := -(a0 * t1 * t1 + 6.0 * v * t1 + 12.0 * x0) / (2.0 * pow(t1, 5.0))
+	var b := (3.0 * a0 * t1 * t1 + 16.0 * v * t1 + 30.0 * x0) / (2.0 * pow(t1, 4.0))
+	var c := -(3.0 * a0 * t1 * t1 + 12.0 * v * t1 + 20.0 * x0) / (2.0 * pow(t1, 3.0))
+	return [a, b, c, a0 * 0.5, v, x0, t1]
+
+
+static func _decay_at(k: Array, t: float) -> float:
+	if k.is_empty() or t >= k[6]:
+		return 0.0
+	return (((k[0] * t + k[1]) * t + k[2]) * t + k[3]) * t * t + k[4] * t + k[5]
+
+
+## Adds the decaying offset to the clip pose, then remembers what is shown.
+func _blend_transition(dt: float) -> void:
+	var sk := _skeleton
+	var count := sk.get_bone_count()
+	var pelvis := _bone("pelvis")
+	if _pending > 0.0 and _last_rot.size() == count and _prev_rot.size() == count:
+		_offsets.resize(count)
+		var step := maxf(_last_dt, 1e-4)
+		for i in count:
+			var now := sk.get_bone_pose_rotation(i)
+			var off := (_last_rot[i] as Quaternion) * now.inverse()
+			if off.w < 0.0:
+				off = -off
+			var x0 := off.get_angle()
+			if x0 < 1e-4:
+				_offsets[i] = null
+				continue
+			var axis := off.get_axis().normalized()
+			var prev := (_prev_rot[i] as Quaternion) * now.inverse()
+			if prev.w < 0.0:
+				prev = -prev
+			var prev_x := 2.0 * atan2(Vector3(prev.x, prev.y, prev.z).dot(axis), prev.w)
+			_offsets[i] = [axis, _decay(x0, (x0 - prev_x) / step, _pending)]
+		var d0 := _last_pelvis - sk.get_bone_pose_position(pelvis)
+		if d0.length() > 1e-5:
+			var n := d0.normalized()
+			var prev_d := (_prev_pelvis - sk.get_bone_pose_position(pelvis)).dot(n)
+			_pelvis_offset = [n, _decay(d0.length(), (d0.length() - prev_d) / step, _pending)]
+		else:
+			_pelvis_offset = []
+		_blend_t = 0.0
+		_pending = -1.0
+	elif _pending > 0.0:
+		_pending = -1.0
+	if not _offsets.is_empty():
+		_blend_t += dt
+		var live := false
+		for i in mini(count, _offsets.size()):
+			var o = _offsets[i]
+			if o == null or (o[1] as Array).is_empty():
+				continue
+			var x := _decay_at(o[1], _blend_t)
+			if x != 0.0:
+				live = true
+				sk.set_bone_pose_rotation(i, Quaternion(o[0], x) * sk.get_bone_pose_rotation(i))
+		if not _pelvis_offset.is_empty():
+			var x := _decay_at(_pelvis_offset[1], _blend_t)
+			if x != 0.0:
+				live = true
+				sk.set_bone_pose_position(pelvis, sk.get_bone_pose_position(pelvis) + (_pelvis_offset[0] as Vector3) * x)
+		if not live:
+			_offsets.clear()
+			_pelvis_offset = []
+	if dt > 0.0 or _last_rot.size() != count:
+		_prev_rot = _last_rot.duplicate()
+		_prev_pelvis = _last_pelvis
+		if _last_rot.size() != count:
+			_last_rot.resize(count)
+		for i in count:
+			_last_rot[i] = sk.get_bone_pose_rotation(i)
+		_last_pelvis = sk.get_bone_pose_position(pelvis)
+		if _prev_rot.size() != count:
+			_prev_rot = _last_rot.duplicate()
+			_prev_pelvis = _last_pelvis
+		if dt > 0.0:
+			_last_dt = dt
 
 
 func _new_foot() -> Dictionary:
@@ -82,6 +196,8 @@ func solve(delta: float) -> void:
 	var target_weight := 0.0 if mode == Mode.OFF else 1.0
 	var dt := 0.0 if frozen else delta
 	_time += dt
+	_blend_transition(dt)
+	_keep_feet_above_floor()
 
 	# Body velocity from how the model moved (pushback, dashes, anything).
 	if _has_last and root_world.distance_to(_last_root) > TELEPORT:
@@ -196,6 +312,26 @@ func solve(delta: float) -> void:
 		var t: Transform3D = targets[side]
 		_solve_leg(side, inv * t.origin, inv_basis * t.basis, _weight)
 	_record_feet()
+
+
+## The clips were authored for other proportions and can sink a sole into the floor: lift
+## the body (the pelvis carries everything but the root) until the lowest sole is on it.
+## Only ever lifts, so airborne poses are unaffected. Works on the pose actually shown
+## (after the transition), so the lift eases with it.
+const CONTACT_BONES := ["foot_l", "foot_r", "ball_l", "ball_r"]
+const SOLE_BELOW_ORIGIN := 0.01
+
+func _keep_feet_above_floor() -> void:
+	var sk := _skeleton
+	var lowest := INF
+	for bone_name: String in CONTACT_BONES:
+		var bone := _bone(bone_name)
+		var rest := sk.get_bone_global_rest(bone).origin.y + SOLE_BELOW_ORIGIN
+		lowest = minf(lowest, sk.get_bone_global_pose(bone).origin.y - rest)
+	if lowest < 0.0:
+		var pelvis := _bone("pelvis")
+		var up_local: Vector3 = sk.get_bone_global_pose(sk.get_bone_parent(pelvis)).basis.inverse() * Vector3.UP
+		sk.set_bone_pose_position(pelvis, sk.get_bone_pose_position(pelvis) + up_local * -lowest)
 
 
 func _plant(foot: Dictionary, a: Transform3D) -> void:

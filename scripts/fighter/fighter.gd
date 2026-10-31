@@ -213,6 +213,7 @@ var _intro_time := 0.0
 var last_hit_level: MoveData.HitLevel = MoveData.HitLevel.MID
 ## Skinned character model, or null for a graybox capsule.
 var model: FighterModel
+var _shown_state: State = State.IDLE # the state the model last showed (cosmetic)
 ## Alternate costume (mirror match P2).
 var alt := false
 ## Training mode: health never drops below 1, so there are no K.O.s.
@@ -1193,7 +1194,8 @@ func _update_model(delta: float) -> void:
 	var request := _animation_request(frozen)
 	# Hitstop freezes the pose outright; the super freeze holds the clip time but lets a
 	# cross-fade finish, so nobody is stuck mid-blend in the close-up.
-	model.show_clip(request[0], request[1], request[2], 0.0 if hitstop > 0 else delta)
+	model.show_clip(request[0], request[1], request[2], 0.0 if hitstop > 0 else delta, transition_to(state))
+	_shown_state = state
 	model.motion.mode = motion_mode()
 	model.motion.frozen = hitstop > 0
 	# The face keeps moving through hitstop, so the reaction lands with the impact.
@@ -1210,6 +1212,37 @@ func _update_model(delta: float) -> void:
 		var f := (float(state_frame) + Engine.get_physics_interpolation_fraction()) / GRAB_SNAP_FRAMES
 		shake += global_transform.basis.inverse() * (_grab_snap * (1.0 - smoothstep(0.0, 1.0, f)))
 	model.position = shake
+
+
+## How long the old pose takes to settle into a new clip (inertialized, so the old
+## motion carries on and fades out): strikes and hits take over almost at once, recoveries
+## settle slowly. Cosmetic.
+func transition_to(next: State) -> float:
+	var from := _shown_state
+	match next:
+		State.ATTACK, State.THROW:
+			return 0.1
+		State.HITSTUN, State.AIR_HIT, State.KO, State.THROWN, State.WALL_SPLAT:
+			return 0.08
+		State.BLOCKSTUN, State.TECH, State.LANDING:
+			return 0.08
+		State.JUMP_SQUAT, State.JUMP:
+			return 0.1
+		State.KNOCKDOWN, State.GETUP:
+			return 0.2
+	# Back to neutral (or between neutral states).
+	match from:
+		State.ATTACK, State.THROW:
+			return 0.25
+		State.GETUP, State.TECH:
+			return 0.3
+		State.HITSTUN, State.BLOCKSTUN, State.LANDING:
+			return 0.2
+	if (from == State.CROUCH) != (next == State.CROUCH):
+		return 0.2
+	if intro_clip != &"" or victory:
+		return 0.35
+	return 0.15
 
 
 ## Logic → how the procedural layer treats the feet (FighterMotion.Mode). Cosmetic.
