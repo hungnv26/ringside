@@ -143,11 +143,6 @@ export async function makeVideo(avi: string, mp4: string, log: (line: string) =>
   log(`video: ${mp4} (${((Date.now() - started) / 1000).toFixed(0)} s)`);
 }
 
-/** A recording's frame size for a --window choice (fullscreen records at 1080p). */
-export function movieSize(window: string): string {
-  return { "720p": "1280x720", "900p": "1600x900", "1080p": "1920x1080", "1440p": "2560x1440" }[window] ?? "1920x1080";
-}
-
 /**
  * Timers that wait game time (the state's tick, 60 a second) instead of wall time, for the
  * coaches of a recorded match: the game renders slower than real time, and the turns keep
@@ -245,9 +240,9 @@ async function main(): Promise<void> {
       // bytes), then ffmpeg makes the .mp4 once the game has closed. Rendering is slower than
       // real time; the coaches keep game time (gameClock), so the match plays as it would live.
       const movie = args.record.replace(/\.mp4$/, "") + (args.film ? ".ogv" : ".avi");
-      // The movie's size is fixed when the game starts, before it sizes its window: give it
-      // the chosen window's size in pixels (else every recording is the project's 1280×720).
-      godotArgs.unshift("--write-movie", movie, "--fixed-fps", String(args.film ? FILM_FPS : 60), "--resolution", movieSize(args.window));
+      // Godot sizes the movie from the project's window setting (1280×720), whatever the
+      // window: the frames are rendered at the window's size and scaled down to it.
+      godotArgs.unshift("--write-movie", movie, "--fixed-fps", String(args.film ? FILM_FPS : 60));
       afterGame = async () => {
         await makeVideo(movie, args.record, say, args.film);
         onVideo?.();

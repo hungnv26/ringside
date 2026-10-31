@@ -155,8 +155,8 @@ blurs less; the camera's own motion counts 35%; a camera jump of 0.6 m or 25° i
 cut and stays sharp; hitstop has no motion, so impact freezes stay crisp. Levels: Off,
 Subtle (1/240 s, at most 32 px), Cinematic (1/120 s, at most 56 px). The Options menu has
 *Motion Blur* (default Subtle; none at Low); coached matches take `--motion-blur` (default
-Cinematic, also on the setup page). Cost at 1080p on this Mac (frame time with vsync off,
-the motion reel): 6.84 ms off, 7.73 ms Cinematic, **about 0.9 ms**. A first version that
+Cinematic, also on the setup page). Cost with the 3D drawn at 1920×1080 (High, the
+default 1080-line cap) on this Mac (frame time with vsync off, the motion reel): 6.84 ms off, 7.73 ms Cinematic, **about 0.9 ms**. A first version that
 reprojected every sample cost 1.05 ms.
 
 **Phase 2.** With motion blur on, `LimbTrail` is a smear instead of a ribbon: a strip over
@@ -174,12 +174,19 @@ Godot's own Theora writer (`.ogv`, with the sound) keeps the temporary movie to 
 75 KB a frame at 720p. While recording, the coaches pace their turns by game ticks
 (`gameClock` in adapter/src/main.ts), not wall time, so a recording plays like a live match.
 
-Found on the way: every recording so far was 1280×720 whatever window was chosen (the movie
-size is fixed when the game starts, before it sizes its window); the adapter now passes the
-window's size in pixels (`--resolution`, 1920×1080 for 1080p).
+Tested end to end (Jin vs Brutus, scripted coaches, 720p): 23,953 frames rendered at 240 fps
+in 15 min 29 s (10% of real time) gave a 1 min 40 s video at 60 fps with sound; the coaches
+took about 42 turns each, one every 2.4 s of fight time (the 2 s cadence plus their reply),
+as live. Unlike the live effect, a blended recording blurs the camera's own motion fully:
+a whip pan or the super camera smears the whole background, as a film camera would.
+
+Found on the way: every recording is 1280×720 whatever window is chosen. Godot takes the
+movie's size from the project's window setting (`window_width_override`), not from
+`--resolution` (tested), and scales the rendered window down to it. Changing that setting
+would also change the default window for players, so it is left as it was.
 
 **Phase 4.** Before/after stills in `docs/look/movement/blur_before_after.jpg` (left off,
 right Cinematic: a kip-up's legs and a straight punch). Checks: `check_motion.gd` gives the same
 numbers as before this work (reach 0.0 cm off in 122 moves; the getup, jump-squat and landing
 skate it already flagged are unchanged), sim_test (612) and coach_test pass, and the adapter's
-78 tests pass.
+77 tests pass.

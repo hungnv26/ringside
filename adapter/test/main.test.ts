@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BattleLog, battleId } from "../src/log.ts";
-import { clientFor, gameClock, makeVideo, movieSize, parseCli, reflexClientFor } from "../src/main.ts";
+import { clientFor, gameClock, makeVideo, parseCli, reflexClientFor } from "../src/main.ts";
 import { FakeJevClient, JevClient } from "../src/jev.ts";
 import { FakeModelClient } from "../src/fake.ts";
 import { ProviderClient } from "../src/models.ts";
@@ -155,11 +155,4 @@ test("makeVideo blends a film-quality movie: 240 rendered frames a second into 6
   const [rate, frames] = String(probe.stdout).trim().split(",");
   assert.equal(rate, "60/1");
   assert.ok(Math.abs(Number(frames) - 60) <= 1, `frames ${frames}`);
-});
-
-test("a recording is the chosen window's size in pixels", () => {
-  assert.equal(movieSize("720p"), "1280x720");
-  assert.equal(movieSize("1080p"), "1920x1080");
-  assert.equal(movieSize("1440p"), "2560x1440");
-  assert.equal(movieSize("fullscreen"), "1920x1080");
 });

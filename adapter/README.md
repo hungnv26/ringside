@@ -103,7 +103,7 @@ the log folder, sends `end` to the game and exits 0. Ctrl-C ends the game too.
 | `--reflex-rate 2\|4` | `4` | Reflex ticks a second for a corner with Jev (4 is every state frame) |
 | `--read-threshold P` | `0.6` | A reflex read is sent when Jev's probability reaches P |
 | `--gate-threshold P` | `0.7` | A gate wakes the brain when its probability reaches P (once every 4 s per gate) |
-| `--record FILE.mp4` | | Record the match: Godot's movie writer at a fixed 60 fps and the chosen window's size in pixels (1920×1080 for 1080p), then ffmpeg encodes the .mp4 with the game's sound after the game closes (needs `ffmpeg` on the PATH). The coaches keep game time while recording, so the game rendering slower than real time doesn't give them extra turns |
+| `--record FILE.mp4` | | Record the match: Godot's movie writer at a fixed 60 fps (1280×720: Godot takes the movie's size from the project's window setting, and scales the rendered window down to it), then ffmpeg encodes the .mp4 with the game's sound after the game closes (needs `ffmpeg` on the PATH). The coaches keep game time while recording, so the game rendering slower than real time doesn't give them extra turns |
 | `--film` | | With `--record`: film-quality motion blur. The game renders 240 frames a second (Theora .ogv, each frame blurred over its own 1/240 s) and ffmpeg blends the first two of every four into one 60 fps frame, a 180° shutter with no reconstruction artefacts. About 4× the render time and about 2 GB of temporary movie for a two-minute match at 720p |
 | `--capture DIR` | | The game saves a screenshot every 10 s of the fight and one of the result to DIR |
 
