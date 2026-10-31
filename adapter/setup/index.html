@@ -268,7 +268,7 @@ async function loadModels(side, refresh) {
       const priced = (setup.priced || []).filter((p) => p.startsWith(provider + ":")).map((p) => p.slice(provider.length + 1)).find((m) => models.includes(m));
       if (priced) $(side + "-model").value = priced;
     }
-    msg.textContent = provider === "fake" ? "" : provider === "jev" ? `reflexes only: ${setup.reflex ? setup.reflex.model : "Jev"} through DigitalOcean (key "jev"), or fake` : `${models.length} models`;
+    msg.textContent = provider === "fake" ? "" : provider === "jev" ? `reflexes only: ${setup.reflex ? `${setup.reflex.model} at ${setup.reflex.host}` : "Jev"} (key "jev"), or fake` : `${models.length} models`;
   } catch (e) {
     msg.className = "msg err";
     msg.textContent = e.message;

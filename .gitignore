@@ -27,3 +27,4 @@ __pycache__/
 
 # Crowd VAT raw data (tools/mpfb/build_crowd.py); the game uses the .res textures made from it
 assets/crowd/*.vat
+.DS_Store

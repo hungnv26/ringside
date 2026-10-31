@@ -50,9 +50,11 @@ frontier model is called at most every few seconds and usually far less.
 - `jev:jev`: reflexes alone.
 
 Keys: `infra/keys/jev.key`, a DigitalOcean model access key (Jev is in the DO model catalog and
-served at `inference.do-ai.run/v1/systemone` without a TypeSafe account; TypeSafe's own API is
-waitlisted). The Vercel AI Gateway is the fallback. Jev is not OpenAI-compatible, so it does not
-go through `ProviderClient`'s chat translation; it gets its own client.
+served at `inference.do-ai.run/v1/systemone` without a TypeSafe account, but only for accounts on
+Tier 3 or above: a $250 prepayment, found 2026-10-31) or a TypeSafe API key from console.typesafe.ai
+with `JEV_URL=https://api.typesafe.ai/v1/systemone` (same body; the model id is `jev-latest` there,
+`$JEV_MODEL` overrides). The Vercel AI Gateway is the fallback. Jev is not OpenAI-compatible, so it
+does not go through `ProviderClient`'s chat translation; it gets its own client.
 
 ## Phases
 
@@ -165,8 +167,11 @@ Built, on the `jev` branch:
 Not done, because no Jev or DigitalOcean key exists on this machine: every live call. The probe
 and the pilot ran with the fake, which proves the pipeline and nothing about Jev. To finish:
 
-1. Save a DigitalOcean model access key as `infra/keys/jev.key` (or on the setup page under
-   Keys, provider `jev`).
+1. Save a key as `infra/keys/jev.key` (or on the setup page under Keys, provider `jev`): a
+   DigitalOcean model access key on a Tier 3+ account, or a TypeSafe key from console.typesafe.ai
+   with `JEV_URL=https://api.typesafe.ai/v1/systemone` in the environment. A DigitalOcean key on a
+   Tier 1 or 2 account lists Jev but every call answers 403 "not available for your subscription
+   tier" (seen 2026-10-31).
 2. `cd adapter && node src/probe.ts --root ../battle-logs` and read the precision table; go on
    only if reads at 0.6 beat the LLM coaches' reads in the same logs.
 3. The round robin: Haiku, Opus, `jev:jev`, `anthropic:claude-haiku-5-5+jev`,

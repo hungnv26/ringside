@@ -50,7 +50,11 @@ on what its reflexes did since its last turn; `set_policy` takes `orders` too. T
 cadence defaults to 6 s when it has reflexes.
 
 Jev is served through DigitalOcean's inference API (`infra/keys/jev.key`: a DigitalOcean model
-access key; `$JEV_URL` to point elsewhere, TypeSafe's endpoint takes the same body). It is not
+access key; the account must be on Tier 3 or above, which DigitalOcean sells as a $250
+prepayment) or through TypeSafe's own API, which takes the same body: put a console.typesafe.ai
+key in the same file and set `JEV_URL=https://api.typesafe.ai/v1/systemone`. The model id
+follows the endpoint (`typesafe-jev-1.13.0` on DigitalOcean, `jev-latest` on TypeSafe) unless
+`$JEV_MODEL` names one. It is not
 OpenAI-compatible, so `src/jev.ts` has its own client, the question set and the state block
 (about 1.3K tokens a tick; input $0.042 per million, output free: a three-round match at 4 Hz
 costs about eight cents). `node src/probe.ts` replays the logged turns of past matches through

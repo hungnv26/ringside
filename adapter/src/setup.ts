@@ -9,7 +9,7 @@ import { createReadStream, existsSync, readdirSync, readFileSync, statSync } fro
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { JEV_MODEL } from "./jev.ts";
+import { JEV_HOST, JEV_MODEL } from "./jev.ts";
 import { keyStatus, listModels, modelPrices, PROVIDERS, REFLEX_PROVIDER, REPO_ROOT, saveKey, splitSpec, type Effort } from "./models.ts";
 import { DEFAULT_GATE_THRESHOLD, DEFAULT_READ_THRESHOLD, parseSpec, REFLEX_RATES } from "./reflex.ts";
 import { MAX_ENTRANTS, ROTATE, TournamentRunner, type Entrant, type TournamentRequest } from "./tournament.ts";
@@ -378,7 +378,7 @@ export function createSetupServer(runner = new Runner(), root = REPO_ROOT, fetch
           stages: stages(root),
           providers: ["fake", ...PROVIDERS, REFLEX_PROVIDER],
           keys: keyStatus(),
-          reflex: { rates: REFLEX_RATES, readThreshold: DEFAULT_READ_THRESHOLD, gateThreshold: DEFAULT_GATE_THRESHOLD, model: JEV_MODEL },
+          reflex: { rates: REFLEX_RATES, readThreshold: DEFAULT_READ_THRESHOLD, gateThreshold: DEFAULT_GATE_THRESHOLD, model: JEV_MODEL, host: JEV_HOST },
           priced: Object.keys(prices),
           efforts: EFFORTS,
           windows: WINDOWS,

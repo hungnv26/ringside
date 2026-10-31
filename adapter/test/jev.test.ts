@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { choiceOf, FakeJevClient, favourWeights, GATES, JevClient, jevModelId, jevQuestions, jevState, KNOBS, knobOf, LEVELS, NO_READ, noulOf, parseRecent, JEV_MODEL } from "../src/jev.ts";
+import { choiceOf, defaultJevModel, DO_JEV_URL, FakeJevClient, favourWeights, GATES, JevClient, jevModelId, jevQuestions, jevState, KNOBS, knobOf, LEVELS, NO_READ, noulOf, parseRecent, JEV_MODEL } from "../src/jev.ts";
 import { READ_WORDS } from "../src/prompt.ts";
 import { parseSpec } from "../src/reflex.ts";
 import { OPTION_NAMES } from "../src/types.ts";
@@ -112,19 +112,26 @@ test("parseSpec: a brain, a brain with reflexes, reflexes alone; a fake brain fa
   assert.equal(jevModelId("jev:typesafe-jev-2"), "typesafe-jev-2");
 });
 
+test("the default model id follows the endpoint: DigitalOcean names the version, TypeSafe takes jev-latest, $JEV_MODEL wins", () => {
+  assert.equal(defaultJevModel(DO_JEV_URL), "typesafe-jev-1.13.0");
+  assert.equal(defaultJevModel("https://api.typesafe.ai/v1/systemone"), "jev-latest");
+  assert.equal(defaultJevModel("https://api.typesafe.ai:443/v1/systemone"), "jev-latest");
+  assert.equal(defaultJevModel("https://proxy.example.test/typesafe/v1/systemone"), "typesafe-jev-1.13.0", "a gateway keeps the versioned id");
+  assert.equal(defaultJevModel("not a url"), "typesafe-jev-1.13.0");
+  assert.equal(defaultJevModel("https://api.typesafe.ai/v1/systemone", "jev-1.14.0"), "jev-1.14.0");
+});
+
 test("JevClient posts state and questions with the key and reads the answers back; no key is an error", async () => {
   const calls: { url: string; init: RequestInit }[] = [];
   const fetchFn = (async (url: string | URL | Request, init?: RequestInit) => {
     calls.push({ url: String(url), init: init ?? {} });
     return new Response(JSON.stringify({ model: JEV_MODEL, answers: { read: { type: "choice", choice: "236P", probabilities: { "236P": 0.8 }, confidence: 0.8 } }, usage: { input_tokens: 1200, output_tokens: 0 } }), { status: 200 });
   }) as typeof fetch;
-  const client = new JevClient(fetchFn, "https://example.test/v1/systemone");
-  const before = process.env.JEV_API_KEY;
-  delete process.env.JEV_API_KEY;
-  process.env.RINGSIDE_KEYS_DIR = "/nonexistent";
-  try {
+  let key = "";
+  const client = new JevClient(fetchFn, "https://example.test/v1/systemone", () => ({ key }));
+  {
     await assert.rejects(client.decide("jev:jev", "state", {}), /no Jev key/);
-    process.env.JEV_API_KEY = "test-key-1234";
+    key = "test-key-1234";
     const r = await client.decide("jev:jev", "the state", { read: { type: "noul", instructions: "x" } });
     assert.equal(calls.length, 1);
     assert.equal(calls[0].url, "https://example.test/v1/systemone");
@@ -133,9 +140,6 @@ test("JevClient posts state and questions with the key and reads the answers bac
     assert.deepEqual(choiceOf(r.answers.read), { choice: "236P", p: 0.8 });
     assert.equal(r.usage.input_tokens, 1200);
     assert.ok(r.usd != null && Math.abs(r.usd - (1200 * 0.042) / 1e6) < 1e-12, `usd ${r.usd}`);
-  } finally {
-    if (before === undefined) delete process.env.JEV_API_KEY;
-    else process.env.JEV_API_KEY = before;
-    delete process.env.RINGSIDE_KEYS_DIR;
   }
+  // The real client reads the key file or $JEV_API_KEY (models.ts providerKey): not exercised here, so the machine's key stays out of the test.
 });

@@ -2,15 +2,36 @@
 // model: one call takes a block of state and a batch of typed questions (noul = yes/no, choice,
 // score) and answers all of them with calibrated probabilities in well under a second. It writes
 // no text and no code, so it never queues combos, never writes captions or rules: that stays
-// with the brain (coach.ts). Served through DigitalOcean's inference API (no TypeSafe account);
-// TypeSafe's own endpoint takes the same body, so $JEV_URL can point there.
+// with the brain (coach.ts). Served through DigitalOcean's inference API by default (a model access
+// key, account on Tier 3 or above) or TypeSafe's own API ($JEV_URL=https://api.typesafe.ai/v1/systemone,
+// a console.typesafe.ai key): same body, same answers, only the model id differs ($JEV_MODEL).
 import { callCost, modelPrices, providerKey, splitSpec } from "./models.ts";
 import { buildTurnMessage, planText, READ_WORDS } from "./prompt.ts";
 import type { Usage } from "./types.ts";
 import { OPTION_NAMES, other, type GameEvent, type Hello, type Plan, type Side, type State } from "./types.ts";
 
-export const JEV_MODEL = "typesafe-jev-1.13.0";
-export const JEV_URL = process.env.JEV_URL ?? "https://inference.do-ai.run/v1/systemone";
+export const DO_JEV_URL = "https://inference.do-ai.run/v1/systemone";
+export const JEV_URL = process.env.JEV_URL ?? DO_JEV_URL;
+/** The model id to send when a spec says just "jev": DigitalOcean names the version, TypeSafe takes "jev-latest". */
+export function defaultJevModel(url: string, override?: string): string {
+  if (override) return override;
+  let host = "";
+  try {
+    host = new URL(url).host;
+  } catch {
+    host = "";
+  }
+  return /(^|\.)api\.typesafe\.ai(:\d+)?$/.test(host) ? "jev-latest" : "typesafe-jev-1.13.0";
+}
+export const JEV_MODEL = defaultJevModel(JEV_URL, process.env.JEV_MODEL);
+/** Where the calls go, for the setup page ("inference.do-ai.run" or "api.typesafe.ai"). */
+export const JEV_HOST = (() => {
+  try {
+    return new URL(JEV_URL).host;
+  } catch {
+    return JEV_URL;
+  }
+})();
 const TIMEOUT_MS = 2500;
 
 export type JevQuestion = { type: "noul"; instructions: string } | { type: "choice"; instructions: string; criteria: Record<string, string> } | { type: "score"; instructions: string; criteria: string[] };
@@ -47,14 +68,17 @@ export function jevModelId(spec: string): string {
 export class JevClient implements ReflexClient {
   readonly fetchFn: typeof fetch;
   readonly url: string;
-  constructor(fetchFn: typeof fetch = fetch, url = JEV_URL) {
+  readonly keyFn: () => { key: string };
+  /** `keyFn` finds the key (the jev.key file or $JEV_API_KEY); tests inject one so the machine's key stays out. */
+  constructor(fetchFn: typeof fetch = fetch, url = JEV_URL, keyFn: () => { key: string } = () => providerKey("jev")) {
     this.fetchFn = fetchFn;
     this.url = url;
+    this.keyFn = keyFn;
   }
 
   async decide(spec: string, state: string, questions: Record<string, JevQuestion>): Promise<JevResult> {
-    const { key } = providerKey("jev");
-    if (!key) throw new Error("no Jev key (infra/keys/jev.key: a DigitalOcean model access key)");
+    const { key } = this.keyFn();
+    if (!key) throw new Error("no Jev key (infra/keys/jev.key: a DigitalOcean model access key, or a TypeSafe key with $JEV_URL)");
     const started = Date.now();
     const res = await this.fetchFn(this.url, {
       method: "POST",
