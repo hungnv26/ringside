@@ -8,7 +8,7 @@ import { Coach } from "./coach.ts";
 import { FakeModelClient } from "./fake.ts";
 import { FakeJevClient, JevClient, type ReflexClient } from "./jev.ts";
 import { Link } from "./link.ts";
-import { DEFAULT_GATE_THRESHOLD, DEFAULT_READ_THRESHOLD, REFLEX_RATES, Reflexes, parseSpec, type ReadLedger } from "./reflex.ts";
+import { DEFAULT_GATE_THRESHOLD, DEFAULT_READ_THRESHOLD, DEFAULT_REFLEX_RATE, REFLEX_RATES, Reflexes, parseSpec, type ReadLedger } from "./reflex.ts";
 import { BattleLog, battleId } from "./log.ts";
 import type { Mode } from "./types.ts";
 import { ProviderClient, REPO_ROOT, splitSpec, type Effort } from "./models.ts";
@@ -69,7 +69,7 @@ export function parseCli(argv: string[]): Args {
   if (!(WINDOWS as readonly string[]).includes(window)) throw new Error(`--window must be one of ${WINDOWS.join(", ")}`);
   const graphics = get("graphics", "high")!;
   if (!(GRAPHICS as readonly string[]).includes(graphics)) throw new Error(`--graphics must be one of ${GRAPHICS.join(", ")}`);
-  const reflexRate = Number(get("reflex-rate", "4"));
+  const reflexRate = Number(get("reflex-rate", String(DEFAULT_REFLEX_RATE)));
   if (!(REFLEX_RATES as readonly number[]).includes(reflexRate)) throw new Error(`--reflex-rate must be one of ${REFLEX_RATES.join(", ")}`);
   const threshold = (name: string, fallback: string) => {
     const v = Number(get(name, fallback));

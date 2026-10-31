@@ -33,6 +33,8 @@ export const JEV_HOST = (() => {
   }
 })();
 const TIMEOUT_MS = 2500;
+/** Events since the brain's last turn that the state block carries (the newest); every tick resends them. */
+export const MAX_STATE_EVENTS = 8;
 
 export type JevQuestion = { type: "noul"; instructions: string } | { type: "choice"; instructions: string; criteria: Record<string, string> } | { type: "score"; instructions: string; criteria: string[] };
 
@@ -145,7 +147,7 @@ export function jevQuestions(side: Side, hello: Hello): Record<string, JevQuesti
   const me = hello[side];
   const them = hello[other(side)];
   const q: Record<string, JevQuestion> = {};
-  const knob = (what: string): JevQuestion => ({ type: "score", instructions: `${what} Judge it from the fight state, what the opponent keeps doing, and the coach's baseline plan and standing orders when there are any.`, criteria: LEVELS });
+  const knob = (what: string): JevQuestion => ({ type: "score", instructions: what, criteria: LEVELS });
   q.aggression = knob(`How often ${me.name} should attack rather than wait right now.`);
   q.block = knob(`How much ${me.name} should block attacks it sees coming right now: high against an opponent who keeps landing hits, low against one who whiffs and leaves openings.`);
   q.punish = knob(`How much ${me.name} should punish whiffed or blocked attacks right now: high when the opponent keeps whiffing heavy moves.`);
@@ -187,9 +189,10 @@ export function jevState(side: Side, hello: Hello, state: State | null, events: 
     .join(", ");
   const lines = [
     `Fighter: ${me.name}${me.archetype ? ` (${me.archetype})` : ""}. Opponent: ${them.name}${them.archetype ? ` (${them.archetype})` : ""}; their specials: ${specials || "none"}.`,
-    buildTurnMessage(side, state, events, baseline, []).replace(/\nAdjust the plan with the tools\.$/, ""),
+    buildTurnMessage(side, state, events.slice(-MAX_STATE_EVENTS), baseline, []).replace(/\nAdjust the plan with the tools\.$/, ""),
     `Coach's baseline plan: ${planText(baseline)}.`,
     `Coach's standing orders: ${orders?.trim() || "none yet"}.`,
+    "Judge every answer from this state, what the opponent keeps doing, and the coach's baseline and orders.",
   ];
   return lines.join("\n");
 }

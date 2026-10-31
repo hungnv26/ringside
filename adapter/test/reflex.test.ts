@@ -19,7 +19,7 @@ function brain(over: Partial<{ plan: Record<string, unknown>; orders: string | n
 }
 
 function reflexes(link: FakeLink, clock: FakeClock, client: ReflexClient = new FakeJevClient(), opts: Record<string, unknown> = {}): Reflexes {
-  return new Reflexes("p1", "jev:fake", client, link, hello, null, { now: clock.now, ...opts });
+  return new Reflexes("p1", "jev:fake", client, link, hello, null, { now: clock.now, hz: 4, ...opts }); // 4 Hz: these tests tick on every frame
 }
 
 const plans = (link: FakeLink) => link.sent.filter((f): f is PlanFrame => f.type === "plan");
@@ -238,7 +238,7 @@ test("the budget, errors and the log", async () => {
   const dear: ReflexClient = { decide: async (spec, s, q) => ({ ...(await new FakeJevClient().decide(spec, s, q)), usd: 0.01 }) };
   const dir = mkdtempSync(join(tmpdir(), "ringside-reflex-"));
   const log = BattleLog.at(join(dir, "match"));
-  const r = new Reflexes("p1", "jev:fake", dear, link, hello, log, { now: clock.now, capUsd: 0.015 });
+  const r = new Reflexes("p1", "jev:fake", dear, link, hello, log, { now: clock.now, hz: 4, capUsd: 0.015 });
   link.feedEvent("round_start", { round: 1 });
   link.feedState(state());
   await settle();

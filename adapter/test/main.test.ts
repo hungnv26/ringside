@@ -38,13 +38,13 @@ test("the CLI knows the reflexes: the +jev suffix, jev:jev alone, the rate and t
   assert.equal(a.sides.p1.spec, "anthropic:claude-opus-5-5+jev");
   assert.equal(a.sides.p2.spec, "jev:jev");
   assert.equal(a.cadence, 6000, "a brain with reflexes turns every 6 s unless told otherwise");
-  assert.equal(a.reflexRate, 4);
+  assert.equal(a.reflexRate, 2, "two ticks a second by default");
   assert.equal(a.readThreshold, 0.6);
   assert.equal(a.gateThreshold, 0.7);
   assert.equal(parseCli(["--p1", "jin=fake:coach+jev", "--cadence", "3000"]).cadence, 3000);
   assert.equal(parseCli(["--p1", "jin=jev:fake"]).cadence, 2000, "reflexes alone: the cadence is nobody's");
-  const b = parseCli(["--reflex-rate", "2", "--read-threshold", "0.75", "--gate-threshold", "0.5"]);
-  assert.equal(b.reflexRate, 2);
+  const b = parseCli(["--reflex-rate", "4", "--read-threshold", "0.75", "--gate-threshold", "0.5"]);
+  assert.equal(b.reflexRate, 4);
   assert.equal(b.readThreshold, 0.75);
   assert.equal(b.gateThreshold, 0.5);
   assert.throws(() => parseCli(["--reflex-rate", "3"]), /--reflex-rate/);

@@ -64,6 +64,8 @@ export interface ReflexOptions {
 
 /** Reflex ticks a second the CLI and the setup page offer. */
 export const REFLEX_RATES = [2, 4] as const;
+/** Two ticks a second by default: Jev answers in about 280 ms, so 4 Hz skips a third of its ticks and costs twice as much for little gain (docs/jev-plan.md, 2026-10-31). */
+export const DEFAULT_REFLEX_RATE = 2;
 export const DEFAULT_READ_THRESHOLD = 0.6;
 export const DEFAULT_GATE_THRESHOLD = 0.7;
 
@@ -132,7 +134,7 @@ export class Reflexes {
     this.hello = hello;
     this.log = log;
     this.coach = opts.coach ?? null;
-    this.minIntervalMs = Math.round(1000 / Math.max(1, Math.min(4, opts.hz ?? 4))) - 20; // a little under: frames are 250 ms apart
+    this.minIntervalMs = Math.round(1000 / Math.max(1, Math.min(4, opts.hz ?? DEFAULT_REFLEX_RATE))) - 20; // a little under: frames are 250 ms apart
     this.readThreshold = opts.readThreshold ?? DEFAULT_READ_THRESHOLD;
     this.gateThreshold = opts.gateThreshold ?? DEFAULT_GATE_THRESHOLD;
     this.gateCooldownMs = opts.gateCooldownMs ?? 4000;

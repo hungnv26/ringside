@@ -56,8 +56,8 @@ key in the same file and set `JEV_URL=https://api.typesafe.ai/v1/systemone`. The
 follows the endpoint (`typesafe-jev-1.13.0` on DigitalOcean, `jev-latest` on TypeSafe) unless
 `$JEV_MODEL` names one. It is not
 OpenAI-compatible, so `src/jev.ts` has its own client, the question set and the state block
-(about 1.3K tokens a tick; input $0.042 per million, output free: a three-round match at 4 Hz
-costs about eight cents). `node src/probe.ts` replays the logged turns of past matches through
+(about 1.6K tokens a tick; input $0.042 per million, output free: a three-round match at the
+default 2 Hz costs about a cent, 4 Hz twice that). `node src/probe.ts` replays the logged turns of past matches through
 Jev and scores its reads against what the opponent then did (precision per threshold, latency,
 gate rates): run it before trusting the reflexes on a new fighter or version.
 

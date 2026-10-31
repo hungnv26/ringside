@@ -297,7 +297,7 @@ async function init() {
     loadModels(side);
   }
   const rates = (setup.reflex && setup.reflex.rates) || [2, 4];
-  fill($("reflex-rate"), rates.map((r) => ({ value: String(r), label: `${r} (${r === 4 ? "every state frame" : "every other frame"})` })), String(last.reflexRate || setup.defaults.reflexRate || 4));
+  fill($("reflex-rate"), rates.map((r) => ({ value: String(r), label: `${r} (${r === 4 ? "every state frame" : "every other frame"})` })), String(last.reflexRate || setup.defaults.reflexRate || 2));
   $("read-threshold").value = last.readThreshold ?? setup.defaults.readThreshold ?? 0.6;
   $("gate-threshold").value = last.gateThreshold ?? setup.defaults.gateThreshold ?? 0.7;
   fill($("stage"), setup.stages.map((s) => ({ value: s.id, label: s.name })), last.stage);

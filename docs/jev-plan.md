@@ -98,8 +98,8 @@ noise, stop at a Jev-only entrant for the Elo table and do not build the hybrid.
   and fed to Jev's state; `stats()` gains reflex counters (ticks, usd, reads, gates fired).
 - Game side: plan frames get an optional `source: "reflex"` so `coach_controller.gd` can draw a
   reflex chip (⚡) distinct from the brain's plan chips. No other GDScript change.
-- Budget: one cap per side covers both; Jev at 4 Hz for a three-round match is roughly 1,200
-  calls × 1.5K tokens ≈ $0.08.
+- Budget: one cap per side covers both; Jev at the default 2 Hz for a three-round match is
+  roughly 200 calls × 1.9K tokens ≈ $0.02 (the first live match measured $0.019 at 4 Hz).
 
 ### 3. Setup page, CLI, logs (one day)
 
@@ -172,6 +172,24 @@ and passes, narrowly (below). Still to do:
 3. The round robin: Haiku, Opus, `jev:jev`, `anthropic:claude-haiku-5-5+jev`,
    `anthropic:claude-opus-5-5+jev` on fixed seeds, two legs, with the read threshold at 0.7 and
    the gate threshold at 0.8 (the probe's numbers, not the defaults).
+
+### Token cuts (2026-10-31, after the first live match)
+
+The first live match (Jin Haiku against Kenji Haiku+jev, seed 12, Kenji 2–0) spent $0.019 on
+the reflexes against $0.008 on the brain: 212 ticks at about 2,600 tokens each, and a third of
+the 4 Hz ticks skipped because Jev's 286 ms answer was still in flight. Three cuts, all pushed:
+
+- The default rate is 2 Hz (`--reflex-rate 2`; 4 is still there). Halves the calls for little
+  loss: the brain turns every 6 s and the knobs move a quarter step at a time anyway.
+- The state block carries only the newest 8 events since the brain's last turn; the full list
+  grew for seconds and every tick resent it.
+- The five knob questions lost their repeated judging sentence; one line at the end of the
+  state says it once. The questions are still four fifths of a call (about 850 tokens by
+  character count): Jev needs its criteria spelled out, so they stay.
+
+Re-probe with the trimmed text: 1,870 input tokens a call (from 1,979; the probe's states were
+short already), precision 41% at 0.6 and 45% at 0.7 (from 39% and 44%), latency unchanged.
+Expected cost of a three-round match's reflexes: about $0.007 (from $0.019).
 
 ### Phase 0 with Jev (2026-10-31, model jev-1.14.0 through TypeSafe)
 

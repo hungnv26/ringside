@@ -11,7 +11,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { JEV_HOST, JEV_MODEL } from "./jev.ts";
 import { keyStatus, listModels, modelPrices, PROVIDERS, REFLEX_PROVIDER, REPO_ROOT, saveKey, splitSpec, type Effort } from "./models.ts";
-import { DEFAULT_GATE_THRESHOLD, DEFAULT_READ_THRESHOLD, parseSpec, REFLEX_RATES } from "./reflex.ts";
+import { DEFAULT_GATE_THRESHOLD, DEFAULT_READ_THRESHOLD, DEFAULT_REFLEX_RATE, parseSpec, REFLEX_RATES } from "./reflex.ts";
 import { MAX_ENTRANTS, ROTATE, TournamentRunner, type Entrant, type TournamentRequest } from "./tournament.ts";
 import type { Mode } from "./types.ts";
 
@@ -202,7 +202,7 @@ function validateSettings(raw: any) {
   const graphics = String(raw?.graphics ?? "high");
   if (!GRAPHICS.includes(graphics)) throw new Error(`graphics must be one of ${GRAPHICS.join(", ")}`);
   const seed = raw?.seed === undefined || raw?.seed === null || raw?.seed === "" ? null : Math.floor(num("seed", 0, 0, 2 ** 31 - 1));
-  const reflexRate = num("reflexRate", 4, 2, 4);
+  const reflexRate = num("reflexRate", DEFAULT_REFLEX_RATE, 2, 4);
   if (!(REFLEX_RATES as readonly number[]).includes(reflexRate)) throw new Error(`reflexRate must be one of ${REFLEX_RATES.join(", ")}`);
   return { seed, cap: num("cap", 1, 0, 50), cadence: Math.floor(num("cadence", 2000, 500, 30000)), effort, capture: !!raw?.capture, record: !!raw?.record, mode, window, graphics, reflexRate, readThreshold: num("readThreshold", DEFAULT_READ_THRESHOLD, 0.3, 0.95), gateThreshold: num("gateThreshold", DEFAULT_GATE_THRESHOLD, 0.3, 0.95) };
 }
@@ -390,7 +390,7 @@ export function createSetupServer(runner = new Runner(), root = REPO_ROOT, fetch
             { id: "coach", name: "Coach", blurb: "the model adjusts its fighter's plan every couple of seconds" },
             { id: "script", name: "Self-coding", blurb: "the model writes rules before the match and rewrites them after every round; no calls during a round" },
           ],
-          defaults: { p1: { fighter: "jin", spec: "anthropic:claude-haiku-5-5" }, p2: { fighter: "kenji", spec: "openai:gpt-5.4-mini" }, stage: "rooftop", cap: 1, cadence: 2000, effort: "low", window: "1080p", graphics: "high", reflexRate: 4, readThreshold: DEFAULT_READ_THRESHOLD, gateThreshold: DEFAULT_GATE_THRESHOLD },
+          defaults: { p1: { fighter: "jin", spec: "anthropic:claude-haiku-5-5" }, p2: { fighter: "kenji", spec: "openai:gpt-5.4-mini" }, stage: "rooftop", cap: 1, cadence: 2000, effort: "low", window: "1080p", graphics: "high", reflexRate: DEFAULT_REFLEX_RATE, readThreshold: DEFAULT_READ_THRESHOLD, gateThreshold: DEFAULT_GATE_THRESHOLD },
           tournament: { maxEntrants: MAX_ENTRANTS, rotate: ROTATE },
           running: runner.running,
         });
